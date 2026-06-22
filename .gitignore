@@ -1,0 +1,7 @@
+node_modules
+dist
+.qa-dist
+.npm-cache
+.env
+.env.local
+*.log

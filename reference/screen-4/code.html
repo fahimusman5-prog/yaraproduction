@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>YARA | Shop Our Rituals</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:ital,wght@0,700;1,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "primary-fixed": "#f4dce4",
+                "on-primary": "#ffffff",
+                "on-secondary": "#ffffff",
+                "surface-container-highest": "#e4e2e1",
+                "on-background": "#1b1c1c",
+                "on-tertiary-fixed": "#241a00",
+                "on-primary-fixed-variant": "#524249",
+                "error-container": "#ffdad6",
+                "secondary": "#ab2c5d",
+                "secondary-fixed": "#ffd9e1",
+                "on-surface-variant": "#4d4447",
+                "on-tertiary-container": "#806600",
+                "on-surface": "#1b1c1c",
+                "primary": "#6b5a60",
+                "secondary-fixed-dim": "#ffb1c5",
+                "tertiary": "#735c00",
+                "on-error-container": "#93000a",
+                "outline-variant": "#d0c3c7",
+                "inverse-primary": "#d7c1c8",
+                "on-secondary-fixed": "#3f001b",
+                "surface": "#fbf9f8",
+                "surface-container": "#f0eded",
+                "on-tertiary-fixed-variant": "#574500",
+                "inverse-surface": "#303030",
+                "primary-fixed-dim": "#d7c1c8",
+                "inverse-on-surface": "#f3f0f0",
+                "on-secondary-fixed-variant": "#8b0e45",
+                "surface-dim": "#dcd9d9",
+                "surface-tint": "#6b5a60",
+                "on-tertiary": "#ffffff",
+                "on-primary-fixed": "#25181e",
+                "tertiary-fixed": "#ffe088",
+                "error": "#ba1a1a",
+                "surface-container-lowest": "#ffffff",
+                "background": "#fbf9f8",
+                "outline": "#7f7478",
+                "surface-container-high": "#eae8e7",
+                "on-primary-container": "#76646b",
+                "tertiary-fixed-dim": "#e9c349",
+                "on-secondary-container": "#6e0034",
+                "surface-bright": "#fbf9f8",
+                "secondary-container": "#fd6c9c",
+                "primary-container": "#fce4ec",
+                "surface-container-low": "#f6f3f2",
+                "on-error": "#ffffff",
+                "tertiary-container": "#ffe8ad",
+                "surface-variant": "#e4e2e1"
+            },
+            "borderRadius": {
+                "DEFAULT": "1rem",
+                "lg": "2rem",
+                "xl": "3rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "base": "8px",
+                "gutter": "24px",
+                "margin-mobile": "20px",
+                "container-max": "1280px",
+                "margin-desktop": "60px"
+            },
+            "fontFamily": {
+                "button": ["Montserrat"],
+                "headline-lg": ["Playfair Display"],
+                "body-lg": ["Montserrat"],
+                "body-md": ["Montserrat"],
+                "display-lg": ["Playfair Display"],
+                "headline-md": ["Playfair Display"],
+                "label-md": ["Montserrat"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 30px rgba(240, 98, 146, 0.08);
+        }
+        .gold-border {
+            border: 1px solid #D4AF37;
+        }
+        .metallic-shimmer {
+            background: linear-gradient(45deg, #ab2c5d 0%, #fd6c9c 50%, #ab2c5d 100%);
+            background-size: 200% auto;
+            transition: 0.5s;
+        }
+        .metallic-shimmer:hover {
+            background-position: right center;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #ab2c5d;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-secondary-fixed selection:text-on-secondary-fixed-variant">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 w-full z-50 bg-surface/60 backdrop-blur-xl border-b border-white/20 shadow-[0_4px_30px_rgba(240,98,146,0.08)]">
+<div class="flex justify-between items-center px-margin-desktop py-4 w-full max-w-container-max mx-auto">
+<div class="flex items-center gap-12">
+<a class="font-headline-lg text-headline-lg text-secondary italic" href="#">YARA</a>
+<div class="hidden md:flex gap-8">
+<a class="font-button text-button uppercase tracking-widest text-secondary border-b-2 border-secondary pb-1" href="#">Shop</a>
+<a class="font-button text-button uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="#">Rituals</a>
+<a class="font-button text-button uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="#">Ingredients</a>
+<a class="font-button text-button uppercase tracking-widest text-on-surface-variant hover:text-secondary transition-colors" href="#">About</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex items-center bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant/30">
+<span class="material-symbols-outlined text-outline">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-label-md ml-2 w-48" placeholder="Search Rituals..." type="text"/>
+</div>
+<span class="material-symbols-outlined text-primary cursor-pointer transition-transform active:scale-95 hover:text-secondary">person</span>
+<span class="material-symbols-outlined text-primary cursor-pointer transition-transform active:scale-95 hover:text-secondary">favorite</span>
+<div class="relative cursor-pointer transition-transform active:scale-95 group">
+<span class="material-symbols-outlined text-primary group-hover:text-secondary">shopping_bag</span>
+<span class="absolute -top-1 -right-1 bg-secondary text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">2</span>
+</div>
+</div>
+</div>
+</nav>
+<main class="pt-32 pb-24 max-w-container-max mx-auto px-margin-desktop">
+<!-- Hero Section -->
+<section class="mb-20 text-center">
+<h1 class="font-display-lg text-display-lg text-primary mb-4">Elevate Your Ritual</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">Scientifically advanced formulas meets soul-nurturing luxury. Discover our curated collection of botanical excellence.</p>
+</section>
+<!-- Product Explorer Layout -->
+<div class="flex flex-col lg:flex-row gap-gutter">
+<!-- Sidebar Filters (Web Only) -->
+<aside class="hidden lg:block w-64 flex-shrink-0 space-y-10">
+<div>
+<h3 class="font-button text-button uppercase tracking-widest text-secondary mb-6">Category</h3>
+<div class="space-y-3">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Skincare</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Haircare</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Body Rituals</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="font-button text-button uppercase tracking-widest text-secondary mb-6">Skin Concern</h3>
+<div class="space-y-3">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Brightening</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Anti-Aging</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Hydration</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-secondary text-secondary focus:ring-secondary/20 h-5 w-5" type="checkbox"/>
+<span class="font-label-md text-label-md text-on-surface-variant group-hover:text-secondary transition-colors">Sensitivity</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="font-button text-button uppercase tracking-widest text-secondary mb-6">Price Range</h3>
+<div class="px-2">
+<input class="w-full h-1 bg-primary-container rounded-lg appearance-none cursor-pointer accent-secondary" type="range"/>
+<div class="flex justify-between mt-4 font-label-md text-label-md text-on-surface-variant">
+<span>$25</span>
+<span>$250+</span>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-outline-variant">
+<div class="p-6 bg-primary-container rounded-lg">
+<p class="font-label-md text-label-md text-on-primary-container mb-4">Join the Inner Circle for early access to rituals.</p>
+<button class="w-full bg-secondary text-white font-button text-button uppercase py-3 px-4 rounded-full metallic-shimmer">Subscribe</button>
+</div>
+</div>
+</aside>
+<!-- Product Display Area -->
+<div class="flex-grow">
+<!-- Sorting Bar -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 glass-card p-4 rounded-xl">
+<p class="font-label-md text-label-md text-on-surface-variant italic">Showing 6 essential rituals</p>
+<div class="flex items-center gap-4 w-full md:w-auto">
+<select class="bg-transparent border-none text-label-md focus:ring-0 cursor-pointer text-on-surface-variant hover:text-secondary">
+<option>Sort by: Recommended</option>
+<option>Price: Low to High</option>
+<option>Price: High to Low</option>
+<option>Best Selling</option>
+</select>
+</div>
+</div>
+<!-- Product Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter">
+<!-- Card 1: Saffron Face Wash -->
+<div class="group glass-card rounded-lg overflow-hidden flex flex-col hover:translate-y-[-8px] transition-all duration-500 relative">
+<div class="absolute top-4 right-4 z-10">
+<button class="bg-white/80 p-2 rounded-full shadow-sm hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<div class="relative aspect-square overflow-hidden bg-primary-container/30">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A minimalist product shot of a premium glass bottle containing a golden-hued Saffron Face Wash. The bottle sits on a reflective marble surface surrounded by delicate saffron threads and soft-focus rose petals. The lighting is ethereal and high-key, emphasizing the luxury skincare aesthetic with a warm, rosy color palette." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBsAMfCQdiSxS2TsYMKMqfI-0LEVWMnMT6kXEADQBDKcucJWbD3H601jqKlDSC0JOnedvkOFpxFdlvo-YROEpUB3SCNfoW--NGt5B09Vl72ZxUyNxqrmopVmwch1Hq3LHbH_1HSsdrljjOhjkLEunOEKCrnQRAVA9U9XGeIjT54CPqv5E9TlFI277Q4rhKyd2m22RWRgxM3Fxh9pdmzVdHONNMvGBs3bkMFmsg_Onge51slr7tjb-eS1XBp8mG48Jmq0DbWtpNYQFlb')">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-secondary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<button class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-secondary text-white font-button text-[14px] uppercase px-8 py-3 rounded-full shadow-xl metallic-shimmer">
+                                Quick Add
+                            </button>
+</div>
+<div class="p-6 flex flex-col flex-grow border-t border-white/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Vegan</span>
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Award Winner</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Saffron Face Wash</h3>
+<p class="text-label-md text-on-surface-variant mb-4">Illuminating Cleansing Ritual</p>
+<div class="mt-auto flex justify-between items-center">
+<span class="font-headline-md text-headline-md text-secondary">$54.00</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold text-on-surface-variant">4.9 (120)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 2: Night Cream -->
+<div class="group glass-card rounded-lg overflow-hidden flex flex-col hover:translate-y-[-8px] transition-all duration-500 relative">
+<div class="absolute top-4 right-4 z-10">
+<button class="bg-white/80 p-2 rounded-full shadow-sm hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<div class="relative aspect-square overflow-hidden bg-primary-container/30">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A sophisticated dark jar of overnight night cream resting on a bed of crushed silk. The lighting is moody and dramatic with soft rose-gold highlights hitting the edges of the frosted glass container. Wisps of calming lavender and rose petals are artfully arranged in a minimalist, high-end skincare catalog style." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDKAJcLeXMzPR9iJxRCvHZSU9Pm5DVzW2fsLlYqgIQigQncnTy04gLxPlwysyPuAmILb92F1w_4n0MDa8U9tYMhsFtvp_oRmybWBv2D41FSwaWorS-gsnQQgxNIIuhQFIm3Ytywy4LkKsaE6CFpgJkGQUcPuD3YxhYFLTHpKpv8QR4ifIsPIILlYpmdqb9dbQgW4jXWq1op4G9w6NVNdwicxvpnQCV-IulmEeOb52doYmbS103qVD7RIgJIOrl-XKJLyUq4Rivegst2')">
+</div>
+<button class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-secondary text-white font-button text-[14px] uppercase px-8 py-3 rounded-full shadow-xl metallic-shimmer">
+                                Quick Add
+                            </button>
+</div>
+<div class="p-6 flex flex-col flex-grow border-t border-white/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Anti-Aging</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Night Cream</h3>
+<p class="text-label-md text-on-surface-variant mb-4">Cellular Renewal Complex</p>
+<div class="mt-auto flex justify-between items-center">
+<span class="font-headline-md text-headline-md text-secondary">$82.00</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold text-on-surface-variant">5.0 (84)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 3: Alpha Arbutin Serum -->
+<div class="group glass-card rounded-lg overflow-hidden flex flex-col hover:translate-y-[-8px] transition-all duration-500 relative">
+<div class="absolute top-4 right-4 z-10">
+<button class="bg-white/80 p-2 rounded-full shadow-sm hover:text-secondary transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<div class="relative aspect-square overflow-hidden bg-primary-container/30">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A clear glass dropper bottle containing a shimmering Alpha Arbutin Serum. The serum catches the light, creating rainbow prism effects on a clean ivory backdrop. Minimalist architectural shapes and soft shadows give the composition a science-meets-beauty professional aesthetic. The colors are dominated by soft pinks and golds." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA6xG0dS7TRmzdRu7t_Eh0V8KC3HUHLbc5N_WBnZ1Jhk-QBhgyUkgYeNBmnes0I53edXDjO6Cczri2mBaiXSyTn0CyGJe6OPyMTk9_Jbz-54Qo5ioyWrKJdwlvOkSM-TXCaqnP4EiR04EI66BgbfPryKZMIcpGic_TFQrYluiD8qZkuwkvrb-lUBA2BY-4YzKBgX5getf92f2sFaxSUKB3xV5oeam5HGzcuOirZ1hjPi-VJTs0RAuE8pGCmnRmcEUmW-qZKCoHwFSmb')">
+</div>
+<button class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-secondary text-white font-button text-[14px] uppercase px-8 py-3 rounded-full shadow-xl metallic-shimmer">
+                                Quick Add
+                            </button>
+</div>
+<div class="p-6 flex flex-col flex-grow border-t border-white/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Brightening</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Alpha Arbutin Serum</h3>
+<p class="text-label-md text-on-surface-variant mb-4">Spot Correcting Elixir</p>
+<div class="mt-auto flex justify-between items-center">
+<span class="font-headline-md text-headline-md text-secondary">$65.00</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold text-on-surface-variant">4.8 (215)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 4: VIP Body Lotion -->
+<div class="group glass-card rounded-lg overflow-hidden flex flex-col hover:translate-y-[-8px] transition-all duration-500 relative">
+<div class="relative aspect-square overflow-hidden bg-primary-container/30">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A tall, elegant pump dispenser for VIP Body Lotion set against a soft sunrise background. The bottle reflects warm morning light, standing on a textured stone surface with small water droplets around it to signify hydration. Modern romantic aesthetic with premium rose-pink tones and golden metallic accents." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA1iWo2rhgBU9_gtXesYV0-I0xBjdgNTImsTaBnBQKy58W8QIDV27FMnASYF530jJbGJICzEfVRqwGmpj9b73_2uJpO70inFcU-HsmOXziKhpRrffpfU0MVY5dHgH2XvywBcsTTZUD4luPocFrxnDF_RdWLNPvGjXyqaQPSPhw1c8C60nUgbi-VBboolaqK--D_fuWfgyFknAFcFO30A38adCnaaDocbEb8Y8TXMNxgh7U_STNb2uAaxmjifk63iWxtzC0H_PhIsKSS')">
+</div>
+<button class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-secondary text-white font-button text-[14px] uppercase px-8 py-3 rounded-full shadow-xl metallic-shimmer">
+                                Quick Add
+                            </button>
+</div>
+<div class="p-6 flex flex-col flex-grow border-t border-white/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Hydration</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">VIP Body Lotion</h3>
+<p class="text-label-md text-on-surface-variant mb-4">Velvet Skin Perfection</p>
+<div class="mt-auto flex justify-between items-center">
+<span class="font-headline-md text-headline-md text-secondary">$48.00</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold text-on-surface-variant">4.9 (56)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 5: Hair Oil -->
+<div class="group glass-card rounded-lg overflow-hidden flex flex-col hover:translate-y-[-8px] transition-all duration-500 relative">
+<div class="relative aspect-square overflow-hidden bg-primary-container/30">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="A small amber glass bottle of hair oil surrounded by botanical elements like rosemary sprigs and argan nuts. The setting is a bright, sunlit apothecary window sill. The oil inside has a warm golden glow. The image uses a clean, high-contrast style with vibrant pink and deep gold highlights." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBFzCFNRbZhrXl4v-YDJlxMEkEaMHfmAoIhUw3uZc13hI5FikEHeFba9Td0el9x5anmO5lYt0yUiiP67akLR_HGmbHdCRLx_W4HRuMk8fKzas8I3565EqLIShHW35Czm07YQ2w3YbipwTOWqCUfEzHbjm3qK_tHFO7m2lOhTGpc1iruDwkR2l2XvrDkP0jJektRktTFhRghPm38Hvt9DqAyFhGMxWIDyWgkWVxtoPbHLGx_89MVSRvBn-XuHoQKNId-vK9ZZbWj5hqF')">
+</div>
+<button class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-secondary text-white font-button text-[14px] uppercase px-8 py-3 rounded-full shadow-xl metallic-shimmer">
+                                Quick Add
+                            </button>
+</div>
+<div class="p-6 flex flex-col flex-grow border-t border-white/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Repair</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Hair Oil</h3>
+<p class="text-label-md text-on-surface-variant mb-4">Liquid Silk Therapy</p>
+<div class="mt-auto flex justify-between items-center">
+<span class="font-headline-md text-headline-md text-secondary">$39.00</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold text-on-surface-variant">4.7 (102)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 6: Lash & Brow Conditioning Oil -->
+<div class="group glass-card rounded-lg overflow-hidden flex flex-col hover:translate-y-[-8px] transition-all duration-500 relative">
+<div class="relative aspect-square overflow-hidden bg-primary-container/30">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="An extreme close-up of a delicate lash and brow oil bottle with a rose-gold wand. The background is a soft-focus garden of pink peonies. The lighting is gentle and diffused, creating a dreamy, romantic atmosphere. Every detail of the elegant gold cap and the clear liquid is sharp and luxurious." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDzVB_C5eSfGEiz2Sn78O-Osu68LKjXqyAW2qoIgOc8v4-Npca5owY3eKXcTZfYdjnbhB3SW1sGYdFaJjW-2TOIj0urzVB6Smjh5hFvJa1NleI0702QShabc9NNp-Ex5OnX48VQK4hwniVWqkRunt147r51zPhx9q38ljyxuECAJ0jP2Pe2ux2oEBXAofrp3vC9g8UT0-FYF30jDMWJQ7KoKfhrHsYkXJJVPXSKVXvb8rQEkHOUSblgf45LTZDRVRmw_c-YCowe16Db')">
+</div>
+<button class="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 bg-secondary text-white font-button text-[14px] uppercase px-8 py-3 rounded-full shadow-xl metallic-shimmer">
+                                Quick Add
+                            </button>
+</div>
+<div class="p-6 flex flex-col flex-grow border-t border-white/20">
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 rounded-full border border-[#D4AF37] text-[10px] font-label-md text-tertiary uppercase tracking-wider">Natural</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Lash &amp; Brow Conditioning Oil</h3>
+<p class="text-label-md text-on-surface-variant mb-4">Follicle Fortifying Treatment</p>
+<div class="mt-auto flex justify-between items-center">
+<span class="font-headline-md text-headline-md text-secondary">$32.00</span>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[12px] font-bold text-on-surface-variant">4.9 (42)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="mt-16 flex justify-center items-center gap-4">
+<button class="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-secondary hover:text-white transition-colors group">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<span class="font-button text-button text-secondary px-4">1</span>
+<button class="font-button text-button text-on-surface-variant hover:text-secondary px-4 transition-colors">2</button>
+<button class="font-button text-button text-on-surface-variant hover:text-secondary px-4 transition-colors">3</button>
+<button class="w-10 h-10 rounded-full border border-outline-variant flex items-center justify-center hover:bg-secondary hover:text-white transition-colors group">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full rounded-t-lg bg-gradient-to-b from-primary-container to-surface-container-low">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter px-margin-desktop py-20 w-full max-w-container-max mx-auto">
+<div class="space-y-6">
+<h2 class="font-headline-md text-headline-md text-secondary">YARA</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Crafting rituals that celebrate the bridge between science and self-love.</p>
+<div class="flex gap-4">
+<a class="text-secondary hover:translate-y-[-2px] transition-transform" href="#">
+<span class="material-symbols-outlined">public</span>
+</a>
+<a class="text-secondary hover:translate-y-[-2px] transition-transform" href="#">
+<span class="material-symbols-outlined">alternate_email</span>
+</a>
+</div>
+</div>
+<div class="space-y-4">
+<h4 class="font-button text-button uppercase text-on-primary-container">Customer Care</h4>
+<ul class="space-y-2">
+<li><a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary hover:translate-x-1 transition-all inline-block" href="#">Contact Us</a></li>
+<li><a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary hover:translate-x-1 transition-all inline-block" href="#">Shipping Policy</a></li>
+<li><a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary hover:translate-x-1 transition-all inline-block" href="#">Privacy Policy</a></li>
+<li><a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary hover:translate-x-1 transition-all inline-block" href="#">Terms of Service</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="font-button text-button uppercase text-on-primary-container">Social</h4>
+<ul class="space-y-2">
+<li><a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary hover:translate-x-1 transition-all inline-block" href="#">Instagram</a></li>
+<li><a class="font-body-md text-body-md text-on-surface-variant hover:text-secondary hover:translate-x-1 transition-all inline-block" href="#">TikTok</a></li>
+</ul>
+</div>
+<div class="space-y-6">
+<h4 class="font-button text-button uppercase text-on-primary-container">Newsletter</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">10% off your first ritual when you join.</p>
+<div class="flex flex-col gap-3">
+<input class="bg-surface/50 border-white/30 rounded-full px-6 py-3 focus:ring-secondary focus:border-secondary transition-all" placeholder="Email Address" type="email"/>
+<button class="bg-secondary text-white font-button text-button uppercase py-3 rounded-full metallic-shimmer">Join</button>
+</div>
+</div>
+</div>
+<div class="border-t border-white/20 py-8 text-center px-margin-desktop">
+<p class="font-body-md text-body-md text-on-primary-container">© 2024 YARA Productions. All rights reserved.</p>
+</div>
+</footer>
+<!-- Mobile Navigation (Floating Bottom Bar) -->
+<div class="md:hidden fixed bottom-6 left-6 right-6 z-50 glass-card rounded-full px-8 py-4 flex justify-between items-center shadow-2xl">
+<span class="material-symbols-outlined text-on-surface-variant">home</span>
+<span class="material-symbols-outlined text-secondary font-bold">grid_view</span>
+<span class="material-symbols-outlined text-on-surface-variant">favorite</span>
+<span class="material-symbols-outlined text-on-surface-variant">person</span>
+</div>
+<script>
+        // Micro-interactions for filtering (visual only)
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                this.parentElement.classList.toggle('text-secondary');
+            });
+        });
+
+        // Sticky Header Effect
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 50) {
+                nav.classList.add('py-2');
+                nav.classList.remove('py-4');
+            } else {
+                nav.classList.add('py-4');
+                nav.classList.remove('py-2');
+            }
+        });
+    </script>
+</body></html>

@@ -1,0 +1,166 @@
+import type { Product } from "../types";
+
+const images = {
+  saffron: "https://lh3.googleusercontent.com/aida-public/AB6AXuBsAMfCQdiSxS2TsYMKMqfI-0LEVWMnMT6kXEADQBDKcucJWbD3H601jqKlDSC0JOnedvkOFpxFdlvo-YROEpUB3SCNfoW--NGt5B09Vl72ZxUyNxqrmopVmwch1Hq3LHbH_1HSsdrljjOhjkLEunOEKCrnQRAVA9U9XGeIjT54CPqv5E9TlFI277Q4rhKyd2m22RWRgxM3Fxh9pdmzVdHONNMvGBs3bkMFmsg_Onge51slr7tjb-eS1XBp8mG48Jmq0DbWtpNYQFlb",
+  saffronDetail: "https://lh3.googleusercontent.com/aida-public/AB6AXuA38MzX5J4Y7CRENf25XkqmaBOG7uyglQtJvNZGXBAAM854ccmmedOHQrs0PmUyDwOsXcNFieeZHXDlYxN8ibBxtZX3eM4cFMWBpvIqynLfgvvsWt2UwXvt9_r48RnNikbzyWjEdUV5XelQblLOXzyOwUBWxCrknIbb6Bt9H7Gs6pVqAXYGPjVZw0lsjYyC_RS6RiqkFMQ6wEFwzfjTSGJm6j-xpkAcl0buocJcISGpyNTNM4B87FGeyeRNlR6HLoGH7Z9ilCQKmReO",
+  saffronMacro: "https://lh3.googleusercontent.com/aida-public/AB6AXuDkrvzIrc5v07NLAB3WiWkDp9k6rhFn2WrKFz3tUSCvM9qnkV-jl3-cuxydTkQo1zPhzn8O96-ZtcSYxXzhdOYVaZ-NXmukr4DD2PgvoTVTN9EYgYfXRmcRSE6WVhJvpktX4b7gL6IPXEz4LHo3SqVBUBb7nZ8SVx-jZQQgXb-nFHz1sy6WibD55-Pma3jW3cR2akJCGHyvnnxFWNx8GsaL_bHInZaquLoOu1kterWSujqxfHxeyb0SfXbWSOHPImrImmguZ_fizDAD",
+  saffronRitual: "https://lh3.googleusercontent.com/aida-public/AB6AXuANrg0j4oOEfGhXbxyYLxPUDptvEQMvvzmAPmgU0nc1VoW_hujPWc8vIaWsZZ9SV2_t8WwuAUuYFWxDTXDjPi1mLA7MXJUB9V83J8QkEyRukCx4tK1M8b3-oWghewvKbAINnJtaw04U8knZdMMRcclcaTW0GquihIqfx1tY7f4XrvtRZwWOClcWrV4Fz5nVsla_JOzn39hTQCDUT0Hc7dbDApM_01E4XCj8vYx-1KJjWx-OkM2mfigilUJV53AG7xxq3pF8Piinv-jd",
+  night: "https://lh3.googleusercontent.com/aida-public/AB6AXuDKAJcLeXMzPR9iJxRCvHZSU9Pm5DVzW2fsLlYqgIQigQncnTy04gLxPlwysyPuAmILb92F1w_4n0MDa8U9tYMhsFtvp_oRmybWBv2D41FSwaWorS-gsnQQgxNIIuhQFIm3Ytywy4LkKsaE6CFpgJkGQUcPuD3YxhYFLTHpKpv8QR4ifIsPIILlYpmdqb9dbQgW4jXWq1op4G9w6NVNdwicxvpnQCV-IulmEeOb52doYmbS103qVD7RIgJIOrl-XKJLyUq4Rivegst2",
+  arbutin: "https://lh3.googleusercontent.com/aida-public/AB6AXuA6xG0dS7TRmzdRu7t_Eh0V8KC3HUHLbc5N_WBnZ1Jhk-QBhgyUkgYeNBmnes0I53edXDjO6Cczri2mBaiXSyTn0CyGJe6OPyMTk9_Jbz-54Qo5ioyWrKJdwlvOkSM-TXCaqnP4EiR04EI66BgbfPryKZMIcpGic_TFQrYluiD8qZkuwkvrb-lUBA2BY-4YzKBgX5getf92f2sFaxSUKB3xV5oeam5HGzcuOirZ1hjPi-VJTs0RAuE8pGCmnRmcEUmW-qZKCoHwFSmb",
+  body: "https://lh3.googleusercontent.com/aida-public/AB6AXuA1iWo2rhgBU9_gtXesYV0-I0xBjdgNTImsTaBnBQKy58W8QIDV27FMnASYF530jJbGJICzEfVRqwGmpj9b73_2uJpO70inFcU-HsmOXziKhpRrffpfU0MVY5dHgH2XvywBcsTTZUD4luPocFrxnDF_RdWLNPvGjXyqaQPSPhw1c8C60nUgbi-VBboolaqK--D_fuWfgyFknAFcFO30A38adCnaaDocbEb8Y8TXMNxgh7U_STNb2uAaxmjifk63iWxtzC0H_PhIsKSS",
+  hair: "https://lh3.googleusercontent.com/aida-public/AB6AXuBFzCFNRbZhrXl4v-YDJlxMEkEaMHfmAoIhUw3uZc13hI5FikEHeFba9Td0el9x5anmO5lYt0yUiiP67akLR_HGmbHdCRLx_W4HRuMk8fKzas8I3565EqLIShHW35Czm07YQ2w3YbipwTOWqCUfEzHbjm3qK_tHFO7m2lOhTGpc1iruDwkR2l2XvrDkP0jJektRktTFhRghPm38Hvt9DqAyFhGMxWIDyWgkWVxtoPbHLGx_89MVSRvBn-XuHoQKNId-vK9ZZbWj5hqF",
+  lash: "https://lh3.googleusercontent.com/aida-public/AB6AXuDzVB_C5eSfGEiz2Sn78O-Osu68LKjXqyAW2qoIgOc8v4-Npca5owY3eKXcTZfYdjnbhB3SW1sGYdFaJjW-2TOIj0urzVB6Smjh5hFvJa1NleI0702QShabc9NNp-Ex5OnX48VQK4hwniVWqkRunt147r51zPhx9q38ljyxuECAJ0jP2Pe2ux2oEBXAofrp3vC9g8UT0-FYF30jDMWJQ7KoKfhrHsYkXJJVPXSKVXvb8rQEkHOUSblgf45LTZDRVRmw_c-YCowe16Db",
+  rosehip: "https://lh3.googleusercontent.com/aida-public/AB6AXuDSh4r-GOuJezyzLLSMTIa1UO1Gj5GV0Kw-6htplPC4FiDvWRvPXNLBOmkIOUoOEB3ELVX0e0YzVTJElnF-uWIaUE5bqA850gV5svj_JBOdgLkPgmzJRhm6koSE6QRLHUNlPwuc7Y8janUarBmYlQPro5TwqaS56eCRYvkvaiFBoWJmi1ZR-Bj1lvqXwNaoj5GI-IAZJVZlXxKoQexZC6oSx0ifb4fopPOTfzK9-J2JfpcKbrPed-35EIi683BuAgPC6_3FZ6dxitH7",
+  mist: "https://lh3.googleusercontent.com/aida-public/AB6AXuCKQHFgQ7bcd-5BhhMOFQoy1cWtHv7qXnoLnOy2GJgnsRizkgPHOPnA1MBTJiaXxbEF7xIojArvyrmhr-FagXw-AxiF26GKwSMZ44c3h1n-YRrhBa8L1QOUTpBX_jo3T_hiUZign2hOVuGHKAkknZeVDVi_sKJBRDvH2H1FVH15lhbXeA6H1letsqo865NdJWcWScw3DMRWTI-zSrBitA4BoLoC_Rbj14jo3cZ9o8Yk1oYKn6U06mVSj3hEwZPPdquXhZe9cnLAa5qb",
+  collection: "https://lh3.googleusercontent.com/aida-public/AB6AXuBbKwQO1KYAuLenangCTekvTE4C-YT1W3jcbKC0WCk7TNQtqLvY81IqlNWI-wpWsnqBRDD74tW1Rwf5WXDgkTnziSGoa9tNijUCeFMwMpj9Ixvi7MmYOoX48-YkNyKv-GQDlfdOqFTIhkyQ3nQLXw8Inip6zY2cN2K7hJdmcZjEA27ejtGHJ7zTYrC-jshEsjKuwKaJhcPt0TrMxDbR3Oj7LqR6zR57J5IADmy9lRN0hPIp3xJRvfyaaA_ZvnZApM92TMBr35nJkoY7"
+};
+
+const shared = {
+  howToUse: "Apply to clean skin as part of your morning or evening ritual. Follow with moisturizer and SPF during the day.",
+  ingredients: "Botanical extracts, skin-identical hydrators, antioxidant complex, and YARA's gentle barrier-support blend. Vegan and cruelty-free."
+};
+
+export const products: Product[] = [
+  {
+    id: "saffron-face-wash",
+    name: "Saffron Face Wash",
+    subtitle: "Illuminating Cleansing Ritual",
+    price: 54,
+    category: "Skincare",
+    concern: "Brightening",
+    image: images.saffron,
+    gallery: [images.saffronDetail, images.saffronMacro, images.saffronRitual],
+    badge: "Award winner",
+    size: "100ml",
+    rating: 4.9,
+    reviews: 120,
+    description: "A transformative cleanser infused with hand-picked Kashmiri saffron and pure aloe vera. It removes daily impurities while preserving the skin's natural moisture barrier.",
+    benefits: ["Visibly brightens dull, tired skin", "Cleanses without stripping", "Calms redness and supports the skin barrier"],
+    ...shared
+  },
+  {
+    id: "night-repair-cream",
+    name: "Night Repair Cream",
+    subtitle: "Cellular Renewal Complex",
+    price: 82,
+    category: "Skincare",
+    concern: "Anti-Aging",
+    image: images.night,
+    badge: "Bestseller",
+    size: "50ml",
+    rating: 5,
+    reviews: 84,
+    description: "A rich overnight treatment with peptides and calming botanicals that cushions skin in moisture and supports its natural renewal cycle.",
+    benefits: ["Softens the look of fine lines", "Restores bounce overnight", "Deep, lasting hydration"],
+    ...shared
+  },
+  {
+    id: "alpha-arbutin-serum",
+    name: "Alpha Arbutin Serum",
+    subtitle: "Spot Correcting Elixir",
+    price: 65,
+    category: "Skincare",
+    concern: "Brightening",
+    image: images.arbutin,
+    badge: "Clinical favorite",
+    size: "30ml",
+    rating: 4.8,
+    reviews: 215,
+    description: "A precise daily serum created to visibly soften dark spots, uneven tone, and post-blemish marks without compromising sensitive skin.",
+    benefits: ["Targets uneven pigmentation", "Boosts visible radiance", "Layers easily under makeup and SPF"],
+    ...shared
+  },
+  {
+    id: "vip-body-lotion",
+    name: "VIP Body Lotion",
+    subtitle: "Velvet Skin Perfection",
+    price: 48,
+    category: "Body Rituals",
+    concern: "Hydration",
+    image: images.body,
+    size: "200ml",
+    rating: 4.9,
+    reviews: 56,
+    description: "A silk-finish body lotion with ceramides and floral oils that leaves skin supple, softly scented, and beautifully luminous.",
+    benefits: ["Long-lasting hydration", "Silky, non-greasy finish", "Supports smoother-looking skin"],
+    ...shared
+  },
+  {
+    id: "botanical-hair-oil",
+    name: "Botanical Hair Oil",
+    subtitle: "Liquid Silk Therapy",
+    price: 39,
+    category: "Haircare",
+    concern: "Repair",
+    image: images.hair,
+    size: "50ml",
+    rating: 4.7,
+    reviews: 102,
+    description: "A concentrated blend of argan, rosemary, and camellia oils that smooths dry ends and restores a glass-like sheen without heaviness.",
+    benefits: ["Tames frizz and flyaways", "Protects dry, fragile ends", "Adds weightless shine"],
+    ...shared
+  },
+  {
+    id: "lash-brow-oil",
+    name: "Lash & Brow Conditioning Oil",
+    subtitle: "Follicle Fortifying Treatment",
+    price: 32,
+    category: "Haircare",
+    concern: "Natural",
+    image: images.lash,
+    size: "10ml",
+    rating: 4.9,
+    reviews: 42,
+    description: "A gentle botanical conditioning oil designed to nourish delicate lashes and brows for a fuller, healthier-looking appearance.",
+    benefits: ["Conditions without irritation", "Easy precision applicator", "Supports soft, glossy hairs"],
+    ...shared
+  },
+  {
+    id: "rosehip-glow-serum",
+    name: "Rosehip Glow Serum",
+    subtitle: "Radiance Recovery Concentrate",
+    price: 32,
+    category: "Skincare",
+    concern: "Sensitivity",
+    image: images.rosehip,
+    size: "30ml",
+    rating: 4.8,
+    reviews: 73,
+    description: "A calming rosehip and squalane concentrate that replenishes stressed skin and returns a rested, lit-from-within glow.",
+    benefits: ["Replenishes essential lipids", "Comforts sensitive skin", "Promotes a luminous finish"],
+    ...shared
+  },
+  {
+    id: "jasmine-facial-mist",
+    name: "Jasmine Facial Mist",
+    subtitle: "Botanical Hydration Veil",
+    price: 18,
+    category: "Skincare",
+    concern: "Hydration",
+    image: images.mist,
+    size: "100ml",
+    rating: 4.7,
+    reviews: 64,
+    description: "A micro-fine jasmine and aloe mist that refreshes tired skin, softens makeup, and restores a fresh dewy finish throughout the day.",
+    benefits: ["Instantly refreshes", "Helps relieve tightness", "Creates a fresh, dewy finish"],
+    ...shared
+  },
+  {
+    id: "the-glow-collection",
+    name: "The Glow Collection",
+    subtitle: "Complete Five-Step Ritual",
+    price: 110,
+    category: "Gift Sets",
+    concern: "Brightening",
+    image: images.collection,
+    badge: "Gift-ready",
+    size: "5-piece set",
+    rating: 4.9,
+    reviews: 31,
+    description: "A gift-ready edit of YARA essentials designed to cleanse, treat, hydrate, and illuminate in one beautifully balanced ritual.",
+    benefits: ["A complete daily routine", "Beautifully boxed for gifting", "Exceptional set value"],
+    ...shared
+  }
+];
+
+export const getProduct = (id: string | undefined) => products.find((product) => product.id === id);

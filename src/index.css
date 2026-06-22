@@ -1,0 +1,84 @@
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-yara-rose/70;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply m-0 min-w-[320px] bg-yara-ivory font-sans text-yara-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-serif;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yara-wine focus-visible:ring-offset-2 focus-visible:ring-offset-yara-ivory;
+  }
+
+  img {
+    @apply block;
+  }
+
+  ::selection {
+    @apply bg-yara-rose text-yara-wine;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-[1440px] px-5 sm:px-8 lg:px-12;
+  }
+
+  .eyebrow {
+    @apply text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-yara-wine;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-yara-wine px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-white shadow-lg shadow-yara-wine/15 transition hover:-translate-y-0.5 hover:bg-[#98103f] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-yara-gold/80 bg-white/70 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-yara-ink transition hover:-translate-y-0.5 hover:bg-yara-blush;
+  }
+
+  .field {
+    @apply w-full rounded-full border border-transparent bg-[#f4eff0] px-5 py-3.5 text-sm text-yara-ink placeholder:text-yara-taupe/70 transition focus:border-yara-wine/30 focus:bg-white;
+  }
+
+  .field-label {
+    @apply mb-2 block text-[0.66rem] font-medium uppercase tracking-[0.13em] text-yara-taupe;
+  }
+
+  .surface-card {
+    @apply rounded-[2rem] bg-white shadow-card;
+  }
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+}
