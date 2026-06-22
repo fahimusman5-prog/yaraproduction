@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Check, Heart, ShoppingBag, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "../types";
-import { formatPrice } from "../lib/format";
+import { formatPrice, getProductPrice } from "../lib/format";
 import { useCart } from "../context/CartContext";
+import { useCountry } from "../context/CountryContext";
 
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
+  const { country } = useCountry();
   const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState(false);
 
@@ -41,7 +43,7 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="mt-1 text-xs font-light leading-5 text-yara-taupe">{product.subtitle}</p>
         </Link>
         <div className="mt-5 flex items-center justify-between gap-3">
-          <span className="font-serif text-lg font-semibold text-yara-wine">{formatPrice(product.price)}</span>
+          <span className="font-serif text-lg font-semibold text-yara-wine">{country && formatPrice(getProductPrice(product, country), country)}</span>
           <button onClick={handleAdd} className="grid h-10 w-10 place-items-center rounded-full bg-yara-wine text-white transition hover:scale-105" aria-label={`Add ${product.name} to cart`}>
             {added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
           </button>

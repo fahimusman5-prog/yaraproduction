@@ -17,11 +17,11 @@ export function LoginPage() {
         <div className="relative hidden min-h-[650px] overflow-hidden bg-yara-rose lg:block">
           <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzdwP72auqrJCI0EARy7mDDFYqNts1I9jX0nj0DITvpbaalqe5GSB1pVJkCMmAH7Q6MOjYQCjPvNkXbcQSSqPG254zrYjGY6CJIpABviZ3Q5_d2LTe6SaweblF1kITxtYi0MCeeURFsh-yb6sl-SC5yQJEhD4Jnr2s3WBIqElicaOTclqdEXBRneYsK2tJdfpROWBBdZ1MZe9rEqD9c4Exm5PzL07PqSuqcI4w1IcKdTgOKjbopRvoJktSqFBL-g7kCo87rwkXKEsk" alt="Woman with naturally radiant skin" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-yara-ink/65 via-transparent to-transparent" />
-          <div className="absolute bottom-0 p-10 text-white"><p className="eyebrow !text-yara-rose">Your ritual, remembered</p><h2 className="mt-4 text-4xl">Welcome back to your glow.</h2><p className="mt-4 text-sm font-light leading-7 text-white/80">Revisit your favorites, track orders, and make self-care beautifully simple.</p></div>
+          <div className="absolute bottom-0 p-10 text-white"><p className="eyebrow !text-yara-rose">Your favorites, remembered</p><h2 className="mt-4 text-4xl">Welcome back to your glow.</h2><p className="mt-4 text-sm font-light leading-7 text-white/80">Revisit your favorites, track orders, and make self-care beautifully simple.</p></div>
         </div>
         <div className="flex items-center p-7 sm:p-12 lg:p-16">
           <div className="w-full">
-            <p className="eyebrow">The YARA circle</p><h1 className="mt-3 text-4xl sm:text-5xl">Welcome Back</h1><p className="mt-4 text-sm font-light leading-7 text-yara-taupe">Sign in to continue your ritual.</p>
+            <p className="eyebrow">The YARA circle</p><h1 className="mt-3 text-4xl sm:text-5xl">Welcome Back</h1><p className="mt-4 text-sm font-light leading-7 text-yara-taupe">Sign in to continue shopping.</p>
             {submitted ? (
               <div className="mt-8 rounded-[1.7rem] bg-[#e9f8ee] p-6 text-sm leading-7 text-[#176b38]">Your sign-in request has been received. Connect this form to your preferred authentication service for live customer accounts.</div>
             ) : (

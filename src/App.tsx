@@ -9,8 +9,14 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProductPage } from "./pages/ProductPage";
 import { ShopPage } from "./pages/ShopPage";
+import { CountryProvider, useCountry } from "./context/CountryContext";
+import { CountryLanding } from "./components/CountryLanding";
+import { IngredientsPage } from "./pages/IngredientsPage";
 
-export default function App() {
+function CountryGatedSite() {
+  const { country } = useCountry();
+  if (!country) return <CountryLanding />;
+
   const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
 
   return (
@@ -20,6 +26,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/shop" element={<ShopPage />} />
+            <Route path="/ingredients" element={<IngredientsPage />} />
             <Route path="/product/:id" element={<ProductPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
@@ -32,4 +39,8 @@ export default function App() {
       </CartProvider>
     </Router>
   );
+}
+
+export default function App() {
+  return <CountryProvider><CountryGatedSite /></CountryProvider>;
 }

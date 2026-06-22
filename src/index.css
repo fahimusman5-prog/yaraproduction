@@ -82,3 +82,30 @@
 .hide-scrollbar {
   scrollbar-width: none;
 }
+
+.country-landing {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.95), transparent 42%),
+    linear-gradient(135deg, #fff8f8 0%, #fce6ec 48%, #fffaf0 100%);
+}
+
+.country-landing::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(115deg, transparent 0 24px, rgba(200, 155, 60, 0.16) 25px, transparent 26px 52px);
+  mask-image: linear-gradient(to bottom, black, transparent 75%);
+}
+
+.country-orb { position: absolute; border-radius: 9999px; filter: blur(4px); opacity: 0.55; animation: country-float 8s ease-in-out infinite; }
+.country-orb-one { left: -6rem; top: 8%; height: 18rem; width: 18rem; background: rgba(248, 223, 231, 0.9); }
+.country-orb-two { bottom: -8rem; right: -5rem; height: 23rem; width: 23rem; background: rgba(255, 235, 188, 0.55); animation-delay: -3s; }
+.country-reveal { animation: country-reveal 0.75s cubic-bezier(.22,.7,.2,1) both; }
+.country-delay-1 { animation-delay: .08s; }.country-delay-2 { animation-delay: .16s; }.country-delay-3 { animation-delay: .24s; }
+.country-delay-4 { animation-delay: .34s; }.country-delay-5 { animation-delay: .44s; }.country-delay-6 { animation-delay: .54s; }
+
+@keyframes country-reveal { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes country-float { 50% { transform: translate3d(1.5rem, -1rem, 0) scale(1.05); } }
+@media (prefers-reduced-motion: reduce) { .country-reveal, .country-orb { animation: none; } }

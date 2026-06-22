@@ -31,13 +31,13 @@ export function HomePage() {
         <div className="page-shell grid min-h-[680px] items-center gap-12 py-14 md:grid-cols-2 md:py-20 lg:min-h-[760px]">
           <div className="relative z-10 max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-yara-gold/40 bg-[#fff7df] px-4 py-2 text-[0.6rem] font-semibold uppercase tracking-[0.16em]">
-              <Sparkles className="h-3 w-3 text-yara-gold" /> Premium skincare ritual
+              <Sparkles className="h-3 w-3 text-yara-gold" /> Premium skincare
             </span>
             <h1 className="mt-7 text-balance text-5xl font-medium leading-[1.05] sm:text-6xl lg:text-[4.8rem]">
               Reveal Your Natural Glow with <em className="text-yara-wine">YARA</em>
             </h1>
             <p className="mt-7 max-w-lg text-sm font-light leading-7 text-yara-taupe sm:text-base">
-              Experience the fusion of clinical efficacy and botanical luxury. Expertly crafted for modern skin, inspired by the beauty of intentional ritual.
+              Experience the fusion of clinical efficacy and botanical luxury. Expertly crafted for modern skin and inspired by intentional self-care.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/shop" className="btn-primary">Shop now <ArrowRight className="h-4 w-4" /></Link>
@@ -46,7 +46,7 @@ export function HomePage() {
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-[0.68rem] uppercase tracking-[0.12em] text-yara-taupe">
               <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-yara-wine" /> Vegan formulas</span>
               <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-yara-wine" /> Cruelty-free</span>
-              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-yara-wine" /> Free shipping $75+</span>
+              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-yara-wine" /> Country-wide delivery</span>
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-[560px] px-3 sm:px-8">
@@ -61,7 +61,7 @@ export function HomePage() {
 
       <section className="page-shell py-20 sm:py-28">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-          <div><p className="eyebrow">Find your ritual</p><h2 className="mt-3 text-3xl sm:text-4xl">Curated Collections</h2></div>
+          <div><p className="eyebrow">Find your favorites</p><h2 className="mt-3 text-3xl sm:text-4xl">Product Categories</h2></div>
           <p className="max-w-sm text-sm font-light leading-6 text-yara-taupe">Tailored solutions for every concern, from cleansing to intensive care.</p>
         </div>
         <div className="hide-scrollbar mt-10 flex gap-5 overflow-x-auto pb-3 sm:grid sm:grid-cols-3 lg:grid-cols-6">
@@ -80,7 +80,7 @@ export function HomePage() {
         <div className="page-shell">
           <div className="text-center"><p className="eyebrow">Our favorites</p><h2 className="mt-3 text-4xl sm:text-5xl">Best Sellers</h2></div>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{products.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} />)}</div>
-          <div className="mt-10 text-center"><Link to="/shop" className="btn-secondary">Explore all rituals <ArrowRight className="h-4 w-4" /></Link></div>
+          <div className="mt-10 text-center"><Link to="/shop" className="btn-secondary">Explore all products <ArrowRight className="h-4 w-4" /></Link></div>
         </div>
       </section>
 
@@ -114,7 +114,7 @@ export function HomePage() {
             {[
               ["The Saffron Face Wash changed how my skin feels in the morning—clean, calm and never tight.", "Elena V."],
               ["I have never used a face wash that feels this luxurious. The saffron scent is subtle and dreamy.", "Sienna J."],
-              ["The packaging is beautiful, but the glow is what keeps me coming back. Truly worth the ritual.", "Marcus L."]
+              ["The packaging is beautiful, but the glow is what keeps me coming back. Truly worth it.", "Marcus L."]
             ].map(([quote, name], index) => (
               <blockquote key={name} className={`rounded-[1.7rem] bg-white p-7 text-center shadow-card ${index === 1 ? "ring-1 ring-yara-wine" : ""}`}>
                 <div className="text-yara-gold">★★★★★</div><p className="mt-5 font-serif text-base italic leading-7">“{quote}”</p><footer className="mt-5 text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-yara-taupe">{name}</footer>
@@ -125,7 +125,7 @@ export function HomePage() {
       </section>
 
       <section className="page-shell py-20 sm:py-28">
-        <div className="flex items-end justify-between gap-4"><div><p className="eyebrow">Follow the ritual</p><h2 className="mt-3 text-3xl">On the ’Gram <em className="text-yara-wine">@YARALuxe</em></h2></div><a href="https://instagram.com" target="_blank" rel="noreferrer" className="hidden text-xs uppercase tracking-[0.15em] text-yara-wine sm:block">Follow us</a></div>
+        <div className="flex items-end justify-between gap-4"><div><p className="eyebrow">Follow YARA</p><h2 className="mt-3 text-3xl">On the ’Gram <em className="text-yara-wine">@YARALuxe</em></h2></div><a href="https://instagram.com" target="_blank" rel="noreferrer" className="hidden text-xs uppercase tracking-[0.15em] text-yara-wine sm:block">Follow us</a></div>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">{instagramImages.map((image, index) => <img key={image} src={image} alt={`YARA skincare inspiration ${index + 1}`} className="aspect-square w-full rounded-2xl object-cover" loading="lazy" />)}</div>
       </section>
     </>

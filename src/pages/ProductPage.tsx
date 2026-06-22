@@ -4,7 +4,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { useCart } from "../context/CartContext";
 import { getProduct, products } from "../data/products";
-import { createWhatsAppLink, formatPrice, productOrderMessage } from "../lib/format";
+import { createWhatsAppLink, formatPrice, getProductPrice, productOrderMessage } from "../lib/format";
+import { useCountry } from "../context/CountryContext";
 
 export function ProductPage() {
   const { id } = useParams();
@@ -14,11 +15,12 @@ export function ProductPage() {
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
   const navigate = useNavigate();
+  const { country } = useCountry();
 
   const gallery = useMemo(() => product ? [product.gallery?.[0] ?? product.image, product.image, ...(product.gallery?.slice(1) ?? [])] : [], [product]);
 
   if (!product) {
-    return <div className="page-shell py-28 text-center"><p className="eyebrow">Ritual not found</p><h1 className="mt-4 text-5xl">This product has wandered off.</h1><Link to="/shop" className="btn-primary mt-8">Return to shop</Link></div>;
+    return <div className="page-shell py-28 text-center"><p className="eyebrow">Product not found</p><h1 className="mt-4 text-5xl">This product has wandered off.</h1><Link to="/shop" className="btn-primary mt-8">Return to shop</Link></div>;
   }
 
   const handleAdd = () => {
@@ -59,7 +61,7 @@ export function ProductPage() {
           <p className="eyebrow">{product.subtitle}</p>
           <h1 className="mt-3 text-balance text-4xl leading-tight sm:text-5xl">{product.name}</h1>
           <div className="mt-4 flex items-center gap-3 text-xs"><span className="flex text-yara-gold">{Array.from({ length: 5 }).map((_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}</span><span>{product.rating} · {product.reviews} reviews</span></div>
-          <div className="mt-6 flex items-end gap-2"><span className="font-serif text-4xl text-yara-wine">{formatPrice(product.price)}</span><span className="pb-1 text-sm text-yara-taupe">/ {product.size}</span></div>
+          <div className="mt-6 flex items-end gap-2"><span className="font-serif text-4xl text-yara-wine">{country && formatPrice(getProductPrice(product, country), country)}</span><span className="pb-1 text-sm text-yara-taupe">/ {product.size}</span></div>
           <p className="mt-6 text-sm font-light leading-7 text-yara-taupe">{product.description}</p>
 
           <div className="mt-7 flex flex-wrap items-center gap-4">
@@ -74,11 +76,11 @@ export function ProductPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button onClick={handleAdd} className="btn-primary w-full">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {added ? "Added to bag" : "Add to cart"}</button>
             <button onClick={() => { addItem(product, quantity); navigate("/checkout"); }} className="btn-secondary w-full">Buy now</button>
-            <a href={createWhatsAppLink(productOrderMessage(product, quantity))} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#20a852] px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#168a43] transition hover:bg-[#eafff0] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>
+            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#20a852] px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#168a43] transition hover:bg-[#eafff0] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-3 text-[0.62rem] uppercase tracking-[0.09em] text-yara-taupe">
-            <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-yara-wine" /> Free shipping $75+</span><span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-yara-wine" /> Secure checkout</span>
+            <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-yara-wine" /> Country-wide delivery</span><span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-yara-wine" /> Secure checkout</span>
           </div>
 
           <div className="mt-8 border-t border-yara-rose">
@@ -90,7 +92,7 @@ export function ProductPage() {
       </section>
 
       <section className="py-20 sm:py-28">
-        <div className="text-center"><p className="eyebrow">Pair it beautifully</p><h2 className="mt-3 text-4xl sm:text-5xl">Complete Your Ritual</h2></div>
+        <div className="text-center"><p className="eyebrow">Pair it beautifully</p><h2 className="mt-3 text-4xl sm:text-5xl">Complete Your Routine</h2></div>
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">{related.map((item) => <ProductCard key={item.id} product={item} />)}</div>
       </section>
     </div>

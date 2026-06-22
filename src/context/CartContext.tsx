@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CartItem, Product } from "../types";
+import { products } from "../data/products";
+import { useCountry } from "./CountryContext";
+import { getProductPrice } from "../lib/format";
 
 interface CartContextValue {
   items: CartItem[];
@@ -17,13 +20,18 @@ const STORAGE_KEY = "yara-cart";
 const readStoredCart = (): CartItem[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as CartItem[]) : [];
+    const parsed = stored ? (JSON.parse(stored) as CartItem[]) : [];
+    return parsed.flatMap((item) => {
+      const product = products.find((candidate) => candidate.id === item.product.id);
+      return product ? [{ product, quantity: item.quantity }] : [];
+    });
   } catch {
     return [];
   }
 };
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { country } = useCountry();
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
 
   useEffect(() => {
@@ -57,13 +65,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => ({
       items,
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
-      subtotal: items.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+      subtotal: country ? items.reduce((sum, item) => sum + getProductPrice(item.product, country) * item.quantity, 0) : 0,
       addItem,
       removeItem,
       updateQuantity,
       clearCart: () => setItems([])
     }),
-    [items]
+    [items, country]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

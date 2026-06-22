@@ -1,10 +1,11 @@
-export type Category = "Skincare" | "Haircare" | "Body Rituals" | "Gift Sets";
+export type Category = "Skincare" | "Haircare" | "Body Care" | "Gift Sets";
 
 export interface Product {
   id: string;
   name: string;
   subtitle: string;
-  price: number;
+  priceLKR: number;
+  priceAED: number;
   category: Category;
   concern: string;
   image: string;

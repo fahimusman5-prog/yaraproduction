@@ -16,7 +16,18 @@ if (!stylesheet || !script) {
 
 const assetPath = (url) => join(distDir, url.replace(/^\//, ""));
 const css = await readFile(assetPath(stylesheet[1]), "utf8");
-const javascript = (await readFile(assetPath(script[1]), "utf8")).replace(/<\/script/gi, "<\\/script");
+let javascript = await readFile(assetPath(script[1]), "utf8");
+const embeddedAssets = [...new Set(javascript.match(/\/assets\/[A-Za-z0-9._-]+\.(?:png|jpe?g|webp|gif|svg)/gi) ?? [])];
+const mimeTypes = { gif: "image/gif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", svg: "image/svg+xml", webp: "image/webp" };
+
+for (const assetUrl of embeddedAssets) {
+  const extension = assetUrl.split(".").pop().toLowerCase();
+  const contents = await readFile(assetPath(assetUrl));
+  const dataUrl = `data:${mimeTypes[extension]};base64,${contents.toString("base64")}`;
+  javascript = javascript.replaceAll(assetUrl, dataUrl);
+}
+
+javascript = javascript.replace(/<\/script/gi, "<\\/script");
 
 html = html
   .replace(stylesheet[0], () => `<style>${css}</style>`)
