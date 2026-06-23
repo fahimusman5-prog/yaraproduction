@@ -1,0 +1,1 @@
+export function PosLoading() { return <div className="grid min-h-dvh place-items-center"><div className="text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-yara-rose border-t-yara-wine" /><p className="mt-4 text-sm font-semibold">Preparing POS…</p></div></div>; }

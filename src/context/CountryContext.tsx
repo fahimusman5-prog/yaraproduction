@@ -2,18 +2,21 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 
 export type Country = "sri-lanka" | "uae";
 
+const sriLankaWhatsApp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER_SRI_LANKA?.trim();
+const uaeWhatsApp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER_UAE?.trim();
+
 export const countryDetails = {
   "sri-lanka": {
     name: "Sri Lanka",
     navbarLabel: "Sri Lanka · LKR",
     currency: "LKR",
-    whatsapp: "94741266855"
+    whatsapp: sriLankaWhatsApp || "94741266855"
   },
   uae: {
     name: "UAE / Dubai",
     navbarLabel: "UAE / Dubai · AED",
     currency: "AED",
-    whatsapp: "971543702924"
+    whatsapp: uaeWhatsApp || "971543702924"
   }
 } as const;
 

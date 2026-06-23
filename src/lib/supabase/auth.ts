@@ -1,0 +1,37 @@
+import { redirect } from "next/navigation";
+import { getSupabaseServerClient } from "./server";
+import type { Profile, StaffRole } from "./types";
+
+export interface StaffContext {
+  userId: string;
+  email: string;
+  profile: Profile & { role: StaffRole };
+}
+
+export async function getStaffContext(): Promise<StaffContext | null> {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) return null;
+
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+  if (claimsError || !userId) return null;
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id,email,full_name,role,created_at")
+    .eq("id", userId)
+    .single();
+
+  if (error || !profile || !["admin", "staff"].includes(profile.role)) return null;
+  return {
+    userId,
+    email: String(claimsData.claims.email ?? profile.email),
+    profile: profile as StaffContext["profile"],
+  };
+}
+
+export async function requireStaff(nextPath = "/admin"): Promise<StaffContext> {
+  const staff = await getStaffContext();
+  if (!staff) redirect(`/admin/login?next=${encodeURIComponent(nextPath)}`);
+  return staff;
+}

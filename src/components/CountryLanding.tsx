@@ -15,7 +15,7 @@ export function CountryLanding() {
       <div className="country-orb country-orb-one" /><div className="country-orb country-orb-two" />
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-yara-gold to-transparent" />
       <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
-        <img src={yaraLogo} alt="YARA" className="country-reveal mx-auto h-28 w-40 scale-[1.45] object-contain sm:h-32" />
+        <img src={yaraLogo.src} alt="YARA" className="country-reveal mx-auto h-28 w-40 scale-[1.45] object-contain sm:h-32" />
         <p className="country-reveal country-delay-1 mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-yara-gold">Your glow begins here</p>
         <h1 className="country-reveal country-delay-2 mt-5 text-balance text-4xl font-medium sm:text-6xl">Choose Your Country</h1>
         <p className="country-reveal country-delay-3 mx-auto mt-5 max-w-2xl text-sm font-light leading-7 text-yara-taupe sm:text-base">Select your country to continue shopping with the right prices and ordering options.</p>

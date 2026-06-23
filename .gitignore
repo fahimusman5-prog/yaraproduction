@@ -1,7 +1,9 @@
 node_modules
 dist
+.next
 .qa-dist
 .npm-cache
 .env
 .env.local
 *.log
+*.tsbuildinfo

@@ -1,1 +1,1 @@
-/// <reference types="vite/client" />
+// Legacy entry retained for the standalone storefront source tree.

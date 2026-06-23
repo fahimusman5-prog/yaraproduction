@@ -34,7 +34,7 @@ function Header() {
     <header className="sticky top-0 z-50 border-b border-yara-rose/40 bg-yara-ivory/95 backdrop-blur-xl">
       <div className="page-shell grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:h-[82px]">
         <Link to="/" className="h-14 w-20 shrink-0 overflow-hidden" aria-label="YARA home">
-          <img src={yaraLogo} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
+          <img src={yaraLogo.src} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
         </Link>
 
         <nav className="hidden items-center justify-center gap-7 lg:flex xl:gap-9" aria-label="Main navigation">
@@ -97,7 +97,7 @@ function Footer() {
       <div className="page-shell grid gap-10 pb-14 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
         <div>
           <Link to="/" className="inline-block h-28 w-36 overflow-hidden" aria-label="YARA home">
-            <img src={yaraLogo} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
+            <img src={yaraLogo.src} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
           </Link>
           <p className="mt-5 max-w-xs text-sm font-light leading-7 text-yara-taupe">
             Modern skincare for the conscious soul. Merging high-science with the art of self-care.

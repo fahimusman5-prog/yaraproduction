@@ -1,17 +1,17 @@
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { CartProvider } from "./context/CartContext";
-import { AboutPage } from "./pages/AboutPage";
-import { CartPage } from "./pages/CartPage";
-import { CheckoutPage } from "./pages/CheckoutPage";
-import { ContactPage } from "./pages/ContactPage";
-import { HomePage } from "./pages/HomePage";
-import { LoginPage } from "./pages/LoginPage";
-import { ProductPage } from "./pages/ProductPage";
-import { ShopPage } from "./pages/ShopPage";
+import { AboutPage } from "./customer-pages/AboutPage";
+import { CartPage } from "./customer-pages/CartPage";
+import { CheckoutPage } from "./customer-pages/CheckoutPage";
+import { ContactPage } from "./customer-pages/ContactPage";
+import { HomePage } from "./customer-pages/HomePage";
+import { LoginPage } from "./customer-pages/LoginPage";
+import { ProductPage } from "./customer-pages/ProductPage";
+import { ShopPage } from "./customer-pages/ShopPage";
 import { CountryProvider, useCountry } from "./context/CountryContext";
 import { CountryLanding } from "./components/CountryLanding";
-import { IngredientsPage } from "./pages/IngredientsPage";
+import { IngredientsPage } from "./customer-pages/IngredientsPage";
 
 function CountryGatedSite() {
   const { country } = useCountry();

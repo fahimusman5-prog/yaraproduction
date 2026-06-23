@@ -1,0 +1,2 @@
+"use client";
+export function PosError({ reset }: { reset: () => void }) { return <div className="grid min-h-dvh place-items-center p-5"><div className="staff-panel max-w-md p-8 text-center"><h1 className="text-xl font-bold">POS is unavailable</h1><p className="mt-2 text-sm text-slate-500">Check the database connection, then try again.</p><button onClick={reset} className="staff-button staff-button-primary mt-5">Retry</button></div></div>; }
