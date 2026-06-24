@@ -44,7 +44,7 @@ export function ProductCard({ product }: { product: Product }) {
         </Link>
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="font-serif text-lg font-semibold text-yara-wine">{country && formatPrice(getProductPrice(product, country), country)}</span>
-          <button onClick={handleAdd} className="grid h-10 w-10 place-items-center rounded-full bg-yara-wine text-white transition hover:scale-105" aria-label={`Add ${product.name} to cart`}>
+          <button onClick={handleAdd} disabled={product.stockQuantity === 0} className="grid h-10 w-10 place-items-center rounded-full bg-yara-wine text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40" aria-label={`Add ${product.name} to cart`}>
             {added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
           </button>
         </div>

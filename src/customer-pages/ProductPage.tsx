@@ -3,13 +3,14 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { useCart } from "../context/CartContext";
-import { getProduct, products } from "../data/products";
 import { createWhatsAppLink, formatPrice, getProductPrice, productOrderMessage } from "../lib/format";
 import { useCountry } from "../context/CountryContext";
+import { useCatalog } from "../context/CatalogContext";
 
 export function ProductPage() {
   const { id } = useParams();
-  const product = getProduct(id);
+  const { products } = useCatalog();
+  const product = products.find((item) => item.id === id);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [added, setAdded] = useState(false);

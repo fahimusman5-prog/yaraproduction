@@ -12,6 +12,7 @@ import { ShopPage } from "./customer-pages/ShopPage";
 import { CountryProvider, useCountry } from "./context/CountryContext";
 import { CountryLanding } from "./components/CountryLanding";
 import { IngredientsPage } from "./customer-pages/IngredientsPage";
+import { CatalogProvider } from "./context/CatalogContext";
 
 function CountryGatedSite() {
   const { country } = useCountry();
@@ -21,7 +22,7 @@ function CountryGatedSite() {
 
   return (
     <Router>
-      <CartProvider>
+      <CatalogProvider><CartProvider>
         <Layout>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -36,7 +37,7 @@ function CountryGatedSite() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
-      </CartProvider>
+      </CartProvider></CatalogProvider>
     </Router>
   );
 }

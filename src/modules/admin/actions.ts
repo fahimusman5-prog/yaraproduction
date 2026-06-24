@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireStaff } from "@/lib/supabase/auth";
+import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { toSlug } from "./lib/format";
 
@@ -47,33 +47,39 @@ async function uploadProductImage(formData: FormData, existingUrl?: string | nul
 }
 
 export async function createProductAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  await requireStaff("/admin/products/new");
+  await requireAdmin("/admin/products/new");
   const parsed = productSchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
   try {
     const supabase = await getSupabaseServerClient(); if (!supabase) throw new Error("Supabase is not configured.");
     const image_url = await uploadProductImage(formData);
-    const payload = { ...parsed.data, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
-    const { error } = await supabase.from("products").insert(payload); if (error) throw new Error(error.message);
+    const initialStock = parsed.data.stock_quantity;
+    const payload = { ...parsed.data, stock_quantity: 0, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
+    const { data: product, error } = await supabase.from("products").insert(payload).select("id").single(); if (error) throw new Error(error.message);
+    if (initialStock > 0) { const { error: stockError } = await supabase.rpc("adjust_product_stock", { p_product_id: product.id, p_quantity_change: initialStock, p_movement_type: "restock" }); if (stockError) throw new Error(stockError.message); }
   } catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Unable to create product." }; }
   revalidatePath("/admin/products"); redirect("/admin/products?saved=created");
 }
 
 export async function updateProductAction(productId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
-  await requireStaff(`/admin/products/${productId}/edit`);
+  await requireAdmin(`/admin/products/${productId}/edit`);
   const parsed = productSchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
   try {
     const supabase = await getSupabaseServerClient(); if (!supabase) throw new Error("Supabase is not configured.");
     const image_url = await uploadProductImage(formData, String(formData.get("existing_image_url") || "") || null);
-    const payload = { ...parsed.data, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
+    const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", productId).single(); if (currentError) throw new Error(currentError.message);
+    const { stock_quantity: targetStock, ...productFields } = parsed.data;
+    const payload = { ...productFields, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
     const { error } = await supabase.from("products").update(payload).eq("id", productId); if (error) throw new Error(error.message);
+    const difference = targetStock - Number(current.stock_quantity);
+    if (difference !== 0) { const { error: stockError } = await supabase.rpc("adjust_product_stock", { p_product_id: productId, p_quantity_change: difference, p_movement_type: difference > 0 ? "restock" : "manual_adjustment" }); if (stockError) throw new Error(stockError.message); }
   } catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Unable to update product." }; }
   revalidatePath("/admin/products"); redirect("/admin/products?saved=updated");
 }
 
 export async function archiveProductAction(productId: string) {
-  await requireStaff("/admin/products");
+  await requireAdmin("/admin/products");
   const supabase = await getSupabaseServerClient(); if (!supabase) return;
   const { error } = await supabase.from("products").update({ status: "archived" }).eq("id", productId);
   if (error) throw new Error(error.message);
@@ -81,7 +87,7 @@ export async function archiveProductAction(productId: string) {
 }
 
 export async function createCategoryAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  await requireStaff("/admin/categories");
+  await requireAdmin("/admin/categories");
   const parsed = categorySchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the category details." };
   const supabase = await getSupabaseServerClient(); if (!supabase) return { status: "error", message: "Supabase is not configured." };
@@ -91,7 +97,7 @@ export async function createCategoryAction(_state: ActionState, formData: FormDa
 }
 
 export async function updateCategoryAction(categoryId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
-  await requireStaff("/admin/categories");
+  await requireAdmin("/admin/categories");
   const parsed = categorySchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the category details." };
   const supabase = await getSupabaseServerClient(); if (!supabase) return { status: "error", message: "Supabase is not configured." };
@@ -101,7 +107,7 @@ export async function updateCategoryAction(categoryId: string, _state: ActionSta
 }
 
 export async function deleteCategoryAction(categoryId: string) {
-  await requireStaff("/admin/categories");
+  await requireAdmin("/admin/categories");
   const supabase = await getSupabaseServerClient(); if (!supabase) return;
   const { error } = await supabase.from("categories").delete().eq("id", categoryId);
   if (error) throw new Error(error.message);

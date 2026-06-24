@@ -8,6 +8,7 @@ export function formatMoney(value: number, currency: "LKR" | "AED" = "LKR") {
 
 export function formatDate(value: string, includeTime = false) {
   return new Intl.DateTimeFormat("en-LK", {
+    timeZone: "Asia/Colombo",
     dateStyle: "medium",
     ...(includeTime ? { timeStyle: "short" as const } : {}),
   }).format(new Date(value));

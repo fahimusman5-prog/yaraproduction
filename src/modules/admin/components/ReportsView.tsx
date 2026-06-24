@@ -21,7 +21,7 @@ function downloadCsv(name: string, rows: Array<Array<string | number>>) {
 }
 
 export function ReportsView({ orders, sales, bestSellers, monthly, daily }: ReportsViewProps) {
-  const validOrders = orders.filter((order) => order.order_status !== "cancelled");
+  const validOrders = orders.filter((order) => order.payment_status === "paid" && order.order_status !== "cancelled");
   const onlineLkr = validOrders.filter((order) => order.currency === "LKR").reduce((sum, order) => sum + Number(order.total_amount), 0);
   const onlineAed = validOrders.filter((order) => order.currency === "AED").reduce((sum, order) => sum + Number(order.total_amount), 0);
   const posLkr = sales.reduce((sum, sale) => sum + Number(sale.total_amount), 0);

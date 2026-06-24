@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CartItem, Product } from "../types";
-import { products } from "../data/products";
 import { useCountry } from "./CountryContext";
 import { getProductPrice } from "../lib/format";
+import { useCatalog } from "./CatalogContext";
 
 interface CartContextValue {
   items: CartItem[];
@@ -21,10 +21,7 @@ const readStoredCart = (): CartItem[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     const parsed = stored ? (JSON.parse(stored) as CartItem[]) : [];
-    return parsed.flatMap((item) => {
-      const product = products.find((candidate) => candidate.id === item.product.id);
-      return product ? [{ product, quantity: item.quantity }] : [];
-    });
+    return parsed;
   } catch {
     return [];
   }
@@ -32,18 +29,28 @@ const readStoredCart = (): CartItem[] => {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { country } = useCountry();
+  const { products } = useCatalog();
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
+  useEffect(() => {
+    setItems((current) => current.flatMap((item) => {
+      const product = products.find((candidate) => candidate.id === item.product.id);
+      if (!product || product.stockQuantity === 0) return [];
+      return [{ product, quantity: Math.min(item.quantity, product.stockQuantity ?? item.quantity) }];
+    }));
+  }, [products]);
+
   const addItem = (product: Product, quantity = 1) => {
+    if (product.stockQuantity === 0) return;
     setItems((current) => {
       const existing = current.find((item) => item.product.id === product.id);
       if (existing) {
         return current.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
+          item.product.id === product.id ? { ...item, quantity: Math.min(item.quantity + quantity, product.stockQuantity ?? Infinity) } : item
         );
       }
       return [...current, { product, quantity }];
@@ -57,7 +64,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const updateQuantity = (productId: string, quantity: number) => {
     if (quantity < 1) return removeItem(productId);
     setItems((current) =>
-      current.map((item) => (item.product.id === productId ? { ...item, quantity } : item))
+      current.map((item) => (item.product.id === productId ? { ...item, quantity: Math.min(quantity, item.product.stockQuantity ?? Infinity) } : item))
     );
   };
 

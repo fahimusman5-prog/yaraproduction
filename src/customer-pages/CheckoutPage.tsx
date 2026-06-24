@@ -1,26 +1,40 @@
-import { ArrowRight, Banknote, CheckCircle2, CreditCard, LockKeyhole, MessageCircle, ShieldCheck, Truck, UserRound } from "lucide-react";
+import { ArrowRight, Banknote, CreditCard, LockKeyhole, MessageCircle, ShieldCheck, Truck, UserRound } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { cartOrderMessage, createWhatsAppLink, formatPrice, getProductPrice } from "../lib/format";
 import { useCountry } from "../context/CountryContext";
 
-type PaymentMethod = "card" | "cod";
+type PaymentMethod = "payhere" | "cod";
 
 export function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const { country } = useCountry();
   const formRef = useRef<HTMLFormElement>(null);
-  const [payment, setPayment] = useState<PaymentMethod>("card");
-  const [orderPlaced, setOrderPlaced] = useState(false);
-  const [placedTotal, setPlacedTotal] = useState(0);
+  const [payment, setPayment] = useState<PaymentMethod>("payhere");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const total = subtotal;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setPlacedTotal(total);
-    setOrderPlaced(true);
-    clearCart();
+    if (!country || submitting) return;
+    setSubmitting(true); setError("");
+    try {
+      const data = new FormData(event.currentTarget);
+      const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        country, paymentMethod: payment,
+        customer: { name: `${data.get("firstName") ?? ""} ${data.get("lastName") ?? ""}`.trim(), email: data.get("email"), phone: data.get("phone"), address: data.get("address"), city: data.get("city"), postalCode: data.get("postalCode") },
+        items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
+      }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to place order.");
+      clearCart();
+      if (result.redirectUrl) { window.location.assign(result.redirectUrl); return; }
+      const form = document.createElement("form"); form.method = "POST"; form.action = result.action;
+      Object.entries(result.fields as Record<string, string>).forEach(([name, value]) => { const input = document.createElement("input"); input.type = "hidden"; input.name = name; input.value = value; form.appendChild(input); });
+      document.body.appendChild(form); form.submit();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to place order."); setSubmitting(false); }
   };
 
   const handleWhatsAppOrder = () => {
@@ -38,15 +52,6 @@ export function CheckoutPage() {
     };
     window.open(createWhatsAppLink(cartOrderMessage(items, total, country, customer), country), "_blank", "noopener,noreferrer");
   };
-
-  if (orderPlaced) {
-    return (
-      <div className="page-shell py-24 text-center sm:py-36">
-        <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-[#e4f8eb]"><CheckCircle2 className="h-11 w-11 text-[#168a43]" /></div>
-        <p className="eyebrow mt-8">Order confirmed</p><h1 className="mt-3 text-balance text-4xl sm:text-6xl">Your YARA order is on its way.</h1><p className="mx-auto mt-5 max-w-lg text-sm font-light leading-7 text-yara-taupe">Thank you for your order of {country && formatPrice(placedTotal, country)}. A confirmation summary will be shared using the contact details you provided.</p><Link to="/shop" className="btn-primary mt-8">Continue exploring <ArrowRight className="h-4 w-4" /></Link>
-      </div>
-    );
-  }
 
   if (!items.length) {
     return <div className="page-shell py-28 text-center"><p className="eyebrow">Nothing to check out yet</p><h1 className="mt-4 text-5xl">Your order starts in the shop.</h1><Link to="/shop" className="btn-primary mt-8">Browse products</Link></div>;
@@ -78,9 +83,9 @@ export function CheckoutPage() {
           <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><CreditCard className="h-4 w-4" /></span> Payment Method</h2>
             <div className="mt-7 space-y-3">
-              <label className={`block cursor-pointer rounded-[1.7rem] border p-5 transition ${payment === "card" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}>
-                <span className="flex items-center gap-3 text-sm"><input type="radio" name="payment" checked={payment === "card"} onChange={() => setPayment("card")} className="accent-yara-wine" /><CreditCard className="h-4 w-4 text-yara-wine" /> Credit / debit card</span>
-                {payment === "card" && <span className="mt-5 grid gap-3 sm:grid-cols-2"><input required placeholder="Card number" inputMode="numeric" autoComplete="cc-number" className="field sm:col-span-2" /><input required placeholder="MM / YY" autoComplete="cc-exp" className="field" /><input required placeholder="CVV" inputMode="numeric" autoComplete="cc-csc" className="field" /></span>}
+              <label className={`block cursor-pointer rounded-[1.7rem] border p-5 transition ${payment === "payhere" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}>
+                <span className="flex items-center gap-3 text-sm"><input type="radio" name="payment" checked={payment === "payhere"} onChange={() => setPayment("payhere")} className="accent-yara-wine" /><CreditCard className="h-4 w-4 text-yara-wine" /> Pay securely with PayHere</span>
+                {payment === "payhere" && <span className="mt-3 block text-xs leading-5 text-yara-taupe">Card details are entered only on PayHere&apos;s secure hosted checkout.</span>}
               </label>
               <label className={`flex cursor-pointer items-center gap-3 rounded-full border p-5 text-sm transition ${payment === "cod" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}><input type="radio" name="payment" checked={payment === "cod"} onChange={() => setPayment("cod")} className="accent-yara-wine" /><Banknote className="h-4 w-4 text-yara-wine" /> Cash on delivery</label>
             </div>
@@ -96,7 +101,8 @@ export function CheckoutPage() {
           </div>
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">Subtotal</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">Shipping</span><span>Confirmed when ordering</span></div></div>
           <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">Product total</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
-          <button type="submit" className="btn-primary mt-7 w-full">Confirm order <ArrowRight className="h-4 w-4" /></button>
+          {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          <button type="submit" disabled={submitting} className="btn-primary mt-7 w-full disabled:opacity-50">{submitting ? "Preparing secure checkout…" : "Confirm order"} <ArrowRight className="h-4 w-4" /></button>
           <button type="button" onClick={handleWhatsAppOrder} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-[#20a852] px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#168a43]"><MessageCircle className="h-4 w-4" /> Order on WhatsApp</button>
           <div className="mt-6 flex justify-center gap-6 text-yara-taupe"><ShieldCheck className="h-5 w-5" /><LockKeyhole className="h-5 w-5" /><MessageCircle className="h-5 w-5" /></div>
           <p className="mt-3 text-center text-[0.58rem] uppercase tracking-[0.1em] text-yara-taupe">Encrypted checkout · Order support</p>

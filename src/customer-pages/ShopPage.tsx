@@ -2,14 +2,14 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
-import { products } from "../data/products";
 import type { Category } from "../types";
 import { useCountry } from "../context/CountryContext";
 import { getProductPrice } from "../lib/format";
-
-const categories: Array<"All" | Category> = ["All", "Skincare", "Haircare", "Body Care", "Gift Sets"];
+import { useCatalog } from "../context/CatalogContext";
 
 export function ShopPage() {
+  const { products, categories: catalogCategories } = useCatalog();
+  const categories: Array<"All" | Category> = ["All", ...catalogCategories];
   const { country } = useCountry();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
@@ -35,7 +35,7 @@ export function ShopPage() {
       if (sort === "rating") return b.rating - a.rating;
       return Number(Boolean(b.badge)) - Number(Boolean(a.badge));
     });
-  }, [category, concern, country, query, sort]);
+  }, [products, category, concern, country, query, sort]);
 
   const updateCategory = (nextCategory: "All" | Category) => {
     setCategory(nextCategory);

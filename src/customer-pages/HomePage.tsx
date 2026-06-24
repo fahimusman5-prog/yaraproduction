@@ -1,7 +1,7 @@
 import { ArrowRight, CheckCircle2, Droplets, Leaf, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
-import { products } from "../data/products";
+import { useCatalog } from "../context/CatalogContext";
 
 const heroImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuB0-W5LBkKAWq2piAK6Qb8YLROXHF1gkAu7dFGPEAbGYnm2uGslWtIsymMKAeOTDEW_JuV8f2M-4BJ4n8j_deoLTzzUBHIyFDdHRpC5DAUsNHIQ17VAYbzP4AoBM4ccbPt_tqv1ky_yj8x9dWVXq2nfrFzIzdWFzbUeYSxFL06rSKLmrZUHynKfgqbvK4S3WpbUu2Gdl90je11Hd2B_MnbKhCtX2KweqthcFPw5tSzryJqWUQWJEjm7kS34XxFy-gBsiLbTfRfZw8GH";
 const skinImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuCo-q9f2ZATD_ugKCOYwKtG9wKJn4JuJfxN_lptWTtp2h6IesOoOMK5Zvb7p9S1MiDtBsfMiTVzAL-UZTZhMOk3U1MDXUr8QAbQUoKdrQikvSD327KliWhpJnB1rG1EqTW5gnSYcNTrTnQqDqLenGKISCuzr6KNI-KM4FcCjMZTR5uSxepSH9Rf3VKiqA8Kh71yxJT8fjVTt9TqymipcIxLNjanZx95Bh0-cEqw5tQhVq9LoSn4vJ1e8unmzmuHOfiEUSCvGz7raF_x";
@@ -15,16 +15,9 @@ const instagramImages = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuBE3V509E9vk6BMaLKQrOTznHPbc6p3tZPWlXMXLus8KL8CG7tdACI3xcZVclFnmcdKBI5CyFqJnH8pEwJTtNRgHt_AeaE7tl-rdrud_Zl_uf-FZJSyaMO22FLJtIrXVTQPM1nGd7hztsfUVF7wSCOYdGamFz3uCmdCIZ-HKB3FK5poN0XDiN4T1OrznpkUo4Vk6UXkyqlszMU3txLs_8PGxLG9_MYQdMyHyP7qx5R9BB1At9-rtvBli-5VMwk6D2AzKy_xFq5Kj5-U"
 ];
 
-const collections = [
-  { name: "Face wash", product: products[0] },
-  { name: "Serums", product: products[2] },
-  { name: "Night care", product: products[1] },
-  { name: "Body care", product: products[3] },
-  { name: "Hair care", product: products[4] },
-  { name: "Gifting", product: products[8] }
-];
-
 export function HomePage() {
+  const { products } = useCatalog();
+  const collections = products.slice(0, 6).map((product) => ({ name: product.category, product }));
   return (
     <>
       <section className="overflow-hidden bg-gradient-to-br from-[#fff4f6] via-yara-ivory to-[#fbf5ef]">

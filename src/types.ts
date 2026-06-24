@@ -1,4 +1,4 @@
-export type Category = "Skincare" | "Haircare" | "Body Care" | "Gift Sets";
+export type Category = string;
 
 export interface Product {
   id: string;
@@ -18,6 +18,7 @@ export interface Product {
   benefits: string[];
   howToUse: string;
   ingredients: string;
+  stockQuantity?: number;
 }
 
 export interface CartItem {
