@@ -74,6 +74,7 @@ export interface PosSale {
   subtotal: number;
   discount: number;
   total_amount: number;
+  currency: "LKR" | "AED";
   created_at: string;
   profiles?: Pick<Profile, "full_name"> | null;
 }

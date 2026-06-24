@@ -35,3 +35,9 @@ export async function requireStaff(nextPath = "/admin"): Promise<StaffContext> {
   if (!staff) redirect(`/admin/login?next=${encodeURIComponent(nextPath)}`);
   return staff;
 }
+
+export async function requireAdmin(nextPath = "/admin"): Promise<StaffContext> {
+  const staff = await requireStaff(nextPath);
+  if (staff.profile.role !== "admin") redirect("/admin?error=admin-required");
+  return staff;
+}
