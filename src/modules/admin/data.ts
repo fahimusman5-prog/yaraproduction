@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { requireStaff } from "@/lib/supabase/auth";
 import type {
   Category,
   Order,
@@ -11,9 +12,15 @@ import type {
 } from "@/lib/supabase/types";
 
 async function client() {
+  await requireStaff("/admin");
   const supabase = await getSupabaseServerClient();
   if (!supabase) throw new Error("Supabase is not configured.");
   return supabase;
+}
+
+function fail(scope: string, error: { message: string }) {
+  console.error(`[admin:data:${scope}]`, error);
+  throw new Error(`${scope} failed: ${error.message}`);
 }
 
 export async function getCategories() {
@@ -22,7 +29,7 @@ export async function getCategories() {
     .from("categories")
     .select("*")
     .order("name");
-  if (error) throw new Error(error.message);
+  if (error) fail("Load categories", error);
   return (data ?? []) as Category[];
 }
 export async function getProducts() {
@@ -31,7 +38,7 @@ export async function getProducts() {
     .from("products")
     .select("*,categories(name)")
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) fail("Load products", error);
   return (data ?? []) as Product[];
 }
 export async function getProduct(productId: string) {
@@ -41,7 +48,7 @@ export async function getProduct(productId: string) {
     .select("*,categories(name)")
     .eq("id", productId)
     .single();
-  if (error) throw new Error(error.message);
+  if (error) fail("Load product", error);
   return data as Product;
 }
 export async function getOrders() {
@@ -51,7 +58,7 @@ export async function getOrders() {
     .select("*")
     .order("created_at", { ascending: false })
     .limit(500);
-  if (error) throw new Error(error.message);
+  if (error) fail("Load orders", error);
   return (data ?? []) as Order[];
 }
 export async function getOrder(orderId: string) {
@@ -63,8 +70,8 @@ export async function getOrder(orderId: string) {
       .select("*,products(name,sku)")
       .eq("order_id", orderId),
   ]);
-  if (orderResult.error) throw new Error(orderResult.error.message);
-  if (itemsResult.error) throw new Error(itemsResult.error.message);
+  if (orderResult.error) fail("Load order", orderResult.error);
+  if (itemsResult.error) fail("Load order items", itemsResult.error);
   return {
     order: orderResult.data as Order,
     items: (itemsResult.data ?? []) as OrderItem[],
@@ -83,8 +90,8 @@ export async function getCustomers() {
       .select("*")
       .order("created_at", { ascending: false }),
   ]);
-  if (profiles.error) throw new Error(profiles.error.message);
-  if (orders.error) throw new Error(orders.error.message);
+  if (profiles.error) fail("Load customer profiles", profiles.error);
+  if (orders.error) fail("Load customer orders", orders.error);
   return {
     profiles: (profiles.data ?? []) as Profile[],
     orders: (orders.data ?? []) as Order[],
@@ -104,8 +111,8 @@ export async function getInventory() {
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
-  if (products.error) throw new Error(products.error.message);
-  if (movements.error) throw new Error(movements.error.message);
+  if (products.error) fail("Load inventory products", products.error);
+  if (movements.error) fail("Load stock movements", movements.error);
   return {
     products: (products.data ?? []) as Product[],
     movements: (movements.data ?? []) as StockMovement[],
@@ -140,9 +147,9 @@ export async function getDashboardData() {
       .select("*,categories(name)")
       .neq("status", "archived"),
   ]);
-  if (orders.error) throw new Error(orders.error.message);
-  if (sales.error) throw new Error(sales.error.message);
-  if (products.error) throw new Error(products.error.message);
+  if (orders.error) fail("Load dashboard orders", orders.error);
+  if (sales.error) fail("Load dashboard POS sales", sales.error);
+  if (products.error) fail("Load dashboard products", products.error);
   const orderRows = (orders.data ?? []) as Order[];
   const saleRows = (sales.data ?? []) as PosSale[];
   const productRows = (products.data ?? []) as Product[];
@@ -198,10 +205,10 @@ export async function getReportsData() {
       .eq("orders.payment_status", "paid")
       .neq("orders.order_status", "cancelled"),
   ]);
-  if (orders.error) throw new Error(orders.error.message);
-  if (sales.error) throw new Error(sales.error.message);
-  if (saleItems.error) throw new Error(saleItems.error.message);
-  if (orderItems.error) throw new Error(orderItems.error.message);
+  if (orders.error) fail("Load report orders", orders.error);
+  if (sales.error) fail("Load report POS sales", sales.error);
+  if (saleItems.error) fail("Load report POS sale items", saleItems.error);
+  if (orderItems.error) fail("Load report order items", orderItems.error);
   type SalesItem = {
     quantity: number;
     subtotal: number;

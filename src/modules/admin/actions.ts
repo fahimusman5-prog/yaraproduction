@@ -10,6 +10,11 @@ import { toSlug } from "./lib/format";
 export interface ActionState { status: "idle" | "success" | "error"; message: string }
 export const initialActionState: ActionState = { status: "idle", message: "" };
 
+function actionError(scope: string, error: unknown, fallback: string): ActionState {
+  console.error(`[admin:${scope}]`, error);
+  return { status: "error", message: error instanceof Error ? error.message : fallback };
+}
+
 const productSchema = z.object({
   name: z.string().trim().min(2).max(160),
   slug: z.string().trim().max(180).optional(),
@@ -46,7 +51,7 @@ async function uploadProductImage(supabase: Awaited<ReturnType<typeof actionClie
   const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `products/${crypto.randomUUID()}.${extension}`;
   const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
   return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
 }
 
@@ -63,7 +68,7 @@ async function adjustProductStock(
     p_quantity_change: quantityChange,
     p_movement_type: movementType,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(`Stock update failed: ${error.message}`);
 }
 
 export async function createProductAction(_state: ActionState, formData: FormData): Promise<ActionState> {
@@ -75,9 +80,9 @@ export async function createProductAction(_state: ActionState, formData: FormDat
     const image_url = await uploadProductImage(supabase, formData);
     const initialStock = parsed.data.stock_quantity;
     const payload = { ...parsed.data, stock_quantity: 0, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
-    const { data: product, error } = await supabase.from("products").insert(payload).select("id").single(); if (error) throw new Error(error.message);
+    const { data: product, error } = await supabase.from("products").insert(payload).select("id").single(); if (error) throw new Error(`Product create failed: ${error.message}`);
     await adjustProductStock(supabase, String(product.id), initialStock, "restock");
-  } catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Unable to create product." }; }
+  } catch (error) { return actionError("create-product", error, "Unable to create product."); }
   revalidatePath("/admin");
   revalidatePath("/admin/products");
   revalidatePath("/admin/inventory");
@@ -87,31 +92,35 @@ export async function createProductAction(_state: ActionState, formData: FormDat
 
 export async function updateProductAction(productId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin(`/admin/products/${productId}/edit`);
+  if (!z.string().uuid().safeParse(productId).success) {
+    return actionError("update-product", new Error(`Invalid product ID: ${productId}`), "Invalid product ID.");
+  }
   const parsed = productSchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
   try {
     const supabase = await actionClient();
     const image_url = await uploadProductImage(supabase, formData, String(formData.get("existing_image_url") || "") || null);
-    const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", productId).single(); if (currentError) throw new Error(currentError.message);
+    const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", productId).single(); if (currentError) throw new Error(`Product lookup failed: ${currentError.message}`);
     const { stock_quantity: targetStock, ...productFields } = parsed.data;
     const payload = { ...productFields, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
-    const { error } = await supabase.from("products").update(payload).eq("id", productId); if (error) throw new Error(error.message);
+    const { error } = await supabase.from("products").update(payload).eq("id", productId); if (error) throw new Error(`Product update failed: ${error.message}`);
     const difference = targetStock - Number(current.stock_quantity);
     await adjustProductStock(supabase, productId, difference, difference > 0 ? "restock" : "manual_adjustment");
-  } catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Unable to update product." }; }
+  } catch (error) { return actionError("update-product", error, "Unable to update product."); }
   revalidatePath("/admin");
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productId}/edit`);
   revalidatePath("/admin/inventory");
   revalidatePath("/pos");
-  redirect("/admin/products?saved=updated");
+  revalidatePath("/");
+  return { status: "success", message: "Product updated successfully." };
 }
 
 export async function archiveProductAction(productId: string) {
   await requireAdmin("/admin/products");
   const supabase = await getSupabaseServerClient(); if (!supabase) return;
   const { error } = await supabase.from("products").update({ status: "archived" }).eq("id", productId);
-  if (error) throw new Error(error.message);
+  if (error) { console.error("[admin:archive-product]", error); throw new Error(error.message); }
   revalidatePath("/admin/products");
 }
 
@@ -160,7 +169,7 @@ export async function adjustStockAction(_state: ActionState, formData: FormData)
   try {
     await adjustProductStock(await actionClient(), parsed.data.product_id, parsed.data.quantity_change, parsed.data.movement_type);
   } catch (error) {
-    return { status: "error", message: error instanceof Error ? error.message : "Unable to update stock." };
+    return actionError("adjust-stock", error, "Unable to update stock.");
   }
   revalidatePath("/admin/inventory"); revalidatePath("/admin"); revalidatePath("/pos"); return { status: "success", message: "Stock updated and movement recorded." };
 }

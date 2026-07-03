@@ -7,7 +7,13 @@ const md5 = (value: string) => createHash("md5").update(value, "utf8").digest("h
 function credentials() {
   const merchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
   const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
-  if (!merchantId || !merchantSecret) throw new Error("PayHere credentials are not configured.");
+  if (!merchantId || !merchantSecret) {
+    console.error("[payhere] Missing PayHere credentials", {
+      PAYHERE_MERCHANT_ID: Boolean(merchantId),
+      PAYHERE_MERCHANT_SECRET: Boolean(merchantSecret),
+    });
+    throw new Error("PayHere credentials are not configured.");
+  }
   return { merchantId, merchantSecret };
 }
 
