@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import type { Category } from "@/lib/supabase/types";
 import { createCategoryAction, deleteCategoryAction, initialActionState, updateCategoryAction } from "../actions";
 import { ActionMessage } from "./ActionMessage";
@@ -13,7 +13,11 @@ import { SubmitButton } from "./SubmitButton";
 function CategoryForm({ category, close }: { category?: Category; close?: () => void }) {
   const action = category ? updateCategoryAction.bind(null, category.id) : createCategoryAction;
   const [state, formAction] = useActionState(action, initialActionState);
-  return <form action={formAction} className="space-y-4"><ActionMessage state={state} /><label><span className="staff-label">Name *</span><input className="staff-input" name="name" required defaultValue={category?.name} /></label><label><span className="staff-label">Slug</span><input className="staff-input" name="slug" defaultValue={category?.slug} placeholder="Generated from name" /></label><label><span className="staff-label">Status</span><select className="staff-input" name="status" defaultValue={category?.status ?? "active"}><option value="active">Active</option><option value="inactive">Inactive</option></select></label><div className="flex justify-end gap-3">{close && <button type="button" className="staff-button staff-button-secondary" onClick={close}>Cancel</button>}<SubmitButton>{category ? "Update category" : "Add category"}</SubmitButton></div></form>;
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!category && state.status === "success") formRef.current?.reset();
+  }, [category, state.status]);
+  return <form ref={formRef} action={formAction} className="space-y-4"><ActionMessage state={state} /><label><span className="staff-label">Name *</span><input className="staff-input" name="name" required defaultValue={category?.name} /></label><label><span className="staff-label">Slug</span><input className="staff-input" name="slug" defaultValue={category?.slug} placeholder="Generated from name" /></label><label><span className="staff-label">Status</span><select className="staff-input" name="status" defaultValue={category?.status ?? "active"}><option value="active">Active</option><option value="inactive">Inactive</option></select></label><div className="flex justify-end gap-3">{close && <button type="button" className="staff-button staff-button-secondary" onClick={close}>Cancel</button>}<SubmitButton>{category ? "Update category" : "Add category"}</SubmitButton></div></form>;
 }
 
 function CategoryRow({ category }: { category: Category }) {
