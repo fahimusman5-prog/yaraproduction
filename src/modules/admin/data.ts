@@ -1,6 +1,6 @@
 import "server-only";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/supabase/auth";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   Category,
   Order,
@@ -13,9 +13,7 @@ import type {
 
 async function client() {
   await requireStaff("/admin");
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) throw new Error("Supabase is not configured.");
-  return supabase;
+  return getSupabaseAdminClient();
 }
 
 function fail(scope: string, error: { message: string }) {
@@ -47,9 +45,9 @@ export async function getProduct(productId: string) {
     .from("products")
     .select("*,categories(name)")
     .eq("id", productId)
-    .single();
+    .maybeSingle();
   if (error) fail("Load product", error);
-  return data as Product;
+  return data as Product | null;
 }
 export async function getOrders() {
   const supabase = await client();
@@ -72,8 +70,9 @@ export async function getOrder(orderId: string) {
   ]);
   if (orderResult.error) fail("Load order", orderResult.error);
   if (itemsResult.error) fail("Load order items", itemsResult.error);
+  if (!orderResult.data) throw new Error("Load order failed: Order not found.");
   return {
-    order: orderResult.data as Order,
+    order: orderResult.data as unknown as Order,
     items: (itemsResult.data ?? []) as OrderItem[],
   };
 }
