@@ -1,4 +1,5 @@
 import { countryDetails, type Country } from "../context/CountryContext";
+import { defaultLocale, getWhatsAppLabels, type Locale } from "../i18n";
 import type { CartItem, Product } from "../types";
 
 export const getProductPrice = (product: Product, country: Country) =>
@@ -22,14 +23,16 @@ export const cartOrderMessage = (
   items: CartItem[],
   total: number,
   country: Country,
-  customer: CustomerDetails = {}
+  customer: CustomerDetails = {},
+  locale: Locale = defaultLocale,
 ) => {
   const details = countryDetails[country];
+  const labels = getWhatsAppLabels(locale);
   const lines = items.map(({ product, quantity }, index) =>
-    `${index + 1}. ${product.name} x ${quantity} - ${formatPrice(getProductPrice(product, country) * quantity, country)}`
+    `${index + 1}. ${product.name} x ${quantity} - ${labels.price}: ${formatPrice(getProductPrice(product, country) * quantity, country)}`
   );
-  return `Hello YARA, I want to place an order.\n\nCountry: ${details.name}\nCurrency: ${details.currency}\n\nProducts:\n${lines.join("\n")}\n\nTotal: ${formatPrice(total, country)}\n\nName: ${customer.name ?? ""}\nPhone: ${customer.phone ?? ""}\nAddress: ${customer.address ?? ""}`;
+  return `${labels.greeting}\n\n${labels.country}: ${details.name}\n${labels.currency}: ${details.currency}\n\n${labels.products}:\n${lines.join("\n")}\n\n${labels.total}: ${formatPrice(total, country)}\n\n${labels.name}: ${customer.name ?? ""}\n${labels.phone}: ${customer.phone ?? ""}\n${labels.address}: ${customer.address ?? ""}`;
 };
 
-export const productOrderMessage = (product: Product, quantity: number, country: Country) =>
-  cartOrderMessage([{ product, quantity }], getProductPrice(product, country) * quantity, country);
+export const productOrderMessage = (product: Product, quantity: number, country: Country, locale: Locale = defaultLocale) =>
+  cartOrderMessage([{ product, quantity }], getProductPrice(product, country) * quantity, country, {}, locale);

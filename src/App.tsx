@@ -13,16 +13,13 @@ import { CountryProvider, useCountry } from "./context/CountryContext";
 import { CountryLanding } from "./components/CountryLanding";
 import { IngredientsPage } from "./customer-pages/IngredientsPage";
 import { CatalogProvider } from "./context/CatalogContext";
+import { defaultLocale, isLocale, LocaleProvider, type Locale } from "./i18n";
 
 function CountryGatedSite() {
   const { country } = useCountry();
-  if (!country) return <CountryLanding />;
-
-  const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
-
   return (
-    <Router>
-      <CatalogProvider><CartProvider>
+    <CatalogProvider><CartProvider>
+      {!country ? <CountryLanding /> : (
         <Layout>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -37,11 +34,35 @@ function CountryGatedSite() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
-      </CartProvider></CatalogProvider>
-    </Router>
+      )}
+    </CartProvider></CatalogProvider>
   );
 }
 
+function getInitialLocale(): Locale {
+  if (window.location.protocol === "file:") return defaultLocale;
+
+  const { pathname, search, hash } = window.location;
+  const [, firstSegment] = pathname.split("/");
+  if (isLocale(firstSegment)) return firstSegment;
+
+  const normalizedPath = pathname === "/" ? "" : pathname;
+  window.history.replaceState(null, "", `/${defaultLocale}${normalizedPath}${search}${hash}`);
+  return defaultLocale;
+}
+
 export default function App() {
-  return <CountryProvider><CountryGatedSite /></CountryProvider>;
+  const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
+  const locale = getInitialLocale();
+  const routerProps = window.location.protocol === "file:" ? {} : { basename: `/${locale}` };
+
+  return (
+    <LocaleProvider locale={locale}>
+      <CountryProvider>
+        <Router {...routerProps}>
+          <CountryGatedSite />
+        </Router>
+      </CountryProvider>
+    </LocaleProvider>
+  );
 }

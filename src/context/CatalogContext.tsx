@@ -15,6 +15,7 @@ function mapProduct(row: CatalogRow): Product {
   const fallback = fallbackProducts.find((product) => product.id === row.slug);
   return {
     id: row.id,
+    slug: row.slug,
     name: row.name,
     subtitle: fallback?.subtitle ?? row.categories?.name ?? "YARA Collection",
     priceLKR: Number(row.price_lkr),

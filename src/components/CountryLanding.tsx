@@ -1,14 +1,15 @@
 import { ArrowRight, MapPin } from "lucide-react";
 import { useCountry, type Country } from "../context/CountryContext";
 import yaraLogo from "../assets/yara-logo-glow.png";
-
-const choices: Array<{ id: Country; title: string; description: string; button: string; code: string }> = [
-  { id: "sri-lanka", title: "Sri Lanka", description: "View products with LKR pricing.", button: "Continue to Sri Lanka", code: "LKR" },
-  { id: "uae", title: "UAE / Dubai", description: "View products with AED pricing.", button: "Continue to UAE", code: "AED" }
-];
+import { useI18n } from "../i18n";
 
 export function CountryLanding() {
   const { selectCountry } = useCountry();
+  const { t } = useI18n();
+  const choices: Array<{ id: Country; title: string; description: string; button: string; code: string }> = [
+    { id: "sri-lanka", title: t("region.sriLanka"), description: t("countryLanding.sriLankaDescription"), button: t("countryLanding.sriLankaButton"), code: "LKR" },
+    { id: "uae", title: t("region.uae"), description: t("countryLanding.uaeDescription"), button: t("countryLanding.uaeButton"), code: "AED" }
+  ];
 
   return (
     <main className="country-landing relative isolate flex min-h-[100svh] items-center overflow-hidden px-5 py-10 sm:px-8">
@@ -16,9 +17,9 @@ export function CountryLanding() {
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-yara-gold to-transparent" />
       <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
         <img src={yaraLogo.src} alt="YARA" className="country-reveal mx-auto h-28 w-40 scale-[1.45] object-contain sm:h-32" />
-        <p className="country-reveal country-delay-1 mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-yara-gold">Your glow begins here</p>
-        <h1 className="country-reveal country-delay-2 mt-5 text-balance text-4xl font-medium sm:text-6xl">Choose Your Country</h1>
-        <p className="country-reveal country-delay-3 mx-auto mt-5 max-w-2xl text-sm font-light leading-7 text-yara-taupe sm:text-base">Select your country to continue shopping with the right prices and ordering options.</p>
+        <p className="country-reveal country-delay-1 mt-2 text-[0.62rem] font-semibold uppercase tracking-[0.3em] text-yara-gold">{t("countryLanding.eyebrow")}</p>
+        <h1 className="country-reveal country-delay-2 mt-5 text-balance text-4xl font-medium sm:text-6xl">{t("countryLanding.title")}</h1>
+        <p className="country-reveal country-delay-3 mx-auto mt-5 max-w-2xl text-sm font-light leading-7 text-yara-taupe sm:text-base">{t("countryLanding.description")}</p>
 
         <div className="mt-10 grid gap-5 sm:mt-12 sm:grid-cols-2 sm:gap-7">
           {choices.map((choice, index) => (
@@ -39,7 +40,7 @@ export function CountryLanding() {
             </button>
           ))}
         </div>
-        <p className="country-reveal country-delay-6 mt-8 text-[0.58rem] uppercase tracking-[0.2em] text-yara-taupe/75">Luxury skincare, thoughtfully delivered</p>
+        <p className="country-reveal country-delay-6 mt-8 text-[0.58rem] uppercase tracking-[0.2em] text-yara-taupe/75">{t("countryLanding.footnote")}</p>
       </div>
     </main>
   );
