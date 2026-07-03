@@ -3,7 +3,8 @@
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useActionState, useEffect, useRef } from "react";
 import type { Category } from "@/lib/supabase/types";
-import { createCategoryAction, deleteCategoryAction, initialActionState, updateCategoryAction } from "../actions";
+import { initialActionState } from "../action-state";
+import { createCategoryAction, deleteCategoryAction, updateCategoryAction } from "../actions";
 import { ActionMessage } from "./ActionMessage";
 import { ConfirmActionButton } from "./ConfirmActionButton";
 import { EmptyState } from "./EmptyState";

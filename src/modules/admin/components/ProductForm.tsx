@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import type { Category, Product } from "@/lib/supabase/types";
-import { createProductAction, initialActionState, updateProductAction } from "../actions";
+import { initialActionState } from "../action-state";
+import { createProductAction, updateProductAction } from "../actions";
 import { ActionMessage } from "./ActionMessage";
 import { SubmitButton } from "./SubmitButton";
 

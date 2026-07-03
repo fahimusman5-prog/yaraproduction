@@ -3,7 +3,8 @@
 import { Search, SlidersHorizontal as MinusPlus } from "lucide-react";
 import { useActionState, useMemo, useRef, useState } from "react";
 import type { Product, StockMovement } from "@/lib/supabase/types";
-import { adjustStockAction, initialActionState } from "../actions";
+import { initialActionState } from "../action-state";
+import { adjustStockAction } from "../actions";
 import { formatDate } from "../lib/format";
 import { ActionMessage } from "./ActionMessage";
 import { EmptyState } from "./EmptyState";

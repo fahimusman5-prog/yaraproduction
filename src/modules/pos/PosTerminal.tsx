@@ -24,7 +24,8 @@ import {
 } from "react";
 import type { Product } from "@/lib/supabase/types";
 import type { StaffContext } from "@/lib/supabase/auth";
-import { completePosSaleAction, initialPosActionState } from "./actions";
+import { initialPosActionState } from "./action-state";
+import { completePosSaleAction } from "./actions";
 
 interface CartLine {
   product: Product;

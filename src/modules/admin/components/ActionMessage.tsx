@@ -1,4 +1,4 @@
-import type { ActionState } from "../actions";
+import type { ActionState } from "../action-state";
 
 export function ActionMessage({ state }: { state: ActionState }) {
   if (state.status === "idle") return null;

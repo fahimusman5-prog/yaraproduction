@@ -4,10 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { ActionState } from "./action-state";
 import { toSlug } from "./lib/format";
-
-export interface ActionState { status: "idle" | "success" | "error"; message: string }
-export const initialActionState: ActionState = { status: "idle", message: "" };
 
 function actionError(scope: string, error: unknown, fallback: string): ActionState {
   console.error(`[admin:${scope}]`, error);

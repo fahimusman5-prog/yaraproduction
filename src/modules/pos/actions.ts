@@ -4,9 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-export interface PosActionState { status: "idle" | "success" | "error"; message: string; sale?: { id: string; number: string; total: number; cashier: string; createdAt: string; currency: "LKR" | "AED"; paymentMethod: string } }
-export const initialPosActionState: PosActionState = { status: "idle", message: "" };
+import type { PosActionState } from "./action-state";
 
 const saleSchema = z.object({
   payment_method: z.enum(["cash", "card", "bank_transfer"]),
