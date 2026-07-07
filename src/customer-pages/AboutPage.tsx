@@ -19,7 +19,7 @@ export function AboutPage() {
           <p className="mt-7 text-base font-light leading-8 text-yara-taupe">{t("about.copy")}</p>
           <Link to="/shop" className="btn-primary mt-8">{t("about.explore")} <ArrowRight className="h-4 w-4" /></Link>
         </div>
-        <div className="relative mx-auto max-w-lg"><div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-yara-rose blur-3xl" /><img src={storyImage} alt="The YARA beauty community" className="relative aspect-[4/5] w-full rounded-[2.5rem] object-cover shadow-soft" /></div>
+        <div className="relative mx-auto max-w-lg"><div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-yara-rose blur-3xl" /><img src={storyImage} alt={t("about.eyebrow")} className="relative aspect-[4/5] w-full rounded-[2.5rem] object-cover shadow-soft" /></div>
       </section>
 
       <section className="bg-yara-blush py-20 sm:py-28">

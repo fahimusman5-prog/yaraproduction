@@ -5,6 +5,7 @@ import { useCart } from "../context/CartContext";
 import { cartOrderMessage, createWhatsAppLink, formatPrice, getProductPrice } from "../lib/format";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
+import { localizeProduct } from "../lib/storefront-localization";
 
 type PaymentMethod = "payhere" | "cod";
 
@@ -52,7 +53,7 @@ export function CheckoutPage() {
       phone: String(data.get("phone") ?? ""),
       address: [data.get("address"), data.get("city"), data.get("postalCode")].filter(Boolean).join(", ")
     };
-    window.open(createWhatsAppLink(cartOrderMessage(items, total, country, customer, locale), country), "_blank", "noopener,noreferrer");
+    window.open(createWhatsAppLink(cartOrderMessage(items, total, country, { ...customer, paymentMethod: t(payment === "payhere" ? "checkout.payhere" : "checkout.cod") }, locale), country), "_blank", "noopener,noreferrer");
   };
 
   if (!items.length) {
@@ -66,7 +67,7 @@ export function CheckoutPage() {
         <div className="space-y-6">
           <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><UserRound className="h-4 w-4" /></span> {t("checkout.contact")}</h2>
-            <label className="mt-7 block"><span className="field-label">{t("layout.emailAddress")}</span><input type="email" name="email" required autoComplete="email" placeholder="you@example.com" className="field" /></label>
+            <label className="mt-7 block"><span className="field-label">{t("layout.emailAddress")}</span><input type="email" name="email" required autoComplete="email" placeholder={t("checkout.emailPlaceholder")} className="field" /></label>
             <label className="mt-4 flex items-start gap-3 text-xs leading-5 text-yara-taupe"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-yara-wine" /> {t("checkout.keepUpdated")}</label>
           </section>
 
@@ -97,9 +98,11 @@ export function CheckoutPage() {
         <aside className="surface-card p-6 sm:p-8 lg:sticky lg:top-28">
           <h2 className="text-3xl">{t("common.orderSummary")}</h2>
           <div className="mt-6 space-y-5">
-            {items.map(({ product, quantity }) => (
-              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{product.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><span className="text-sm text-yara-wine">{country && formatPrice(getProductPrice(product, country) * quantity, country)}</span></div>
-            ))}
+            {items.map(({ product, quantity }) => {
+              const displayProduct = localizeProduct(product, locale);
+              return (
+              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><span className="text-sm text-yara-wine">{country && formatPrice(getProductPrice(product, country) * quantity, country)}</span></div>
+            );})}
           </div>
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>
           <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>

@@ -7,12 +7,13 @@ import { useCountry } from "../context/CountryContext";
 import { getProductPrice } from "../lib/format";
 import { useCatalog } from "../context/CatalogContext";
 import { useI18n } from "../i18n";
+import { localizeProduct, localizeTaxonomy } from "../lib/storefront-localization";
 
 export function ShopPage() {
   const { products, categories: catalogCategories } = useCatalog();
   const categories: Array<"All" | Category> = ["All", ...catalogCategories];
   const { country } = useCountry();
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const requestedCategory = searchParams.get("category") as Category | null;
@@ -29,7 +30,7 @@ export function ShopPage() {
     const filtered = products.filter((product) =>
       (category === "All" || product.category === category) &&
       (concern === "All" || product.concern === concern) &&
-      (!normalizedQuery || `${product.name} ${product.subtitle} ${product.category} ${product.concern}`.toLowerCase().includes(normalizedQuery))
+      (!normalizedQuery || `${product.name} ${product.subtitle} ${product.category} ${product.concern} ${localizeProduct(product, locale).name} ${localizeProduct(product, locale).subtitle}`.toLowerCase().includes(normalizedQuery))
     );
     return [...filtered].sort((a, b) => {
       if (sort === "price-low" && country) return getProductPrice(a, country) - getProductPrice(b, country);
@@ -59,7 +60,7 @@ export function ShopPage() {
         <div className="mt-5 grid gap-3">
           {categories.map((item) => (
             <label key={item} className="flex cursor-pointer items-center gap-3 text-sm font-light">
-              <input type="radio" name="category" checked={category === item} onChange={() => updateCategory(item)} className="h-4 w-4 accent-yara-wine" /> {item === "All" ? t("shop.all") : item}
+              <input type="radio" name="category" checked={category === item} onChange={() => updateCategory(item)} className="h-4 w-4 accent-yara-wine" /> {item === "All" ? t("shop.all") : localizeTaxonomy(item, locale)}
             </label>
           ))}
         </div>
@@ -69,7 +70,7 @@ export function ShopPage() {
         <div className="mt-5 grid gap-3">
           {concerns.map((item) => (
             <label key={item} className="flex cursor-pointer items-center gap-3 text-sm font-light">
-              <input type="radio" name="concern" checked={concern === item} onChange={() => setConcern(item)} className="h-4 w-4 accent-yara-wine" /> {item === "All" ? t("shop.all") : item}
+              <input type="radio" name="concern" checked={concern === item} onChange={() => setConcern(item)} className="h-4 w-4 accent-yara-wine" /> {item === "All" ? t("shop.all") : localizeTaxonomy(item, locale)}
             </label>
           ))}
         </div>
@@ -111,7 +112,7 @@ export function ShopPage() {
       {filtersOpen && (
         <div className="fixed inset-0 z-[60] bg-yara-ink/25 backdrop-blur-sm lg:hidden" onClick={() => setFiltersOpen(false)}>
           <aside className="ml-auto h-full w-[88%] max-w-sm overflow-y-auto bg-yara-ivory p-7" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-8 flex items-center justify-between"><h2 className="text-2xl">{t("shop.refine")}</h2><button onClick={() => setFiltersOpen(false)} aria-label="Close filters"><X className="h-5 w-5" /></button></div>
+            <div className="mb-8 flex items-center justify-between"><h2 className="text-2xl">{t("shop.refine")}</h2><button onClick={() => setFiltersOpen(false)} aria-label={t("common.closeFilters")}><X className="h-5 w-5" /></button></div>
             {filters}
             <button className="btn-primary mt-8 w-full" onClick={() => setFiltersOpen(false)}>{t("shop.viewProducts", { count: visibleProducts.length })}</button>
           </aside>

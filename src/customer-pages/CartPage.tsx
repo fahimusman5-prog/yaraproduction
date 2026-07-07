@@ -4,6 +4,7 @@ import { useCart } from "../context/CartContext";
 import { cartOrderMessage, createWhatsAppLink, formatPrice, getProductPrice } from "../lib/format";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
+import { localizeProduct } from "../lib/storefront-localization";
 
 export function CartPage() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
@@ -25,13 +26,15 @@ export function CartPage() {
       <p className="eyebrow">{t("cart.eyebrow")}</p><h1 className="mt-3 text-4xl sm:text-5xl">{t("cart.title")}</h1>
       <div className="mt-10 grid items-start gap-10 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px]">
         <div className="space-y-4">
-          {items.map(({ product, quantity }) => (
+          {items.map(({ product, quantity }) => {
+            const displayProduct = localizeProduct(product, locale);
+            return (
             <article key={product.id} className="surface-card grid grid-cols-[100px_1fr] gap-4 p-4 sm:grid-cols-[150px_1fr] sm:gap-6 sm:p-5">
-              <Link to={`/product/${product.slug || product.id}`} className="overflow-hidden rounded-[1.3rem] bg-yara-rose"><img src={product.image} alt={product.name} className="aspect-square h-full w-full object-cover" /></Link>
+              <Link to={`/product/${product.slug || product.id}`} className="overflow-hidden rounded-[1.3rem] bg-yara-rose"><img src={product.image} alt={t("product.imageAlt", { name: displayProduct.name })} className="aspect-square h-full w-full object-cover" /></Link>
               <div className="flex min-w-0 flex-col justify-between py-1">
                 <div className="flex items-start justify-between gap-3">
-                  <div><p className="text-[0.58rem] uppercase tracking-[0.13em] text-yara-wine">{product.category}</p><Link to={`/product/${product.slug || product.id}`}><h2 className="mt-1 text-xl sm:text-2xl">{product.name}</h2></Link><p className="mt-1 text-xs text-yara-taupe">{product.size}</p></div>
-                  <button onClick={() => removeItem(product.id)} className="rounded-full p-2 text-yara-taupe transition hover:bg-yara-rose hover:text-yara-wine" aria-label={t("cart.remove", { name: product.name })}><Trash2 className="h-4 w-4" /></button>
+                  <div><p className="text-[0.58rem] uppercase tracking-[0.13em] text-yara-wine">{displayProduct.category}</p><Link to={`/product/${product.slug || product.id}`}><h2 className="mt-1 text-xl sm:text-2xl">{displayProduct.name}</h2></Link><p className="mt-1 text-xs text-yara-taupe">{product.size}</p></div>
+                  <button onClick={() => removeItem(product.id)} className="rounded-full p-2 text-yara-taupe transition hover:bg-yara-rose hover:text-yara-wine" aria-label={t("cart.remove", { name: displayProduct.name })}><Trash2 className="h-4 w-4" /></button>
                 </div>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center rounded-full border border-yara-rose p-0.5"><button onClick={() => updateQuantity(product.id, quantity - 1)} className="grid h-8 w-8 place-items-center" aria-label={t("product.decrease")}><Minus className="h-3.5 w-3.5" /></button><span className="w-7 text-center text-xs">{quantity}</span><button onClick={() => updateQuantity(product.id, quantity + 1)} className="grid h-8 w-8 place-items-center" aria-label={t("product.increase")}><Plus className="h-3.5 w-3.5" /></button></div>
@@ -39,7 +42,7 @@ export function CartPage() {
                 </div>
               </div>
             </article>
-          ))}
+          );})}
           <Link to="/shop" className="inline-flex items-center gap-2 pt-3 text-xs font-semibold uppercase tracking-[0.13em] text-yara-wine">← {t("common.continueShopping")}</Link>
         </div>
 
