@@ -9,6 +9,7 @@ export interface Product {
   priceAED: number;
   category: Category;
   concern: string;
+  concerns?: string[];
   image: string;
   gallery?: string[];
   badge?: string;
@@ -19,6 +20,9 @@ export interface Product {
   benefits: string[];
   howToUse: string;
   ingredients: string;
+  caution?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   stockQuantity?: number;
 }
 

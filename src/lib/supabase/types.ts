@@ -21,6 +21,14 @@ export interface Category {
   created_at: string;
 }
 
+export interface SkinConcern {
+  id: string;
+  name: string;
+  slug: string;
+  status: RecordStatus;
+  created_at: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -35,9 +43,20 @@ export interface Product {
   stock_quantity: number;
   low_stock_alert: number;
   status: ProductStatus;
+  benefits: string[];
+  how_to_use: string;
+  ingredients: string;
+  caution: string;
+  original_category: string;
+  image_status: string;
+  pdf_source_page: string;
+  seo_title: string;
+  seo_description: string;
+  featured: boolean;
   created_at: string;
   updated_at: string;
   categories?: Pick<Category, "name"> | null;
+  product_skin_concerns?: Array<{ skin_concerns: Pick<SkinConcern, "id" | "name" | "slug"> | null }> | null;
 }
 
 export interface Order {

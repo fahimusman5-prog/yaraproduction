@@ -1,50 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { ActionState } from "./action-state";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { toSlug } from "./lib/format";
 
-function actionError(scope: string, error: unknown, fallback: string): ActionState {
-  console.error(`[admin:${scope}]`, error);
-  return { status: "error", message: error instanceof Error ? error.message : fallback };
-}
-
-function safeSupabaseMessage(action: "Product" | "Category" | "Image" | "Stock" | "Order", error: { code?: string; message?: string; details?: string | null; hint?: string | null }) {
-  console.error(`[admin:${action.toLowerCase()}:supabase]`, {
-    code: error.code,
-    message: error.message,
-    details: error.details,
-    hint: error.hint,
-  });
-
-  const message = error.message ?? "Unknown Supabase error.";
-  const detail = error.details ? ` ${error.details}` : "";
-  const combined = `${message}${detail}`;
-
-  if (error.code === "23505" || /duplicate key|already exists/i.test(combined)) {
-    return `${action} could not be saved: a record with the same name, slug, SKU, or barcode already exists.`;
-  }
-  if (error.code === "23503" || /foreign key/i.test(combined)) {
-    return `${action} could not be saved: a selected related record no longer exists.`;
-  }
-  if (error.code === "23514" || /check constraint/i.test(combined)) {
-    return `${action} could not be saved: one of the values is outside the allowed range.`;
-  }
-  if (/permission|policy|row-level security|rls/i.test(combined)) {
-    return `${action} could not be saved: admin permission was rejected by Supabase.`;
-  }
-
-  return `${action} could not be saved: ${message}`;
-}
+export interface ActionState { status: "idle" | "success" | "error"; message: string }
+export const initialActionState: ActionState = { status: "idle", message: "" };
 
 const productSchema = z.object({
   name: z.string().trim().min(2).max(160),
   slug: z.string().trim().max(180).optional(),
   description: z.string().trim().max(5000).default(""),
   category_id: z.string().uuid().or(z.literal("")).optional(),
+  benefits: z.string().trim().max(10000).default(""),
+  how_to_use: z.string().trim().max(5000).default(""),
+  ingredients: z.string().trim().max(5000).default(""),
+  caution: z.string().trim().max(2000).default(""),
+  original_category: z.string().trim().max(160).default(""),
+  image_status: z.string().trim().max(240).default(""),
+  pdf_source_page: z.string().trim().max(80).default(""),
+  seo_title: z.string().trim().max(180).default(""),
+  seo_description: z.string().trim().max(320).default(""),
   price_lkr: z.coerce.number().min(0).max(999999999),
   price_aed: z.coerce.number().min(0).max(999999999),
   sku: z.string().trim().min(1).max(80),
@@ -52,6 +31,7 @@ const productSchema = z.object({
   stock_quantity: z.coerce.number().int().min(0).max(10000000),
   low_stock_alert: z.coerce.number().int().min(0).max(1000000),
   status: z.enum(["active", "inactive", "archived"]),
+  featured: z.enum(["true"]).optional(),
 });
 
 const categorySchema = z.object({
@@ -61,9 +41,17 @@ const categorySchema = z.object({
 });
 
 function formObject(formData: FormData) { return Object.fromEntries(formData.entries()); }
+function listFromTextarea(value: string) {
+  return value.split(/\r?\n|;/).map((item) => item.trim()).filter(Boolean);
+}
+function selectedSkinConcerns(formData: FormData) {
+  return formData.getAll("skin_concern_ids").map(String).filter((id) => z.string().uuid().safeParse(id).success);
+}
 
 async function actionClient() {
-  return getSupabaseAdminClient();
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) throw new Error("Supabase is not configured.");
+  return supabase;
 }
 
 async function uploadProductImage(supabase: Awaited<ReturnType<typeof actionClient>>, formData: FormData, existingUrl?: string | null) {
@@ -74,7 +62,7 @@ async function uploadProductImage(supabase: Awaited<ReturnType<typeof actionClie
   const extension = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `products/${crypto.randomUUID()}.${extension}`;
   const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error(safeSupabaseMessage("Image", error));
+  if (error) throw new Error(error.message);
   return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
 }
 
@@ -83,89 +71,80 @@ async function adjustProductStock(
   productId: string,
   quantityChange: number,
   movementType: "manual_adjustment" | "restock",
-  staffUserId: string,
 ) {
   if (quantityChange === 0) return;
 
-  const { data: current, error: currentError } = await supabase
-    .from("products")
-    .select("stock_quantity")
-    .eq("id", productId)
-    .single();
-  if (currentError || !current) throw new Error(currentError ? safeSupabaseMessage("Stock", currentError) : "Stock could not be saved: product not found.");
-
-  const previousStock = Number(current.stock_quantity);
-  const newStock = previousStock + quantityChange;
-  if (newStock < 0) throw new Error("Stock cannot be negative.");
-
-  const { error: updateError } = await supabase
-    .from("products")
-    .update({ stock_quantity: newStock })
-    .eq("id", productId);
-  if (updateError) throw new Error(safeSupabaseMessage("Stock", updateError));
-
-  const { error: movementError } = await supabase.from("stock_movements").insert({
-    product_id: productId,
-    movement_type: movementType,
-    quantity_change: quantityChange,
-    previous_stock: previousStock,
-    new_stock: newStock,
-    created_by: staffUserId,
+  const { error } = await supabase.rpc("adjust_product_stock", {
+    p_product_id: productId,
+    p_quantity_change: quantityChange,
+    p_movement_type: movementType,
   });
-  if (movementError) throw new Error(safeSupabaseMessage("Stock", movementError));
+  if (error) throw new Error(error.message);
+}
+
+async function replaceProductSkinConcerns(
+  supabase: Awaited<ReturnType<typeof actionClient>>,
+  productId: string,
+  skinConcernIds: string[],
+) {
+  const { error: deleteError } = await supabase.from("product_skin_concerns").delete().eq("product_id", productId);
+  if (deleteError) throw new Error(deleteError.message);
+  if (!skinConcernIds.length) return;
+  const { error } = await supabase.from("product_skin_concerns").insert(
+    skinConcernIds.map((skin_concern_id) => ({ product_id: productId, skin_concern_id })),
+  );
+  if (error) throw new Error(error.message);
 }
 
 export async function createProductAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  const staff = await requireAdmin("/admin/products/new");
+  await requireAdmin("/admin/products/new");
   const parsed = productSchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
   try {
     const supabase = await actionClient();
     const image_url = await uploadProductImage(supabase, formData);
     const initialStock = parsed.data.stock_quantity;
-    const payload = { ...parsed.data, stock_quantity: 0, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
-    const { data: product, error } = await supabase.from("products").insert(payload).select("id").single(); if (error) throw new Error(safeSupabaseMessage("Product", error));
-    await adjustProductStock(supabase, String(product.id), initialStock, "restock", staff.userId);
-  } catch (error) { return actionError("create-product", error, "Unable to create product."); }
+    const { stock_quantity, benefits, featured, ...fields } = parsed.data;
+    const payload = { ...fields, benefits: listFromTextarea(benefits), featured: featured === "true", stock_quantity: 0, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
+    const { data: product, error } = await supabase.from("products").insert(payload).select("id").single(); if (error) throw new Error(error.message);
+    await replaceProductSkinConcerns(supabase, String(product.id), selectedSkinConcerns(formData));
+    await adjustProductStock(supabase, String(product.id), initialStock, "restock");
+  } catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Unable to create product." }; }
   revalidatePath("/admin");
   revalidatePath("/admin/products");
   revalidatePath("/admin/inventory");
   revalidatePath("/pos");
-  revalidatePath("/");
-  return { status: "success", message: "Product created successfully." };
+  redirect("/admin/products?saved=created");
 }
 
 export async function updateProductAction(productId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
-  const staff = await requireAdmin(`/admin/products/${productId}/edit`);
-  if (!z.string().uuid().safeParse(productId).success) {
-    return actionError("update-product", new Error(`Invalid product ID: ${productId}`), "Invalid product ID.");
-  }
+  await requireAdmin(`/admin/products/${productId}/edit`);
   const parsed = productSchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
   try {
     const supabase = await actionClient();
     const image_url = await uploadProductImage(supabase, formData, String(formData.get("existing_image_url") || "") || null);
-    const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", productId).single(); if (currentError) throw new Error(safeSupabaseMessage("Product", currentError));
-    const { stock_quantity: targetStock, ...productFields } = parsed.data;
-    const payload = { ...productFields, slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
-    const { error } = await supabase.from("products").update(payload).eq("id", productId); if (error) throw new Error(safeSupabaseMessage("Product", error));
+    const { data: current, error: currentError } = await supabase.from("products").select("stock_quantity").eq("id", productId).single(); if (currentError) throw new Error(currentError.message);
+    const { stock_quantity: targetStock, benefits, featured, ...productFields } = parsed.data;
+    const payload = { ...productFields, benefits: listFromTextarea(benefits), featured: featured === "true", slug: toSlug(parsed.data.slug || parsed.data.name), category_id: parsed.data.category_id || null, barcode: parsed.data.barcode || null, image_url };
+    const { error } = await supabase.from("products").update(payload).eq("id", productId); if (error) throw new Error(error.message);
+    await replaceProductSkinConcerns(supabase, productId, selectedSkinConcerns(formData));
     const difference = targetStock - Number(current.stock_quantity);
-    await adjustProductStock(supabase, productId, difference, difference > 0 ? "restock" : "manual_adjustment", staff.userId);
-  } catch (error) { return actionError("update-product", error, "Unable to update product."); }
+    await adjustProductStock(supabase, productId, difference, difference > 0 ? "restock" : "manual_adjustment");
+  } catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Unable to update product." }; }
   revalidatePath("/admin");
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${productId}/edit`);
   revalidatePath("/admin/inventory");
   revalidatePath("/pos");
-  revalidatePath("/");
-  return { status: "success", message: "Product updated successfully." };
+  redirect("/admin/products?saved=updated");
 }
 
 export async function archiveProductAction(productId: string) {
   await requireAdmin("/admin/products");
-  const supabase = await actionClient();
+  const supabase = await getSupabaseServerClient(); if (!supabase) return;
   const { error } = await supabase.from("products").update({ status: "archived" }).eq("id", productId);
-  if (error) { console.error("[admin:archive-product]", error); throw new Error(error.message); }
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/products");
 }
 
@@ -173,9 +152,9 @@ export async function createCategoryAction(_state: ActionState, formData: FormDa
   await requireAdmin("/admin/categories");
   const parsed = categorySchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the category details." };
-  const supabase = await actionClient();
+  const supabase = await getSupabaseServerClient(); if (!supabase) return { status: "error", message: "Supabase is not configured." };
   const { error } = await supabase.from("categories").insert({ ...parsed.data, slug: toSlug(parsed.data.slug || parsed.data.name) });
-  if (error) return actionError("create-category", new Error(safeSupabaseMessage("Category", error)), "Unable to create category.");
+  if (error) return { status: "error", message: error.message };
   revalidatePath("/admin/categories"); return { status: "success", message: "Category created." };
 }
 
@@ -183,17 +162,17 @@ export async function updateCategoryAction(categoryId: string, _state: ActionSta
   await requireAdmin("/admin/categories");
   const parsed = categorySchema.safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the category details." };
-  const supabase = await actionClient();
+  const supabase = await getSupabaseServerClient(); if (!supabase) return { status: "error", message: "Supabase is not configured." };
   const { error } = await supabase.from("categories").update({ ...parsed.data, slug: toSlug(parsed.data.slug || parsed.data.name) }).eq("id", categoryId);
-  if (error) return actionError("update-category", new Error(safeSupabaseMessage("Category", error)), "Unable to update category.");
+  if (error) return { status: "error", message: error.message };
   revalidatePath("/admin/categories"); return { status: "success", message: "Category updated." };
 }
 
 export async function deleteCategoryAction(categoryId: string) {
   await requireAdmin("/admin/categories");
-  const supabase = await actionClient();
+  const supabase = await getSupabaseServerClient(); if (!supabase) return;
   const { error } = await supabase.from("categories").delete().eq("id", categoryId);
-  if (error) { console.error("[admin:delete-category]", error); throw new Error(error.message); }
+  if (error) throw new Error(error.message);
   revalidatePath("/admin/categories"); revalidatePath("/admin/products");
 }
 
@@ -201,20 +180,20 @@ export async function updateOrderStatusAction(orderId: string, _state: ActionSta
   await requireStaff(`/admin/orders/${orderId}`);
   const parsed = z.object({ order_status: z.enum(["pending", "paid", "processing", "shipped", "delivered", "cancelled"]), payment_status: z.enum(["pending", "paid", "failed", "refunded"]) }).safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: "Choose valid order and payment statuses." };
-  const supabase = await actionClient();
+  const supabase = await getSupabaseServerClient(); if (!supabase) return { status: "error", message: "Supabase is not configured." };
   const { error } = await supabase.from("orders").update(parsed.data).eq("id", orderId);
-  if (error) return actionError("update-order-status", new Error(safeSupabaseMessage("Order", error)), "Unable to update order status.");
+  if (error) return { status: "error", message: error.message };
   revalidatePath("/admin/orders"); revalidatePath(`/admin/orders/${orderId}`); return { status: "success", message: "Order status updated." };
 }
 
 export async function adjustStockAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  const staff = await requireStaff("/admin/inventory");
+  await requireStaff("/admin/inventory");
   const parsed = z.object({ product_id: z.string().uuid(), quantity_change: z.coerce.number().int().refine((v) => v !== 0, "Enter a non-zero quantity."), movement_type: z.enum(["manual_adjustment", "restock"]) }).safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the stock adjustment." };
   try {
-    await adjustProductStock(await actionClient(), parsed.data.product_id, parsed.data.quantity_change, parsed.data.movement_type, staff.userId);
+    await adjustProductStock(await actionClient(), parsed.data.product_id, parsed.data.quantity_change, parsed.data.movement_type);
   } catch (error) {
-    return actionError("adjust-stock", error, "Unable to update stock.");
+    return { status: "error", message: error instanceof Error ? error.message : "Unable to update stock." };
   }
   revalidatePath("/admin/inventory"); revalidatePath("/admin"); revalidatePath("/pos"); return { status: "success", message: "Stock updated and movement recorded." };
 }
