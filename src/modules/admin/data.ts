@@ -17,6 +17,16 @@ async function client() {
   return supabase;
 }
 
+function isMissingCatalogRelation(error: { code?: string; message?: string }) {
+  return (
+    error.code === "PGRST200" ||
+    error.code === "PGRST205" ||
+    error.code === "42P01" ||
+    error.message?.includes("product_skin_concerns") ||
+    error.message?.includes("skin_concerns")
+  );
+}
+
 export async function getCategories() {
   const supabase = await client();
   const { data, error } = await supabase
@@ -32,6 +42,7 @@ export async function getSkinConcerns() {
     .from("skin_concerns")
     .select("*")
     .order("name");
+  if (error && isMissingCatalogRelation(error)) return [];
   if (error) throw new Error(error.message);
   return (data ?? []) as SkinConcern[];
 }
@@ -41,6 +52,14 @@ export async function getProducts() {
     .from("products")
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
     .order("created_at", { ascending: false });
+  if (error && isMissingCatalogRelation(error)) {
+    const fallback = await supabase
+      .from("products")
+      .select("*,categories(name)")
+      .order("created_at", { ascending: false });
+    if (fallback.error) throw new Error(fallback.error.message);
+    return (fallback.data ?? []) as Product[];
+  }
   if (error) throw new Error(error.message);
   return (data ?? []) as Product[];
 }
@@ -51,6 +70,15 @@ export async function getProduct(productId: string) {
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
     .eq("id", productId)
     .single();
+  if (error && isMissingCatalogRelation(error)) {
+    const fallback = await supabase
+      .from("products")
+      .select("*,categories(name)")
+      .eq("id", productId)
+      .single();
+    if (fallback.error) throw new Error(fallback.error.message);
+    return fallback.data as Product;
+  }
   if (error) throw new Error(error.message);
   return data as Product;
 }

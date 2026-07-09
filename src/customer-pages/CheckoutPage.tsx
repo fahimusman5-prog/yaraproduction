@@ -8,6 +8,7 @@ import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 
 type PaymentMethod = "payhere" | "cod";
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
@@ -18,10 +19,15 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const total = subtotal;
+  const hasLiveCatalogItems = items.every(({ product }) => uuidPattern.test(product.id));
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!country || submitting) return;
+    if (!hasLiveCatalogItems) {
+      setError(t("checkout.catalogUnavailable"));
+      return;
+    }
     setSubmitting(true); setError("");
     try {
       const data = new FormData(event.currentTarget);
@@ -107,7 +113,7 @@ export function CheckoutPage() {
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>
           <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
           {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button type="submit" disabled={submitting} className="btn-primary mt-7 w-full disabled:opacity-50">{submitting ? t("checkout.preparing") : t("checkout.confirm")} <ArrowRight className="h-4 w-4" /></button>
+          <button type="submit" disabled={submitting || !hasLiveCatalogItems} className="btn-primary mt-7 w-full disabled:opacity-50">{submitting ? t("checkout.preparing") : t("checkout.confirm")} <ArrowRight className="h-4 w-4" /></button>
           <button type="button" onClick={handleWhatsAppOrder} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-[#20a852] px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#168a43]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
           <div className="mt-6 flex justify-center gap-6 text-yara-taupe"><ShieldCheck className="h-5 w-5" /><LockKeyhole className="h-5 w-5" /><MessageCircle className="h-5 w-5" /></div>
           <p className="mt-3 text-center text-[0.58rem] uppercase tracking-[0.1em] text-yara-taupe">{t("checkout.encrypted")}</p>
