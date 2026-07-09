@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { useCatalog } from "../context/CatalogContext";
 
-const heroImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuB0-W5LBkKAWq2piAK6Qb8YLROXHF1gkAu7dFGPEAbGYnm2uGslWtIsymMKAeOTDEW_JuV8f2M-4BJ4n8j_deoLTzzUBHIyFDdHRpC5DAUsNHIQ17VAYbzP4AoBM4ccbPt_tqv1ky_yj8x9dWVXq2nfrFzIzdWFzbUeYSxFL06rSKLmrZUHynKfgqbvK4S3WpbUu2Gdl90je11Hd2B_MnbKhCtX2KweqthcFPw5tSzryJqWUQWJEjm7kS34XxFy-gBsiLbTfRfZw8GH";
+const heroImage = "/images/yara-hero-products.png";
 const skinImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuCo-q9f2ZATD_ugKCOYwKtG9wKJn4JuJfxN_lptWTtp2h6IesOoOMK5Zvb7p9S1MiDtBsfMiTVzAL-UZTZhMOk3U1MDXUr8QAbQUoKdrQikvSD327KliWhpJnB1rG1EqTW5gnSYcNTrTnQqDqLenGKISCuzr6KNI-KM4FcCjMZTR5uSxepSH9Rf3VKiqA8Kh71yxJT8fjVTt9TqymipcIxLNjanZx95Bh0-cEqw5tQhVq9LoSn4vJ1e8unmzmuHOfiEUSCvGz7raF_x";
 const botanicalImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuBBdnYeWP2kFB0zs1WBFK_pJjdJMHS6ikfFc3JPrBhBj31Rb6IZTvM1o9bkdklrF-VunRc8RNRdGnFZZMbg5D20uVjfRmXxo7_oO8FNlypnP7no3WFSn1JtQYjGCpGgNjPghZXsK8VrIbBBOGta7ShxMeVQnbbGqQnT3CNlIVNT9cJNAqtu7UqxyFIk-Yg-Nhi4yugIxxy3tcKLCfNOwuZYGwtrh6OfLEwDfz7EGs5DpTPzYaOKabrztlFERzot0qGMqB-R97OvRS5I";
 
@@ -46,7 +46,7 @@ export function HomePage() {
             <div className="absolute -left-8 top-1/3 h-48 w-48 rounded-full bg-yara-rose/70 blur-3xl" />
             <div className="absolute -right-12 bottom-8 h-56 w-56 rounded-full bg-yara-gold/15 blur-3xl" />
             <div className="relative rotate-2 rounded-[2.5rem] bg-white/70 p-4 shadow-soft backdrop-blur">
-              <img src={heroImage} alt="YARA skincare collection displayed on rose satin" className="aspect-[4/5] w-full rounded-[1.8rem] object-cover" />
+              <img src={heroImage} alt="YARA skincare collection displayed on a pink floral set" className="aspect-[4/5] w-full rounded-[1.8rem] object-cover object-center" />
             </div>
           </div>
         </div>
