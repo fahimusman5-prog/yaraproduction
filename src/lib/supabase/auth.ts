@@ -1,4 +1,7 @@
+import "server-only";
+
 import { redirect } from "next/navigation";
+import { getSupabaseAdminClient } from "./admin";
 import { getSupabaseServerClient } from "./server";
 import type { Profile, StaffRole } from "./types";
 
@@ -16,17 +19,18 @@ export async function getStaffContext(): Promise<StaffContext | null> {
   const userId = claimsData?.claims?.sub;
   if (claimsError || !userId) return null;
 
-  const { data: profile, error } = await supabase
+  const { data: profile, error } = await getSupabaseAdminClient()
     .from("profiles")
     .select("id,email,full_name,role,created_at")
     .eq("id", userId)
     .single();
+  const staffProfile = profile as Partial<Profile> | null;
 
-  if (error || !profile || !["admin", "staff"].includes(profile.role)) return null;
+  if (error || !staffProfile || !["admin", "staff"].includes(String(staffProfile.role))) return null;
   return {
     userId,
-    email: String(claimsData.claims.email ?? profile.email),
-    profile: profile as StaffContext["profile"],
+    email: String(claimsData.claims.email ?? staffProfile.email),
+    profile: staffProfile as StaffContext["profile"],
   };
 }
 

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseConfigIssues } from "./env";
+import { getServerEnvIssues, getSupabaseConfigIssues } from "./env";
 
 type AdminTable = {
   Row: Record<string, unknown>;
@@ -27,6 +27,8 @@ export function getSupabaseAdminClient() {
     console.error("[supabase:admin] Missing Supabase admin config", [...getSupabaseConfigIssues(), !secret ? "SUPABASE_SECRET_KEY is missing." : null].filter(Boolean));
     throw new Error("Supabase server credentials are not configured.");
   }
+  const serverIssues = getServerEnvIssues().filter((issue) => issue.startsWith("SUPABASE") || issue.startsWith("NEXT_PUBLIC_SUPABASE"));
+  if (serverIssues.length) console.error("[supabase:admin] Supabase environment issue", serverIssues);
   client ??= createClient<AdminDatabase>(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
   return client;
 }

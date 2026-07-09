@@ -6,6 +6,9 @@ import { ProductForm } from "./components/ProductForm";
 
 export async function AdminProductEditorPage({ productId }: { productId?: string }) {
   const [categories, skinConcerns] = await Promise.all([getCategories(), getSkinConcerns()]); let product;
-  if (productId) { try { product = await getProduct(productId); } catch { notFound(); } }
+  if (productId) {
+    product = await getProduct(productId);
+    if (!product) notFound();
+  }
   return <><PageHeader eyebrow="Catalog" title={product ? "Edit product" : "Add product"} description={product ? `Update ${product.name} without affecting its sales history.` : "Create a product record ready for online and POS sales."} action={<Link href="/admin/products" className="staff-button staff-button-secondary">Back to products</Link>} /><ProductForm categories={categories} skinConcerns={skinConcerns} product={product} /></>;
 }

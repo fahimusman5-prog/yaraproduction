@@ -1,5 +1,6 @@
 import "server-only";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logSupabaseError } from "@/lib/supabase/log";
 import type {
   Category,
   Order,
@@ -12,9 +13,7 @@ import type {
 } from "@/lib/supabase/types";
 
 async function client() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) throw new Error("Supabase is not configured.");
-  return supabase;
+  return getSupabaseAdminClient();
 }
 
 function isMissingCatalogRelation(error: { code?: string; message?: string }) {
@@ -33,7 +32,10 @@ export async function getCategories() {
     .from("categories")
     .select("*")
     .order("name");
-  if (error) throw new Error(error.message);
+  if (error) {
+    logSupabaseError("admin-categories-list", "select-categories", error);
+    throw new Error(error.message);
+  }
   return (data ?? []) as Category[];
 }
 export async function getSkinConcerns() {
@@ -42,8 +44,14 @@ export async function getSkinConcerns() {
     .from("skin_concerns")
     .select("*")
     .order("name");
-  if (error && isMissingCatalogRelation(error)) return [];
-  if (error) throw new Error(error.message);
+  if (error && isMissingCatalogRelation(error)) {
+    logSupabaseError("admin-skin-concerns-list", "optional-select-skin-concerns", error);
+    return [];
+  }
+  if (error) {
+    logSupabaseError("admin-skin-concerns-list", "select-skin-concerns", error);
+    throw new Error(error.message);
+  }
   return (data ?? []) as SkinConcern[];
 }
 export async function getProducts() {
@@ -53,14 +61,21 @@ export async function getProducts() {
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
     .order("created_at", { ascending: false });
   if (error && isMissingCatalogRelation(error)) {
+    logSupabaseError("admin-products-list", "optional-select-product-skin-concerns", error);
     const fallback = await supabase
       .from("products")
       .select("*,categories(name)")
       .order("created_at", { ascending: false });
-    if (fallback.error) throw new Error(fallback.error.message);
+    if (fallback.error) {
+      logSupabaseError("admin-products-list", "fallback-select-products", fallback.error);
+      throw new Error(fallback.error.message);
+    }
     return (fallback.data ?? []) as Product[];
   }
-  if (error) throw new Error(error.message);
+  if (error) {
+    logSupabaseError("admin-products-list", "select-products", error);
+    throw new Error(error.message);
+  }
   return (data ?? []) as Product[];
 }
 export async function getProduct(productId: string) {
@@ -69,18 +84,26 @@ export async function getProduct(productId: string) {
     .from("products")
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
     .eq("id", productId)
-    .single();
+    .maybeSingle();
   if (error && isMissingCatalogRelation(error)) {
+    logSupabaseError("admin-products-edit", "optional-select-product-skin-concerns", error);
     const fallback = await supabase
       .from("products")
       .select("*,categories(name)")
       .eq("id", productId)
-      .single();
-    if (fallback.error) throw new Error(fallback.error.message);
+      .maybeSingle();
+    if (fallback.error) {
+      logSupabaseError("admin-products-edit", "fallback-select-product", fallback.error);
+      throw new Error(fallback.error.message);
+    }
+    if (!fallback.data) return null;
     return fallback.data as Product;
   }
-  if (error) throw new Error(error.message);
-  return data as Product;
+  if (error) {
+    logSupabaseError("admin-products-edit", "select-product", error);
+    throw new Error(error.message);
+  }
+  return data ? (data as Product) : null;
 }
 export async function getOrders() {
   const supabase = await client();
@@ -89,7 +112,10 @@ export async function getOrders() {
     .select("*")
     .order("created_at", { ascending: false })
     .limit(500);
-  if (error) throw new Error(error.message);
+  if (error) {
+    logSupabaseError("admin-orders-list", "select-orders", error);
+    throw new Error(error.message);
+  }
   return (data ?? []) as Order[];
 }
 export async function getOrder(orderId: string) {
@@ -101,8 +127,14 @@ export async function getOrder(orderId: string) {
       .select("*,products(name,sku)")
       .eq("order_id", orderId),
   ]);
-  if (orderResult.error) throw new Error(orderResult.error.message);
-  if (itemsResult.error) throw new Error(itemsResult.error.message);
+  if (orderResult.error) {
+    logSupabaseError("admin-orders-detail", "select-order", orderResult.error);
+    throw new Error(orderResult.error.message);
+  }
+  if (itemsResult.error) {
+    logSupabaseError("admin-orders-detail", "select-order-items", itemsResult.error);
+    throw new Error(itemsResult.error.message);
+  }
   return {
     order: orderResult.data as Order,
     items: (itemsResult.data ?? []) as OrderItem[],
@@ -121,8 +153,14 @@ export async function getCustomers() {
       .select("*")
       .order("created_at", { ascending: false }),
   ]);
-  if (profiles.error) throw new Error(profiles.error.message);
-  if (orders.error) throw new Error(orders.error.message);
+  if (profiles.error) {
+    logSupabaseError("admin-customers-list", "select-profiles", profiles.error);
+    throw new Error(profiles.error.message);
+  }
+  if (orders.error) {
+    logSupabaseError("admin-customers-list", "select-orders", orders.error);
+    throw new Error(orders.error.message);
+  }
   return {
     profiles: (profiles.data ?? []) as Profile[],
     orders: (orders.data ?? []) as Order[],
@@ -142,8 +180,14 @@ export async function getInventory() {
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
-  if (products.error) throw new Error(products.error.message);
-  if (movements.error) throw new Error(movements.error.message);
+  if (products.error) {
+    logSupabaseError("admin-inventory-list", "select-products", products.error);
+    throw new Error(products.error.message);
+  }
+  if (movements.error) {
+    logSupabaseError("admin-inventory-list", "select-stock-movements", movements.error);
+    throw new Error(movements.error.message);
+  }
   return {
     products: (products.data ?? []) as Product[],
     movements: (movements.data ?? []) as StockMovement[],
@@ -178,9 +222,18 @@ export async function getDashboardData() {
       .select("*,categories(name)")
       .neq("status", "archived"),
   ]);
-  if (orders.error) throw new Error(orders.error.message);
-  if (sales.error) throw new Error(sales.error.message);
-  if (products.error) throw new Error(products.error.message);
+  if (orders.error) {
+    logSupabaseError("admin-dashboard", "select-orders", orders.error);
+    throw new Error(orders.error.message);
+  }
+  if (sales.error) {
+    logSupabaseError("admin-dashboard", "select-pos-sales", sales.error);
+    throw new Error(sales.error.message);
+  }
+  if (products.error) {
+    logSupabaseError("admin-dashboard", "select-products", products.error);
+    throw new Error(products.error.message);
+  }
   const orderRows = (orders.data ?? []) as Order[];
   const saleRows = (sales.data ?? []) as PosSale[];
   const productRows = (products.data ?? []) as Product[];
@@ -236,10 +289,22 @@ export async function getReportsData() {
       .eq("orders.payment_status", "paid")
       .neq("orders.order_status", "cancelled"),
   ]);
-  if (orders.error) throw new Error(orders.error.message);
-  if (sales.error) throw new Error(sales.error.message);
-  if (saleItems.error) throw new Error(saleItems.error.message);
-  if (orderItems.error) throw new Error(orderItems.error.message);
+  if (orders.error) {
+    logSupabaseError("admin-reports", "select-orders", orders.error);
+    throw new Error(orders.error.message);
+  }
+  if (sales.error) {
+    logSupabaseError("admin-reports", "select-pos-sales", sales.error);
+    throw new Error(sales.error.message);
+  }
+  if (saleItems.error) {
+    logSupabaseError("admin-reports", "select-pos-sale-items", saleItems.error);
+    throw new Error(saleItems.error.message);
+  }
+  if (orderItems.error) {
+    logSupabaseError("admin-reports", "select-order-items", orderItems.error);
+    throw new Error(orderItems.error.message);
+  }
   type SalesItem = {
     quantity: number;
     subtotal: number;

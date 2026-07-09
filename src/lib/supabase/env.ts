@@ -1,4 +1,4 @@
-const placeholderPatterns = ["your-project", "your_key"];
+const placeholderPatterns = ["your-project", "your_key", "sb_secret_your_key", "sb_publishable_your_key"];
 type SupabaseConfig = { url: string; publishableKey: string };
 
 function hasPlaceholder(value: string | undefined) {
@@ -35,7 +35,11 @@ export function getServerEnvIssues() {
   const payhereMerchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
 
   if (hasPlaceholder(secret)) issues.push("SUPABASE_SECRET_KEY is missing or still a placeholder.");
-  if (!appUrl) issues.push("NEXT_PUBLIC_APP_URL is missing.");
+  if (!appUrl) {
+    issues.push("NEXT_PUBLIC_APP_URL is missing.");
+  } else if (appUrl.includes("yaraproduct.com") && appUrl !== "https://www.yaraproduct.com") {
+    issues.push("NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com in production.");
+  }
   if (!payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing.");
   if (!payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing.");
 
