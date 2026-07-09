@@ -4,8 +4,8 @@ import { ProductCard } from "../components/ProductCard";
 import { useCatalog } from "../context/CatalogContext";
 
 const heroImage = "/images/yara-hero-products.png";
-const skinImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuCo-q9f2ZATD_ugKCOYwKtG9wKJn4JuJfxN_lptWTtp2h6IesOoOMK5Zvb7p9S1MiDtBsfMiTVzAL-UZTZhMOk3U1MDXUr8QAbQUoKdrQikvSD327KliWhpJnB1rG1EqTW5gnSYcNTrTnQqDqLenGKISCuzr6KNI-KM4FcCjMZTR5uSxepSH9Rf3VKiqA8Kh71yxJT8fjVTt9TqymipcIxLNjanZx95Bh0-cEqw5tQhVq9LoSn4vJ1e8unmzmuHOfiEUSCvGz7raF_x";
-const botanicalImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuBBdnYeWP2kFB0zs1WBFK_pJjdJMHS6ikfFc3JPrBhBj31Rb6IZTvM1o9bkdklrF-VunRc8RNRdGnFZZMbg5D20uVjfRmXxo7_oO8FNlypnP7no3WFSn1JtQYjGCpGgNjPghZXsK8VrIbBBOGta7ShxMeVQnbbGqQnT3CNlIVNT9cJNAqtu7UqxyFIk-Yg-Nhi4yugIxxy3tcKLCfNOwuZYGwtrh6OfLEwDfz7EGs5DpTPzYaOKabrztlFERzot0qGMqB-R97OvRS5I";
+const skinImage = "/images/home/skincare-texture-pink-cream.png";
+const botanicalImage = "/images/home/science-backed-botanical-skincare.png";
 
 const instagramImages = [
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCQDQ-bXHjYtKzlrJjyK1Rv8rkouhUavXzrCTKOkmqXJaNub880KJOAX5-15nqJxZo3oBHEYEcpGvxI7JjnsY5xU9Yexbl8TlO50HWWWF6NC5CKW3ppaP207NkV6HTdDviKKo3c7LjpJZxTsDdNyl9zEtQExjhkVXdVJ4s-ccXEhY6Ou2Tym7DF1gENg2VDCiYlkPvLaDgpvbc8loDFpkm2CIpsiaSGFtfkJ1JN1YeqNgrLDjqmOO7zFgOWKafmKs2aDpMxlsgeipI4",
@@ -79,8 +79,8 @@ export function HomePage() {
 
       <section className="page-shell grid items-center gap-14 py-20 sm:py-28 lg:grid-cols-2">
         <div className="grid grid-cols-2 gap-4">
-          <img src={skinImage} alt="Healthy glowing skin" className="mt-10 aspect-[4/5] w-full rounded-[2rem] object-cover shadow-card" loading="lazy" />
-          <img src={botanicalImage} alt="Botanical skincare ingredients" className="aspect-[4/5] w-full rounded-[2rem] object-cover shadow-card" loading="lazy" />
+          <img src={skinImage} alt="Luxury skincare cream texture" className="mt-10 aspect-square w-full rounded-[2rem] object-cover shadow-soft" loading="lazy" />
+          <img src={botanicalImage} alt="Science-backed botanical skincare ingredients" className="aspect-square w-full rounded-[2rem] object-cover shadow-soft" loading="lazy" />
         </div>
         <div className="max-w-xl">
           <p className="eyebrow">The YARA standard</p>
