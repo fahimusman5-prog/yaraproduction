@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2, Globe2, HeartHandshake, ShieldCheck, Sparkles
 import { Link } from "react-router-dom";
 import { useI18n } from "../i18n";
 
-const storyImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuBCZtDH4GUlG7MfFzGifgHMZQWHna7aw0R_61veAh75v_iy0jCs48XYaPyo6Kldc0WBqLLLwUghp7Wy2_1nWCuvuEmg6HbozHoqS0ZfeRPX4YLooyaWOAjoTF8n4euu7g9BvzAN5ED0vXf7ChwLpcbVG9clPJ9lWfFofkLafogichMLokqI1TRQ0NR3BCB3AEIpx81HC-FrxbrD4l6YUkZzuN_wa_iY3opsMg9HDkcr2J3HpaY13zrmeglulbYQzSeju9CS4qRSnUw7";
+const storyImage = "/images/about/yara-about-portrait.png";
 
 export function AboutPage() {
   const { t, list } = useI18n();
@@ -19,7 +19,7 @@ export function AboutPage() {
           <p className="mt-7 text-base font-light leading-8 text-yara-taupe">{t("about.copy")}</p>
           <Link to="/shop" className="btn-primary mt-8">{t("about.explore")} <ArrowRight className="h-4 w-4" /></Link>
         </div>
-        <div className="relative mx-auto max-w-lg"><div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-yara-rose blur-3xl" /><img src={storyImage} alt={t("about.eyebrow")} className="relative aspect-[4/5] w-full rounded-[2.5rem] object-cover shadow-soft" /></div>
+        <div className="relative mx-auto max-w-lg"><div className="absolute -left-8 -top-8 h-48 w-48 rounded-full bg-yara-rose blur-3xl" /><img src={storyImage} alt="Smiling woman representing YARA skincare confidence" className="relative aspect-square w-full rounded-[2.5rem] object-cover shadow-soft" /></div>
       </section>
 
       <section className="bg-yara-blush py-20 sm:py-28">
