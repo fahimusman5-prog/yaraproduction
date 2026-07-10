@@ -306,7 +306,7 @@ const en = {
     title: "We're here to help.",
     copy: "Reach our team for product questions, ordering support, delivery information, or general enquiries.",
     sriLankaWhatsApp: "Sri Lanka WhatsApp",
-    uaeWhatsApp: "UAE / Dubai WhatsApp",
+    uaeWhatsApp: "Dubai WhatsApp",
     email: "Email",
     sendEyebrow: "Send a message",
     sendTitle: "How can we help?",
