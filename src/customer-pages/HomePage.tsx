@@ -7,14 +7,6 @@ const heroImage = "/images/yara-hero-products.png";
 const skinImage = "/images/home/skincare-texture-pink-cream.png";
 const botanicalImage = "/images/home/science-backed-botanical-skincare.png";
 
-const instagramImages = [
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuCQDQ-bXHjYtKzlrJjyK1Rv8rkouhUavXzrCTKOkmqXJaNub880KJOAX5-15nqJxZo3oBHEYEcpGvxI7JjnsY5xU9Yexbl8TlO50HWWWF6NC5CKW3ppaP207NkV6HTdDviKKo3c7LjpJZxTsDdNyl9zEtQExjhkVXdVJ4s-ccXEhY6Ou2Tym7DF1gENg2VDCiYlkPvLaDgpvbc8loDFpkm2CIpsiaSGFtfkJ1JN1YeqNgrLDjqmOO7zFgOWKafmKs2aDpMxlsgeipI4",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBCZtDH4GUlG7MfFzGifgHMZQWHna7aw0R_61veAh75v_iy0jCs48XYaPyo6Kldc0WBqLLLwUghp7Wy2_1nWCuvuEmg6HbozHoqS0ZfeRPX4YLooyaWOAjoTF8n4euu7g9BvzAN5ED0vXf7ChwLpcbVG9clPJ9lWfFofkLafogichMLokqI1TRQ0NR3BCB3AEIpx81HC-FrxbrD4l6YUkZzuN_wa_iY3opsMg9HDkcr2J3HpaY13zrmeglulbYQzSeju9CS4qRSnUw7",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBL-I6W9jxy5uvlLfVWsjGwBKaxogxz7JWeqdvkNtDiNiuNENF_-x-Ol84xa4bwEdVqLUGPOb9gLAMGT3m-CxWHj8bvY5D-BUeA_xDlleiby9thR66xOj4BJoLrfujVRlXbXud12_PpnvUEQsPBEOKFETrqKJW9FLbMXnUGWpjNQBAlMs162ZY9i2ePUMShEZ53i5D-TT70sjQZ12H_QnN-6hlx6PwR649W8_9U5LmzsHfon2spLZFa8gGoi5oqLfgUVcRkIzEu6mRN",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuB9nIAqcPCzyZpClcBtFhBvG5F0LFkzfU5Djs5xr-EOW3wjlLjG5p8nGIjUZY30VWngXZy-VheNTCuGnIIC4GyPND4-oHmMjwvxYKPLNwdrBFKZ36-G3HGnA9uss5pUqtfu66ZBx8bVNTKkx0LjLFqgBANozyHhoVsDHDIkjR-htpri0Ko1WghsifPT3IS1lA0BMmdlgzE3vKU2ACb7qPL-A9XeFZE6Mxs4nJtXUijpBDfsx6Xz0zjRbMWl9WIse2cgpBQZYBFwoMxJ",
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuBE3V509E9vk6BMaLKQrOTznHPbc6p3tZPWlXMXLus8KL8CG7tdACI3xcZVclFnmcdKBI5CyFqJnH8pEwJTtNRgHt_AeaE7tl-rdrud_Zl_uf-FZJSyaMO22FLJtIrXVTQPM1nGd7hztsfUVF7wSCOYdGamFz3uCmdCIZ-HKB3FK5poN0XDiN4T1OrznpkUo4Vk6UXkyqlszMU3txLs_8PGxLG9_MYQdMyHyP7qx5R9BB1At9-rtvBli-5VMwk6D2AzKy_xFq5Kj5-U"
-];
-
 export function HomePage() {
   const { products } = useCatalog();
   const collections = Array.from(new Map(products.map((product) => [product.category, product])).entries()).slice(0, 6);
@@ -117,10 +109,6 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="page-shell py-20 sm:py-28">
-        <div className="flex items-end justify-between gap-4"><div><p className="eyebrow">Follow YARA</p><h2 className="mt-3 text-3xl">On the ’Gram <em className="text-yara-wine">@YARALuxe</em></h2></div><a href="https://instagram.com" target="_blank" rel="noreferrer" className="hidden text-xs uppercase tracking-[0.15em] text-yara-wine sm:block">Follow us</a></div>
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">{instagramImages.map((image, index) => <img key={image} src={image} alt={`YARA skincare inspiration ${index + 1}`} className="aspect-square w-full rounded-2xl object-cover" loading="lazy" />)}</div>
-      </section>
     </>
   );
 }
