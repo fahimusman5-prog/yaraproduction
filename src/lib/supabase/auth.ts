@@ -1,6 +1,7 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { getSupabaseAdminClient } from "./admin";
 import { getSupabaseServerClient } from "./server";
 import type { Profile, StaffRole } from "./types";
@@ -11,7 +12,7 @@ export interface StaffContext {
   profile: Profile & { role: StaffRole };
 }
 
-export async function getStaffContext(): Promise<StaffContext | null> {
+export const getStaffContext = cache(async (): Promise<StaffContext | null> => {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return null;
 
@@ -32,7 +33,7 @@ export async function getStaffContext(): Promise<StaffContext | null> {
     email: String(claimsData.claims.email ?? staffProfile.email),
     profile: staffProfile as StaffContext["profile"],
   };
-}
+});
 
 export async function requireStaff(nextPath = "/admin"): Promise<StaffContext> {
   const staff = await getStaffContext();

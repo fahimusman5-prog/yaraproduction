@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { requireStaff } from "@/lib/supabase/auth";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import type {
   Category,
@@ -29,12 +30,13 @@ function failLoad(area: string, action: string, error: unknown, options: LoadFai
   }));
 }
 
-async function client() {
+async function client(nextPath: string) {
+  await requireStaff(nextPath);
   return getSupabaseAdminClient();
 }
 
 export async function getCategories() {
-  const supabase = await client();
+  const supabase = await client("/admin/categories");
   const { data, error } = await supabase
     .from("categories")
     .select("*,products(count)")
@@ -55,7 +57,7 @@ export async function getCategories() {
   });
 }
 export async function getSkinConcerns() {
-  const supabase = await client();
+  const supabase = await client("/admin/products/new");
   const { data, error } = await supabase
     .from("skin_concerns")
     .select("*")
@@ -72,7 +74,7 @@ export async function getSkinConcerns() {
   return (data ?? []) as SkinConcern[];
 }
 export async function getProducts() {
-  const supabase = await client();
+  const supabase = await client("/admin/products");
   const { data, error } = await supabase
     .from("products")
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
@@ -89,7 +91,7 @@ export async function getProducts() {
   return (data ?? []) as Product[];
 }
 export async function getProduct(productId: string) {
-  const supabase = await client();
+  const supabase = await client(`/admin/products/${productId}/edit`);
   const { data, error } = await supabase
     .from("products")
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
@@ -108,7 +110,7 @@ export async function getProduct(productId: string) {
   return data ? (data as Product) : null;
 }
 export async function getOrders() {
-  const supabase = await client();
+  const supabase = await client("/admin/orders");
   const { data, error } = await supabase
     .from("orders")
     .select("*")
@@ -125,7 +127,7 @@ export async function getOrders() {
   return (data ?? []) as Order[];
 }
 export async function getOrder(orderId: string) {
-  const supabase = await client();
+  const supabase = await client(`/admin/orders/${orderId}`);
   const [orderResult, itemsResult] = await Promise.all([
     supabase.from("orders").select("*").eq("id", orderId).maybeSingle(),
     supabase
@@ -156,7 +158,7 @@ export async function getOrder(orderId: string) {
   };
 }
 export async function getCustomers() {
-  const supabase = await client();
+  const supabase = await client("/admin/customers");
   const [profiles, orders] = await Promise.all([
     supabase
       .from("profiles")
@@ -190,7 +192,7 @@ export async function getCustomers() {
   };
 }
 export async function getInventory() {
-  const supabase = await client();
+  const supabase = await client("/admin/inventory");
   const [products, movements] = await Promise.all([
     supabase
       .from("products")
@@ -225,7 +227,7 @@ export async function getInventory() {
   };
 }
 export async function getDashboardData() {
-  const supabase = await client();
+  const supabase = await client("/admin");
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Colombo",
     year: "numeric",
@@ -309,7 +311,7 @@ export async function getDashboardData() {
   };
 }
 export async function getReportsData() {
-  const supabase = await client();
+  const supabase = await client("/admin/reports");
   const [orders, sales, saleItems, orderItems] = await Promise.all([
     supabase
       .from("orders")

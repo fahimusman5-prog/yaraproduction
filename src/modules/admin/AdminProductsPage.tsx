@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { requireStaff } from "@/lib/supabase/auth";
 import { getProducts } from "./data";
 import { AdminLoadFailure } from "./components/AdminLoadFailure";
 import { PageHeader } from "./components/PageHeader";
@@ -8,6 +9,7 @@ import { ProductsTable } from "./components/ProductsTable";
 import { QueryToast } from "./components/QueryToast";
 
 export async function AdminProductsPage() {
+  await requireStaff("/admin/products");
   let products;
   try {
     products = await getProducts();

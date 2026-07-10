@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireStaff } from "@/lib/supabase/auth";
 import { getCategories, getProduct, getSkinConcerns } from "./data";
 import { AdminLoadFailure } from "./components/AdminLoadFailure";
 import { PageHeader } from "./components/PageHeader";
 import { ProductForm } from "./components/ProductForm";
 
 export async function AdminProductEditorPage({ productId }: { productId?: string }) {
+  await requireStaff(productId ? `/admin/products/${productId}/edit` : "/admin/products/new");
   let editorData;
   try {
     const [categories, skinConcerns, product] = await Promise.all([

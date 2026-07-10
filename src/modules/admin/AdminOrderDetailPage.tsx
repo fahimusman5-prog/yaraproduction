@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireStaff } from "@/lib/supabase/auth";
 import { getOrder } from "./data";
 import { formatDate, formatMoney } from "./lib/format";
 import { OrderStatusForm } from "./components/OrderStatusForm";
@@ -8,6 +9,7 @@ import { PageHeader } from "./components/PageHeader";
 import { StatusBadge } from "./components/StatusBadge";
 
 export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
+  await requireStaff(`/admin/orders/${orderId}`);
   let result;
   try {
     result = await getOrder(orderId);
