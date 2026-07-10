@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { logSupabaseError } from "@/lib/supabase/log";
+import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import type {
   Category,
   Order,
@@ -12,31 +12,47 @@ import type {
   StockMovement,
 } from "@/lib/supabase/types";
 
-async function client() {
-  return getSupabaseAdminClient();
+type LoadFailureOptions = {
+  route: string;
+  table: string;
+  fallback: string;
+  schemaUnavailable?: string;
+};
+
+function failLoad(area: string, action: string, error: unknown, options: LoadFailureOptions): never {
+  logSupabaseError(area, action, error, {
+    route: options.route,
+    table: options.table,
+  });
+  throw new Error(messageFromSupabaseError(error, options.fallback, {
+    schemaUnavailable: options.schemaUnavailable,
+  }));
 }
 
-function isMissingCatalogRelation(error: { code?: string; message?: string }) {
-  return (
-    error.code === "PGRST200" ||
-    error.code === "PGRST205" ||
-    error.code === "42P01" ||
-    error.message?.includes("product_skin_concerns") ||
-    error.message?.includes("skin_concerns")
-  );
+async function client() {
+  return getSupabaseAdminClient();
 }
 
 export async function getCategories() {
   const supabase = await client();
   const { data, error } = await supabase
     .from("categories")
-    .select("*")
+    .select("*,products(count)")
     .order("name");
   if (error) {
-    logSupabaseError("admin-categories-list", "select-categories", error);
-    throw new Error(error.message);
+    logSupabaseError("admin-categories-list", "select-categories", error, {
+      route: "/admin/categories",
+      table: "categories",
+    });
+    throw new Error(messageFromSupabaseError(error, "Unable to load categories.", {
+      schemaUnavailable: "The categories table or its product relationship is unavailable.",
+    }));
   }
-  return (data ?? []) as Category[];
+  return (data ?? []).map((row) => {
+    const category = row as Record<string, unknown> & { products?: Array<{ count?: number }> };
+    const { products, ...fields } = category;
+    return { ...fields, product_count: Number(products?.[0]?.count ?? 0) } as unknown as Category;
+  });
 }
 export async function getSkinConcerns() {
   const supabase = await client();
@@ -44,13 +60,14 @@ export async function getSkinConcerns() {
     .from("skin_concerns")
     .select("*")
     .order("name");
-  if (error && isMissingCatalogRelation(error)) {
-    logSupabaseError("admin-skin-concerns-list", "optional-select-skin-concerns", error);
-    return [];
-  }
   if (error) {
-    logSupabaseError("admin-skin-concerns-list", "select-skin-concerns", error);
-    throw new Error(error.message);
+    logSupabaseError("admin-skin-concerns-list", "select-skin-concerns", error, {
+      route: "/admin/products/new",
+      table: "skin_concerns",
+    });
+    throw new Error(messageFromSupabaseError(error, "Unable to load skin concerns.", {
+      schemaUnavailable: "The skin concerns table is unavailable.",
+    }));
   }
   return (data ?? []) as SkinConcern[];
 }
@@ -60,21 +77,14 @@ export async function getProducts() {
     .from("products")
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
     .order("created_at", { ascending: false });
-  if (error && isMissingCatalogRelation(error)) {
-    logSupabaseError("admin-products-list", "optional-select-product-skin-concerns", error);
-    const fallback = await supabase
-      .from("products")
-      .select("*,categories(name)")
-      .order("created_at", { ascending: false });
-    if (fallback.error) {
-      logSupabaseError("admin-products-list", "fallback-select-products", fallback.error);
-      throw new Error(fallback.error.message);
-    }
-    return (fallback.data ?? []) as Product[];
-  }
   if (error) {
-    logSupabaseError("admin-products-list", "select-products", error);
-    throw new Error(error.message);
+    logSupabaseError("admin-products-list", "select-products", error, {
+      route: "/admin/products",
+      table: "products",
+    });
+    throw new Error(messageFromSupabaseError(error, "Unable to load products.", {
+      schemaUnavailable: "The products table or one of its catalog relationships is unavailable.",
+    }));
   }
   return (data ?? []) as Product[];
 }
@@ -85,23 +95,15 @@ export async function getProduct(productId: string) {
     .select("*,categories(name),product_skin_concerns(skin_concerns(id,name,slug))")
     .eq("id", productId)
     .maybeSingle();
-  if (error && isMissingCatalogRelation(error)) {
-    logSupabaseError("admin-products-edit", "optional-select-product-skin-concerns", error);
-    const fallback = await supabase
-      .from("products")
-      .select("*,categories(name)")
-      .eq("id", productId)
-      .maybeSingle();
-    if (fallback.error) {
-      logSupabaseError("admin-products-edit", "fallback-select-product", fallback.error);
-      throw new Error(fallback.error.message);
-    }
-    if (!fallback.data) return null;
-    return fallback.data as Product;
-  }
   if (error) {
-    logSupabaseError("admin-products-edit", "select-product", error);
-    throw new Error(error.message);
+    logSupabaseError("admin-products-edit", "select-product", error, {
+      route: `/admin/products/${productId}/edit`,
+      table: "products",
+      productId,
+    });
+    throw new Error(messageFromSupabaseError(error, "Unable to load the product.", {
+      schemaUnavailable: "The products table or one of its catalog relationships is unavailable.",
+    }));
   }
   return data ? (data as Product) : null;
 }
@@ -113,28 +115,41 @@ export async function getOrders() {
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) {
-    logSupabaseError("admin-orders-list", "select-orders", error);
-    throw new Error(error.message);
+    failLoad("admin-orders-list", "select-orders", error, {
+      route: "/admin/orders",
+      table: "orders",
+      fallback: "Unable to load orders.",
+      schemaUnavailable: "The orders table is unavailable.",
+    });
   }
   return (data ?? []) as Order[];
 }
 export async function getOrder(orderId: string) {
   const supabase = await client();
   const [orderResult, itemsResult] = await Promise.all([
-    supabase.from("orders").select("*").eq("id", orderId).single(),
+    supabase.from("orders").select("*").eq("id", orderId).maybeSingle(),
     supabase
       .from("order_items")
       .select("*,products(name,sku)")
       .eq("order_id", orderId),
   ]);
   if (orderResult.error) {
-    logSupabaseError("admin-orders-detail", "select-order", orderResult.error);
-    throw new Error(orderResult.error.message);
+    failLoad("admin-orders-detail", "select-order", orderResult.error, {
+      route: `/admin/orders/${orderId}`,
+      table: "orders",
+      fallback: "Unable to load the order.",
+      schemaUnavailable: "The orders table is unavailable.",
+    });
   }
   if (itemsResult.error) {
-    logSupabaseError("admin-orders-detail", "select-order-items", itemsResult.error);
-    throw new Error(itemsResult.error.message);
+    failLoad("admin-orders-detail", "select-order-items", itemsResult.error, {
+      route: `/admin/orders/${orderId}`,
+      table: "order_items",
+      fallback: "Unable to load the order items.",
+      schemaUnavailable: "The order item relationship is unavailable.",
+    });
   }
+  if (!orderResult.data) return null;
   return {
     order: orderResult.data as Order,
     items: (itemsResult.data ?? []) as OrderItem[],
@@ -154,12 +169,20 @@ export async function getCustomers() {
       .order("created_at", { ascending: false }),
   ]);
   if (profiles.error) {
-    logSupabaseError("admin-customers-list", "select-profiles", profiles.error);
-    throw new Error(profiles.error.message);
+    failLoad("admin-customers-list", "select-profiles", profiles.error, {
+      route: "/admin/customers",
+      table: "profiles",
+      fallback: "Unable to load customer profiles.",
+      schemaUnavailable: "The customer profile table is unavailable.",
+    });
   }
   if (orders.error) {
-    logSupabaseError("admin-customers-list", "select-orders", orders.error);
-    throw new Error(orders.error.message);
+    failLoad("admin-customers-list", "select-orders", orders.error, {
+      route: "/admin/customers",
+      table: "orders",
+      fallback: "Unable to load customer orders.",
+      schemaUnavailable: "The orders table is unavailable.",
+    });
   }
   return {
     profiles: (profiles.data ?? []) as Profile[],
@@ -181,12 +204,20 @@ export async function getInventory() {
       .limit(100),
   ]);
   if (products.error) {
-    logSupabaseError("admin-inventory-list", "select-products", products.error);
-    throw new Error(products.error.message);
+    failLoad("admin-inventory-list", "select-products", products.error, {
+      route: "/admin/inventory",
+      table: "products",
+      fallback: "Unable to load inventory products.",
+      schemaUnavailable: "The product inventory data is unavailable.",
+    });
   }
   if (movements.error) {
-    logSupabaseError("admin-inventory-list", "select-stock-movements", movements.error);
-    throw new Error(movements.error.message);
+    failLoad("admin-inventory-list", "select-stock-movements", movements.error, {
+      route: "/admin/inventory",
+      table: "stock_movements",
+      fallback: "Unable to load stock movements.",
+      schemaUnavailable: "The stock movement data is unavailable.",
+    });
   }
   return {
     products: (products.data ?? []) as Product[],
@@ -223,16 +254,25 @@ export async function getDashboardData() {
       .neq("status", "archived"),
   ]);
   if (orders.error) {
-    logSupabaseError("admin-dashboard", "select-orders", orders.error);
-    throw new Error(orders.error.message);
+    failLoad("admin-dashboard", "select-orders", orders.error, {
+      route: "/admin",
+      table: "orders",
+      fallback: "Unable to load dashboard orders.",
+    });
   }
   if (sales.error) {
-    logSupabaseError("admin-dashboard", "select-pos-sales", sales.error);
-    throw new Error(sales.error.message);
+    failLoad("admin-dashboard", "select-pos-sales", sales.error, {
+      route: "/admin",
+      table: "pos_sales",
+      fallback: "Unable to load dashboard sales.",
+    });
   }
   if (products.error) {
-    logSupabaseError("admin-dashboard", "select-products", products.error);
-    throw new Error(products.error.message);
+    failLoad("admin-dashboard", "select-products", products.error, {
+      route: "/admin",
+      table: "products",
+      fallback: "Unable to load dashboard products.",
+    });
   }
   const orderRows = (orders.data ?? []) as Order[];
   const saleRows = (sales.data ?? []) as PosSale[];
@@ -290,20 +330,32 @@ export async function getReportsData() {
       .neq("orders.order_status", "cancelled"),
   ]);
   if (orders.error) {
-    logSupabaseError("admin-reports", "select-orders", orders.error);
-    throw new Error(orders.error.message);
+    failLoad("admin-reports", "select-orders", orders.error, {
+      route: "/admin/reports",
+      table: "orders",
+      fallback: "Unable to load report orders.",
+    });
   }
   if (sales.error) {
-    logSupabaseError("admin-reports", "select-pos-sales", sales.error);
-    throw new Error(sales.error.message);
+    failLoad("admin-reports", "select-pos-sales", sales.error, {
+      route: "/admin/reports",
+      table: "pos_sales",
+      fallback: "Unable to load report sales.",
+    });
   }
   if (saleItems.error) {
-    logSupabaseError("admin-reports", "select-pos-sale-items", saleItems.error);
-    throw new Error(saleItems.error.message);
+    failLoad("admin-reports", "select-pos-sale-items", saleItems.error, {
+      route: "/admin/reports",
+      table: "pos_sale_items",
+      fallback: "Unable to load report sale items.",
+    });
   }
   if (orderItems.error) {
-    logSupabaseError("admin-reports", "select-order-items", orderItems.error);
-    throw new Error(orderItems.error.message);
+    failLoad("admin-reports", "select-order-items", orderItems.error, {
+      route: "/admin/reports",
+      table: "order_items",
+      fallback: "Unable to load report order items.",
+    });
   }
   type SalesItem = {
     quantity: number;

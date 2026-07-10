@@ -3,10 +3,18 @@ import { notFound } from "next/navigation";
 import { getOrder } from "./data";
 import { formatDate, formatMoney } from "./lib/format";
 import { OrderStatusForm } from "./components/OrderStatusForm";
+import { AdminLoadFailure } from "./components/AdminLoadFailure";
 import { PageHeader } from "./components/PageHeader";
 import { StatusBadge } from "./components/StatusBadge";
 
 export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
-  let result; try { result = await getOrder(orderId); } catch { notFound(); } const { order, items } = result;
+  let result;
+  try {
+    result = await getOrder(orderId);
+  } catch (error) {
+    return <AdminLoadFailure title="Order could not be loaded" detail={error instanceof Error ? error.message : "Unable to load the order."} />;
+  }
+  if (!result) notFound();
+  const { order, items } = result;
   return <><PageHeader eyebrow="Order details" title={order.order_number} description={`Placed ${formatDate(order.created_at, true)}`} action={<Link href="/admin/orders" className="staff-button staff-button-secondary">Back to orders</Link>} /><div className="grid items-start gap-6 lg:grid-cols-[1fr_330px]"><div className="space-y-6"><section className="staff-panel p-5 sm:p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-bold">Items</h2><div className="flex gap-2"><StatusBadge value={order.payment_status} /><StatusBadge value={order.order_status} /></div></div><div className="mt-5 staff-table-wrap"><table className="staff-table"><thead><tr><th>Product</th><th>SKU</th><th>Quantity</th><th>Unit price</th><th>Subtotal</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td className="font-semibold">{item.products?.name ?? "Product"}</td><td className="font-mono text-xs">{item.products?.sku}</td><td className="staff-metric">{item.quantity}</td><td className="staff-metric">{formatMoney(Number(item.unit_price), order.currency)}</td><td className="staff-metric font-semibold">{formatMoney(Number(item.subtotal), order.currency)}</td></tr>)}</tbody></table></div><div className="mt-5 flex justify-end border-t border-[var(--staff-line)] pt-5"><p className="text-lg font-bold">Total <span className="staff-metric ml-4 text-yara-wine">{formatMoney(Number(order.total_amount), order.currency)}</span></p></div></section><section className="staff-panel grid gap-6 p-5 sm:grid-cols-2 sm:p-6"><div><h2 className="font-bold">Customer</h2><dl className="mt-4 space-y-3 text-sm"><div><dt className="text-xs text-slate-500">Name</dt><dd className="font-semibold">{order.customer_name}</dd></div><div><dt className="text-xs text-slate-500">Email</dt><dd>{order.customer_email}</dd></div><div><dt className="text-xs text-slate-500">Phone</dt><dd>{order.customer_phone || "—"}</dd></div></dl></div><div><h2 className="font-bold">Payment &amp; market</h2><dl className="mt-4 space-y-3 text-sm"><div><dt className="text-xs text-slate-500">Method</dt><dd className="capitalize">{order.payment_method.replaceAll("_", " ")}</dd></div><div><dt className="text-xs text-slate-500">Country</dt><dd className="capitalize">{order.country.replace("-", " ")}</dd></div><div><dt className="text-xs text-slate-500">Currency</dt><dd>{order.currency}</dd></div></dl></div></section></div><OrderStatusForm order={order} /></div></>;
 }

@@ -2,7 +2,8 @@
 
 import { useMemo, useActionState } from "react";
 import type { Category, Product, SkinConcern } from "@/lib/supabase/types";
-import { createProductAction, initialActionState, updateProductAction } from "../actions";
+import { createProductAction, updateProductAction } from "../actions";
+import { initialActionState } from "../action-state";
 import { ActionMessage } from "./ActionMessage";
 import { SubmitButton } from "./SubmitButton";
 
@@ -25,7 +26,6 @@ export function ProductForm({
   return (
     <form action={formAction} className="staff-panel space-y-7 p-5 sm:p-7" encType="multipart/form-data">
       <ActionMessage state={state} />
-      {product?.image_url && <input type="hidden" name="existing_image_url" value={product.image_url} />}
 
       <fieldset>
         <legend className="text-base font-bold">Product information</legend>

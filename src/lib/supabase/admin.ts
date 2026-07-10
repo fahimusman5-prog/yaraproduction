@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getServerEnvIssues, getSupabaseConfigIssues } from "./env";
+import { getSupabaseAdminConfig, getSupabaseAdminConfigIssues } from "./env";
 
 type AdminTable = {
   Row: Record<string, unknown>;
@@ -21,14 +21,11 @@ type AdminDatabase = {
 let client: SupabaseClient<AdminDatabase> | null = null;
 
 export function getSupabaseAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const secret = process.env.SUPABASE_SECRET_KEY?.trim();
-  if (!url || !secret) {
-    console.error("[supabase:admin] Missing Supabase admin config", [...getSupabaseConfigIssues(), !secret ? "SUPABASE_SECRET_KEY is missing." : null].filter(Boolean));
+  const config = getSupabaseAdminConfig();
+  if (!config) {
+    console.error("[supabase:admin] Invalid Supabase admin config", getSupabaseAdminConfigIssues());
     throw new Error("Supabase server credentials are not configured.");
   }
-  const serverIssues = getServerEnvIssues().filter((issue) => issue.startsWith("SUPABASE") || issue.startsWith("NEXT_PUBLIC_SUPABASE"));
-  if (serverIssues.length) console.error("[supabase:admin] Supabase environment issue", serverIssues);
-  client ??= createClient<AdminDatabase>(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
+  client ??= createClient<AdminDatabase>(config.url, config.secretKey, { auth: { persistSession: false, autoRefreshToken: false } });
   return client;
 }

@@ -11,6 +11,7 @@
     "build": "next build",
     "lint": "tsc --noEmit",
     "start": "next start",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

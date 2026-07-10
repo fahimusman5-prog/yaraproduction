@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logSupabaseError } from "@/lib/supabase/log";
 import { verifyPayHereNotification } from "@/lib/payhere";
 
 export async function POST(request: Request) {
@@ -19,7 +20,11 @@ export async function POST(request: Request) {
     p_currency: values.payhere_currency,
   });
   if (error) {
-    console.error("PayHere notification failed", error);
+    logSupabaseError("payhere-webhook", "update-payment", error, {
+      route: "/api/payhere/notify",
+      table: "orders",
+      orderNumber: values.order_id,
+    });
     return new Response("Unable to update order", { status: 500 });
   }
   return new Response("OK");
