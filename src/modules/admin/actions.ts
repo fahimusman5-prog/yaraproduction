@@ -77,7 +77,7 @@ async function saveAdminProduct(
     targetStock: number;
   },
 ) {
-  const rpc = supabase.rpc as unknown as (
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
   ) => Promise<{ data: string | null; error: { code?: string; message: string; details?: string; hint?: string } | null }>;
@@ -99,7 +99,7 @@ async function adjustAdminProductStock(
   supabase: Awaited<ReturnType<typeof actionClient>>,
   args: { productId: string; actorId: string; quantityChange: number; movementType: "manual_adjustment" | "restock" },
 ) {
-  const rpc = supabase.rpc as unknown as (
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
   ) => Promise<{ data: number | null; error: { code?: string; message: string; details?: string; hint?: string } | null }>;

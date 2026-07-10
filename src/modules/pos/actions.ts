@@ -35,7 +35,7 @@ export async function completePosSaleAction(_state: PosActionState, formData: Fo
   const parsed = saleSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the sale details." };
   const supabase = getSupabaseAdminClient();
-  const rpc = supabase.rpc as unknown as (
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
   ) => Promise<{ data: unknown; error: PosDatabaseError | null }>;

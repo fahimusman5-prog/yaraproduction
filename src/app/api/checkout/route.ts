@@ -55,7 +55,11 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await (supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>)("create_storefront_order", {
+    const rpc = supabase.rpc.bind(supabase) as unknown as (
+      name: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
+    const { data, error } = await rpc("create_storefront_order", {
       p_customer: parsed.data.customer,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,

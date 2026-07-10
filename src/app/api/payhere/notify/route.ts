@@ -12,7 +12,11 @@ export async function POST(request: Request) {
   if (!Number.isInteger(statusCode) || !Number.isFinite(amount)) return new Response("Invalid payload", { status: 400 });
 
   const admin = getSupabaseAdminClient();
-  const { error } = await (admin.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>)("update_payhere_payment", {
+  const rpc = admin.rpc.bind(admin) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ error: { message: string } | null }>;
+  const { error } = await rpc("update_payhere_payment", {
     p_order_number: values.order_id,
     p_provider_payment_id: values.payment_id || "",
     p_status_code: statusCode,
