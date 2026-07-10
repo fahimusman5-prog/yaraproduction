@@ -8,6 +8,7 @@ import {
   MessageCircle,
   ArrowRight
 } from "lucide-react";
+import { CountryContactSelector } from "./CountryContactSelector";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { createWhatsAppLink } from "../lib/format";
@@ -65,10 +66,11 @@ function Header() {
                 hrefLang={option}
                 aria-current={option === locale ? "true" : undefined}
               >
-                {localeLabels[option]}
-              </a>
-            ))}
+              {localeLabels[option]}
+            </a>
+          ))}
           </div>
+          <CountryContactSelector variant="desktop" />
           <Link to="/cart" className="relative rounded-full p-2.5" aria-label={t("nav.shoppingBag", { count: itemCount })}>
             <ShoppingBag className="h-[19px] w-[19px]" />
             {itemCount > 0 && (
@@ -102,6 +104,7 @@ function Header() {
                 <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} className={`rounded-full border px-3 py-2 text-xs font-bold ${option === locale ? "border-yara-wine bg-yara-wine text-white" : "border-yara-rose text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
               ))}
             </div>
+            <CountryContactSelector variant="mobile" />
             {country && <div className="mt-3 rounded-2xl bg-yara-blush p-4"><p className="text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-yara-wine">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</p><Link to="/cart" className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]"><ShoppingBag className="h-4 w-4" /> {t("nav.cart")} ({itemCount})</Link><button onClick={changeCountry} className="mt-4 text-[0.62rem] font-semibold uppercase tracking-[0.1em] underline">{t("nav.changeCountry")}</button></div>}
           </nav>
         </div>
