@@ -1,7 +1,7 @@
 import { CheckCircle2, Droplets, Flower2, Leaf, ShieldCheck, Sparkles, SunMedium } from "lucide-react";
 import { useI18n } from "../i18n";
 
-const ingredientImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuBBdnYeWP2kFB0zs1WBFK_pJjdJMHS6ikfFc3JPrBhBj31Rb6IZTvM1o9bkdklrF-VunRc8RNRdGnFZZMbg5D20uVjfRmXxo7_oO8FNlypnP7no3WFSn1JtQYjGCpGgNjPghZXsK8VrIbBBOGta7ShxMeVQnbbGqQnT3CNlIVNT9cJNAqtu7UqxyFIk-Yg-Nhi4yugIxxy3tcKLCfNOwuZYGwtrh6OfLEwDfz7EGs5DpTPzYaOKabrztlFERzot0qGMqB-R97OvRS5I";
+const ingredientImage = "/images/home/ingredient-education-skincare.png";
 
 export function IngredientsPage() {
   const { t, list } = useI18n();
@@ -14,7 +14,7 @@ export function IngredientsPage() {
       <section className="overflow-hidden bg-gradient-to-br from-yara-blush via-yara-ivory to-[#fff8e9]">
         <div className="page-shell grid min-h-[620px] items-center gap-12 py-16 lg:grid-cols-2 lg:py-24">
           <div className="max-w-xl"><p className="eyebrow">{t("ingredients.eyebrow")}</p><h1 className="mt-4 text-balance text-5xl leading-[1.08] sm:text-6xl">{t("ingredients.title")}</h1><p className="mt-7 text-base font-light leading-8 text-yara-taupe">{t("ingredients.copy")}</p></div>
-          <img src={ingredientImage} alt={t("home.botanicalAlt")} className="aspect-[5/4] w-full rounded-[2.5rem] object-cover shadow-soft" />
+          <img src={ingredientImage} alt="Skincare ingredients and botanical actives" className="aspect-[5/4] w-full rounded-[2.5rem] object-cover shadow-soft" />
         </div>
       </section>
 
