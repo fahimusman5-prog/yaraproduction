@@ -74,10 +74,10 @@ export function ProductPage() {
           <p className="mt-6 text-sm font-light leading-7 text-yara-taupe">{product.description}</p>
 
           <div className="mt-7 flex flex-wrap items-center gap-4">
-            <div className="flex items-center rounded-full border border-yara-ink/20 bg-white p-1">
-              <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="grid h-9 w-9 place-items-center rounded-full" aria-label="Decrease quantity"><Minus className="h-4 w-4" /></button>
+            <div className="glass-panel flex items-center rounded-full p-1">
+              <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="glass-icon h-9 w-9" aria-label="Decrease quantity"><Minus className="h-4 w-4" /></button>
               <span className="w-8 text-center text-sm">{quantity}</span>
-              <button onClick={() => setQuantity((value) => value + 1)} className="grid h-9 w-9 place-items-center rounded-full" aria-label="Increase quantity"><Plus className="h-4 w-4" /></button>
+              <button onClick={() => setQuantity((value) => value + 1)} className="glass-icon h-9 w-9" aria-label="Increase quantity"><Plus className="h-4 w-4" /></button>
             </div>
             <span className="flex items-center gap-2 text-[0.62rem] font-semibold uppercase tracking-[0.12em]"><span className="h-2 w-2 rounded-full bg-green-500" /> In stock & ready to ship</span>
           </div>
@@ -85,7 +85,7 @@ export function ProductPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button onClick={handleAdd} className="btn-primary w-full">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {added ? "Added to bag" : "Add to cart"}</button>
             <button onClick={() => { addItem(product, quantity); navigate("/checkout"); }} className="btn-secondary w-full">Buy now</button>
-            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#20a852] px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#168a43] transition hover:bg-[#eafff0] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
+            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/40 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#168a43] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-3 text-[0.62rem] uppercase tracking-[0.09em] text-yara-taupe">

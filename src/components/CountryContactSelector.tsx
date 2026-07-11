@@ -87,7 +87,7 @@ export function CountryContactSelector({ variant }: CountryContactSelectorProps)
           ref={triggerRef}
           type="button"
           onClick={openSelector}
-          className="flex min-h-12 w-full items-center justify-between rounded-2xl border border-yara-gold/45 bg-white/70 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-yara-ink transition hover:bg-yara-blush"
+          className="glass-control flex min-h-12 w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-yara-ink"
           aria-label="Contact YARA by country"
           aria-expanded={open}
           aria-controls={listId}
@@ -102,7 +102,7 @@ export function CountryContactSelector({ variant }: CountryContactSelectorProps)
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-yara-taupe/30" />
             <div className="flex items-center justify-between px-2 pb-3">
               <div><p className="eyebrow">YARA worldwide</p><h2 className="mt-1 font-serif text-2xl text-yara-ink">Choose your country</h2></div>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-yara-rose bg-white/75" aria-label="Close country contact selector"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setOpen(false)} className="glass-icon h-10 w-10" aria-label="Close country contact selector"><X className="h-4 w-4" /></button>
             </div>
             {contactList}
           </section>
@@ -117,14 +117,14 @@ export function CountryContactSelector({ variant }: CountryContactSelectorProps)
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="grid h-10 w-10 place-items-center rounded-full border border-yara-gold/50 bg-white/60 text-yara-wine transition hover:bg-yara-blush"
+        className="glass-icon h-10 w-10 text-yara-wine"
         aria-label="Contact YARA by country"
         aria-expanded={open}
         aria-controls={listId}
       >
         <Globe2 className="h-[18px] w-[18px]" aria-hidden="true" />
       </button>
-      <section id={listId} className={`absolute right-0 top-[calc(100%+0.65rem)] w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] border border-yara-gold/40 bg-yara-ivory/98 shadow-[0_20px_50px_rgba(76,39,48,0.16)] backdrop-blur-xl transition duration-200 ${open ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`} aria-hidden={!open}>
+      <section id={listId} className={`glass-panel absolute right-0 top-[calc(100%+0.65rem)] w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] transition duration-200 ${open ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`} aria-hidden={!open}>
         <div className="border-b border-yara-rose/50 px-4 py-3"><p className="text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-yara-wine">YARA worldwide</p><p className="mt-1 font-serif text-lg text-yara-ink">Chat with your local YARA team</p></div>
         {contactList}
       </section>

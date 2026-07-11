@@ -24,15 +24,15 @@ export function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <article className="group overflow-hidden rounded-[1.8rem] bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-soft">
+    <article className="group overflow-hidden rounded-[1.8rem] border border-white/80 bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-soft">
       <div className="relative aspect-[1/1.02] overflow-hidden bg-yara-rose">
         <Link to={productPath} aria-label={t("common.viewProduct", { name: displayProduct.name })}>
           <img src={product.image} alt={t("product.imageAlt", { name: displayProduct.name })} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" />
         </Link>
-        {displayProduct.badge && <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[0.58rem] uppercase tracking-[0.12em] text-yara-wine backdrop-blur">{displayProduct.badge}</span>}
+        {displayProduct.badge && <span className="glass-panel absolute left-4 top-4 rounded-full px-3 py-1 text-[0.58rem] uppercase tracking-[0.12em] text-yara-wine">{displayProduct.badge}</span>}
         <button
           onClick={() => setSaved((value) => !value)}
-          className="absolute right-4 top-4 rounded-full bg-white/90 p-2.5 backdrop-blur transition hover:scale-105"
+          className="glass-icon absolute right-4 top-4 h-10 w-10"
           aria-label={saved ? t("product.removeFavorite", { name: displayProduct.name }) : t("product.addFavorite", { name: displayProduct.name })}
         >
           <Heart className={`h-4 w-4 ${saved ? "fill-yara-wine text-yara-wine" : ""}`} />
@@ -49,7 +49,7 @@ export function ProductCard({ product }: { product: Product }) {
         </Link>
         <div className="mt-5 flex items-center justify-between gap-3">
           <span className="font-serif text-lg font-semibold text-yara-wine">{country && formatPrice(getProductPrice(product, country), country)}</span>
-          <button onClick={handleAdd} disabled={product.stockQuantity === 0} className="grid h-10 w-10 place-items-center rounded-full bg-yara-wine text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40" aria-label={t("product.addNamedToCart", { name: displayProduct.name })}>
+          <button onClick={handleAdd} disabled={product.stockQuantity === 0} className="glass-icon h-10 w-10 bg-yara-wine text-white" aria-label={t("product.addNamedToCart", { name: displayProduct.name })}>
             {added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
           </button>
         </div>

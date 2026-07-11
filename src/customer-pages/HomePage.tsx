@@ -12,10 +12,10 @@ export function HomePage() {
   const collections = Array.from(new Map(products.map((product) => [product.category, product])).entries()).slice(0, 6);
   return (
     <>
-      <section className="overflow-hidden bg-gradient-to-br from-[#fff4f6] via-yara-ivory to-[#fbf5ef]">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#fff4f6] via-yara-ivory to-[#fbf5ef] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/80">
         <div className="page-shell grid min-h-[680px] items-center gap-12 py-14 md:grid-cols-2 md:py-20 lg:min-h-[760px]">
           <div className="relative z-10 max-w-xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-yara-gold/40 bg-[#fff7df] px-4 py-2 text-[0.6rem] font-semibold uppercase tracking-[0.16em]">
+            <span className="glass-panel inline-flex items-center gap-2 rounded-full px-4 py-2 text-[0.6rem] font-semibold uppercase tracking-[0.16em]">
               <Sparkles className="h-3 w-3 text-yara-gold" /> Premium skincare
             </span>
             <h1 className="mt-7 text-balance text-5xl font-medium leading-[1.05] sm:text-6xl lg:text-[4.8rem]">
@@ -37,7 +37,7 @@ export function HomePage() {
           <div className="relative mx-auto w-full max-w-[560px] px-3 sm:px-8">
             <div className="absolute -left-8 top-1/3 h-48 w-48 rounded-full bg-yara-rose/70 blur-3xl" />
             <div className="absolute -right-12 bottom-8 h-56 w-56 rounded-full bg-yara-gold/15 blur-3xl" />
-            <div className="relative rotate-2 rounded-[2.5rem] bg-white/70 p-4 shadow-soft backdrop-blur">
+            <div className="glass-panel relative rotate-2 rounded-[2.5rem] p-4 shadow-soft">
               <img src={heroImage} alt="YARA skincare collection displayed on a pink floral set" className="aspect-[4/5] w-full rounded-[1.8rem] object-cover object-center" />
             </div>
           </div>
@@ -101,7 +101,7 @@ export function HomePage() {
               ["I have never used a face wash that feels this luxurious. The saffron scent is subtle and dreamy.", "Sienna J."],
               ["The packaging is beautiful, but the glow is what keeps me coming back. Truly worth it.", "Marcus L."]
             ].map(([quote, name], index) => (
-              <blockquote key={name} className={`rounded-[1.7rem] bg-white p-7 text-center shadow-card ${index === 1 ? "ring-1 ring-yara-wine" : ""}`}>
+              <blockquote key={name} className={`rounded-[1.7rem] border border-white/80 bg-white p-7 text-center shadow-card ${index === 1 ? "ring-1 ring-yara-wine" : ""}`}>
                 <div className="text-yara-gold">★★★★★</div><p className="mt-5 font-serif text-base italic leading-7">“{quote}”</p><footer className="mt-5 text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-yara-taupe">{name}</footer>
               </blockquote>
             ))}

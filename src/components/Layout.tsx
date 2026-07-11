@@ -33,7 +33,7 @@ function Header() {
   useEffect(() => setMenuOpen(false), [location.pathname, location.search]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-yara-rose/40 bg-yara-ivory/95 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/70 bg-yara-ivory/85 shadow-[0_8px_30px_rgba(86,45,56,0.06)] backdrop-blur-xl">
       <div className="page-shell grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:h-[82px]">
         <Link to="/" className="h-14 w-20 shrink-0 overflow-hidden" aria-label="YARA">
           <img src={yaraLogo.src} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
@@ -57,12 +57,12 @@ function Header() {
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           {country && <span className="hidden text-[0.54rem] font-semibold uppercase tracking-[0.08em] text-yara-wine lg:block xl:text-[0.58rem] xl:tracking-[0.1em]">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</span>}
-          <div className="hidden items-center rounded-full border border-yara-rose bg-white/70 p-1 lg:flex" aria-label={t("nav.language")}>
+          <div className="glass-panel hidden items-center rounded-full p-1 lg:flex" aria-label={t("nav.language")}>
             {locales.map((option) => (
               <a
                 key={option}
                 href={getLocalizedPath(option, location.pathname, location.search, location.hash)}
-                className={`rounded-full px-2.5 py-1.5 text-[0.58rem] font-bold uppercase tracking-[0.08em] transition ${option === locale ? "bg-yara-wine text-white" : "text-yara-taupe hover:text-yara-wine"}`}
+                className={`rounded-full px-2.5 py-1.5 text-[0.58rem] font-bold uppercase tracking-[0.08em] transition duration-200 ${option === locale ? "bg-yara-wine text-white shadow-sm" : "text-yara-taupe hover:bg-white/70 hover:text-yara-wine"}`}
                 hrefLang={option}
                 aria-current={option === locale ? "true" : undefined}
               >
@@ -71,7 +71,7 @@ function Header() {
           ))}
           </div>
           <CountryContactSelector variant="desktop" />
-          <Link to="/cart" className="relative rounded-full p-2.5" aria-label={t("nav.shoppingBag", { count: itemCount })}>
+          <Link to="/cart" className="glass-icon relative h-10 w-10 text-yara-wine" aria-label={t("nav.shoppingBag", { count: itemCount })}>
             <ShoppingBag className="h-[19px] w-[19px]" />
             {itemCount > 0 && (
               <span className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-yara-wine px-1 text-[10px] font-semibold text-white">
@@ -79,9 +79,9 @@ function Header() {
               </span>
             )}
           </Link>
-          <button onClick={changeCountry} className="hidden rounded-full border border-yara-gold/50 px-2.5 py-2 text-[0.5rem] font-semibold uppercase tracking-[0.07em] lg:block xl:px-3 xl:text-[0.54rem] xl:tracking-[0.09em]">{t("nav.changeCountry")}</button>
+          <button onClick={changeCountry} className="glass-control hidden min-h-10 px-3 py-2 text-[0.5rem] font-semibold uppercase tracking-[0.07em] text-yara-wine lg:block xl:text-[0.54rem] xl:tracking-[0.09em]">{t("nav.changeCountry")}</button>
           <button
-            className="rounded-full p-2.5 lg:hidden"
+            className="glass-icon h-10 w-10 text-yara-wine lg:hidden"
             onClick={() => setMenuOpen((open) => !open)}
             aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={menuOpen}
@@ -92,7 +92,7 @@ function Header() {
       </div>
 
       {menuOpen && (
-        <div className="border-t border-yara-rose/50 bg-yara-ivory px-5 pb-7 pt-5 lg:hidden">
+        <div className="border-t border-white/70 bg-yara-ivory/95 px-5 pb-7 pt-5 shadow-[0_16px_40px_rgba(86,45,56,0.08)] backdrop-blur-xl lg:hidden">
           <nav className="grid gap-1" aria-label={t("nav.mobileNavigation")}>
             {navItems.map((item) => (
               <Link key={item.label} to={item.to} className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">
@@ -101,11 +101,11 @@ function Header() {
             ))}
             <div className="mt-4 flex flex-wrap gap-2" aria-label={t("nav.language")}>
               {locales.map((option) => (
-                <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} className={`rounded-full border px-3 py-2 text-xs font-bold ${option === locale ? "border-yara-wine bg-yara-wine text-white" : "border-yara-rose text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
+                <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} className={`glass-control px-3 py-2 text-xs font-bold ${option === locale ? "bg-yara-wine text-white" : "text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
               ))}
             </div>
             <CountryContactSelector variant="mobile" />
-            {country && <div className="mt-3 rounded-2xl bg-yara-blush p-4"><p className="text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-yara-wine">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</p><Link to="/cart" className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]"><ShoppingBag className="h-4 w-4" /> {t("nav.cart")} ({itemCount})</Link><button onClick={changeCountry} className="mt-4 text-[0.62rem] font-semibold uppercase tracking-[0.1em] underline">{t("nav.changeCountry")}</button></div>}
+            {country && <div className="glass-panel mt-3 rounded-2xl p-4"><p className="text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-yara-wine">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</p><Link to="/cart" className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]"><ShoppingBag className="h-4 w-4" /> {t("nav.cart")} ({itemCount})</Link><button onClick={changeCountry} className="mt-4 text-[0.62rem] font-semibold uppercase tracking-[0.1em] underline">{t("nav.changeCountry")}</button></div>}
           </nav>
         </div>
       )}
@@ -126,8 +126,8 @@ function Footer() {
             {t("layout.footerText")}
           </p>
           <div className="mt-5 flex gap-3 text-yara-wine">
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="rounded-full border border-yara-wine/20 p-2"><Instagram className="h-4 w-4" /></a>
-            <a href="mailto:hello@yaraskincare.com" aria-label="Email YARA" className="rounded-full border border-yara-wine/20 p-2"><Mail className="h-4 w-4" /></a>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="glass-icon h-9 w-9"><Instagram className="h-4 w-4" /></a>
+            <a href="mailto:hello@yaraskincare.com" aria-label="Email YARA" className="glass-icon h-9 w-9"><Mail className="h-4 w-4" /></a>
           </div>
         </div>
         <div>
@@ -145,9 +145,9 @@ function Footer() {
         <div>
           <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.17em]">{t("layout.newsletter")}</h3>
           <p className="mt-5 text-sm font-light leading-6 text-yara-taupe">{t("layout.newsletterText")}</p>
-          <form className="mt-5 flex rounded-full bg-white/75 p-1" onSubmit={(event) => event.preventDefault()}>
+          <form className="glass-panel mt-5 flex rounded-full p-1" onSubmit={(event) => event.preventDefault()}>
             <input type="email" required placeholder={t("layout.emailAddress")} aria-label={t("layout.emailAddress")} className="min-w-0 flex-1 bg-transparent px-4 text-xs" />
-            <button className="rounded-full bg-yara-wine p-3 text-white" aria-label={t("layout.joinNewsletter")}><ArrowRight className="h-4 w-4" /></button>
+            <button className="glass-icon h-10 w-10 bg-yara-wine text-white" aria-label={t("layout.joinNewsletter")}><ArrowRight className="h-4 w-4" /></button>
           </form>
         </div>
       </div>
@@ -215,7 +215,7 @@ export function Layout({ children }: { children: ReactNode }) {
         href={createWhatsAppLink(`${t("layout.chatHelp")}\n\n${t("whatsapp.country")}: ${countryDetails[country].name}\n${t("whatsapp.currency")}: ${countryDetails[country].currency}`, country)}
         target="_blank"
         rel="noreferrer"
-        className="fixed bottom-5 right-5 z-40 grid h-14 w-14 place-items-center rounded-full bg-[#20bd5a] text-white shadow-xl transition hover:-translate-y-1"
+        className="glass-icon fixed bottom-5 right-5 z-40 h-14 w-14 bg-[#20bd5a] text-white shadow-[0_14px_30px_rgba(25,130,75,0.28)]"
         aria-label={t("layout.chatLabel")}
       >
         <MessageCircle className="h-6 w-6" />
