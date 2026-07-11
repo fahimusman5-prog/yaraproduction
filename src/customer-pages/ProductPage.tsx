@@ -6,11 +6,12 @@ import { useCart } from "../context/CartContext";
 import { createWhatsAppLink, formatPrice, getProductPrice, productOrderMessage } from "../lib/format";
 import { useCountry } from "../context/CountryContext";
 import { useCatalog } from "../context/CatalogContext";
+import { findProductByRouteKey } from "../lib/product-routing";
 
 export function ProductPage() {
-  const { id } = useParams();
-  const { products } = useCatalog();
-  const product = products.find((item) => item.id === id);
+  const { id: productKey } = useParams();
+  const { products, loading } = useCatalog();
+  const product = findProductByRouteKey(products, productKey);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [added, setAdded] = useState(false);
@@ -19,6 +20,10 @@ export function ProductPage() {
   const { country } = useCountry();
 
   const gallery = useMemo(() => product ? Array.from(new Set([product.gallery?.[0] ?? product.image, product.image, ...(product.gallery?.slice(1) ?? [])])) : [], [product]);
+
+  if (!product && loading) {
+    return <div className="page-shell py-28 text-center"><p className="eyebrow">Loading product</p><h1 className="mt-4 text-5xl">Preparing your product details.</h1></div>;
+  }
 
   if (!product) {
     return <div className="page-shell py-28 text-center"><p className="eyebrow">Product not found</p><h1 className="mt-4 text-5xl">This product has wandered off.</h1><Link to="/shop" className="btn-primary mt-8">Return to shop</Link></div>;
