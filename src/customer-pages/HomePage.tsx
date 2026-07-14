@@ -100,9 +100,9 @@ export function HomePage() {
           <div className="text-center"><p className="eyebrow">Real routines, real radiance</p><h2 className="mt-3 text-3xl sm:text-4xl">Loved by Skin Enthusiasts</h2></div>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {[
-              ["The Saffron Face Wash changed how my skin feels in the morning—clean, calm and never tight.", "Elena V."],
-              ["I have never used a face wash that feels this luxurious. The saffron scent is subtle and dreamy.", "Sienna J."],
-              ["The packaging is beautiful, but the glow is what keeps me coming back. Truly worth it.", "Marcus L."]
+              ["The Saffron Face Wash changed how my skin feels in the morning—clean, calm and never tight.", "Amina F."],
+              ["I have never used a face wash that feels this luxurious. The saffron scent is subtle and dreamy.", "Kavitha S."],
+              ["The packaging is beautiful, but the glow is what keeps me coming back. Truly worth it.", "Dinithi P."]
             ].map(([quote, name], index) => (
               <blockquote key={name} className={`rounded-[1.7rem] border border-white/80 bg-white p-7 text-center shadow-card ${index === 1 ? "ring-1 ring-yara-wine" : ""}`}>
                 <div className="text-yara-gold">★★★★★</div><p className="mt-5 font-serif text-base italic leading-7">“{quote}”</p><footer className="mt-5 text-[0.6rem] font-semibold uppercase tracking-[0.15em] text-yara-taupe">{name}</footer>

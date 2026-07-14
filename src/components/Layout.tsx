@@ -1,5 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
+  Check,
+  ChevronDown,
+  Globe2,
   Menu,
   ShoppingBag,
   X,
@@ -12,8 +15,139 @@ import { useCart } from "../context/CartContext";
 import { createWhatsAppLink } from "../lib/format";
 import yaraLogo from "../assets/yara-logo-glow.png";
 import { countryDetails, useCountry } from "../context/CountryContext";
-import { getLocalizedPath, localeLabels, locales, useI18n } from "../i18n";
+import { getLocalizedPath, localeLabels, locales, useI18n, type Locale } from "../i18n";
 import { footerSocialLinks } from "../lib/social-links";
+
+const mobileLocaleLabels: Record<Locale, string> = {
+  en: "EN",
+  si: "සිං",
+  ta: "தமிழ்",
+  ar: "AR",
+};
+
+const localeOptionNames: Record<Locale, string> = {
+  en: "English",
+  si: "සිංහල",
+  ta: "தமிழ்",
+  ar: "العربية",
+};
+
+function LanguageSelector({ variant }: { variant: "desktop" | "mobile" }) {
+  const { locale, localeName, t } = useI18n();
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const selectorRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const firstOptionRef = useRef<HTMLAnchorElement>(null);
+  const wasOpenRef = useRef(false);
+  const menuId = useId();
+  const isMobile = variant === "mobile";
+
+  useEffect(() => setOpen(false), [location.pathname, location.search, location.hash]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!selectorRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open) firstOptionRef.current?.focus();
+    if (!open && wasOpenRef.current) triggerRef.current?.focus();
+    wasOpenRef.current = open;
+  }, [open]);
+
+  const handleMenuKeyDown = (event: KeyboardEvent<HTMLAnchorElement>) => {
+    const currentIndex = locales.findIndex((option) => option === event.currentTarget.dataset.locale);
+    const nextIndex = event.key === "ArrowDown" ? (currentIndex + 1) % locales.length : event.key === "ArrowUp" ? (currentIndex - 1 + locales.length) % locales.length : event.key === "Home" ? 0 : event.key === "End" ? locales.length - 1 : null;
+
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectorRef.current?.querySelector<HTMLAnchorElement>(`a[data-locale="${locales[nextIndex]}"]`)?.focus();
+  };
+
+  if (!isMobile) {
+    return (
+      <div className="glass-panel hidden items-center rounded-full p-1 lg:flex" aria-label={t("nav.language")}>
+        {locales.map((option) => (
+          <a
+            key={option}
+            href={getLocalizedPath(option, location.pathname, location.search, location.hash)}
+            className={`rounded-full px-2.5 py-1.5 text-[0.58rem] font-bold uppercase tracking-[0.08em] transition duration-200 ${option === locale ? "bg-yara-wine text-white shadow-sm" : "text-yara-taupe hover:bg-white/70 hover:text-yara-wine"}`}
+            hrefLang={option}
+            aria-current={option === locale ? "true" : undefined}
+          >
+            {localeLabels[option]}
+          </a>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={selectorRef} className="relative z-[55] lg:hidden">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className="glass-control flex min-h-11 items-center gap-1.5 whitespace-nowrap px-2.5 py-2 text-[0.68rem] font-bold uppercase tracking-[0.04em] text-yara-wine shadow-[0_8px_20px_rgba(135,66,87,0.12)] min-[360px]:gap-2 min-[360px]:px-3 min-[390px]:text-[0.72rem]"
+        aria-label={`${t("nav.language")}: ${localeName}`}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={menuId}
+      >
+        <Globe2 className="h-3.5 w-3.5 shrink-0 min-[360px]:h-4 min-[360px]:w-4" aria-hidden="true" />
+        <span>{mobileLocaleLabels[locale]}</span>
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition duration-200 ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <span className="sr-only">{localeName}</span>
+      </button>
+
+      <div
+        id={menuId}
+        role="menu"
+        aria-label={t("nav.language")}
+        className={`glass-panel absolute right-0 top-[calc(100%+0.55rem)] w-40 overflow-hidden rounded-2xl border border-yara-gold/35 bg-[#fffafb]/95 p-1.5 shadow-[0_18px_42px_rgba(86,45,56,0.18)] backdrop-blur-xl transition duration-200 ${open ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0"}`}
+      >
+        {locales.map((option, index) => {
+          const active = option === locale;
+          return (
+            <a
+              key={option}
+              ref={index === 0 ? firstOptionRef : undefined}
+              data-locale={option}
+              href={getLocalizedPath(option, location.pathname, location.search, location.hash)}
+              hrefLang={option}
+              role="menuitem"
+              aria-current={active ? "true" : undefined}
+              tabIndex={open ? 0 : -1}
+              onClick={() => setOpen(false)}
+              onKeyDown={handleMenuKeyDown}
+              className={`flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition ${active ? "bg-yara-wine text-white shadow-sm" : "text-yara-ink hover:bg-white/75 focus-visible:bg-white/75"}`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-[0.08em]">{mobileLocaleLabels[option]}</span>
+                <span className={active ? "text-white/80" : "text-yara-taupe"}>{localeOptionNames[option]}</span>
+              </span>
+              {active && <Check className="h-4 w-4 shrink-0" aria-hidden="true" />}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function Header() {
   const { itemCount } = useCart();
@@ -56,19 +190,8 @@ function Header() {
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           {country && <span className="hidden text-[0.54rem] font-semibold uppercase tracking-[0.08em] text-yara-wine lg:block xl:text-[0.58rem] xl:tracking-[0.1em]">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</span>}
-          <div className="glass-panel hidden items-center rounded-full p-1 lg:flex" aria-label={t("nav.language")}>
-            {locales.map((option) => (
-              <a
-                key={option}
-                href={getLocalizedPath(option, location.pathname, location.search, location.hash)}
-                className={`rounded-full px-2.5 py-1.5 text-[0.58rem] font-bold uppercase tracking-[0.08em] transition duration-200 ${option === locale ? "bg-yara-wine text-white shadow-sm" : "text-yara-taupe hover:bg-white/70 hover:text-yara-wine"}`}
-                hrefLang={option}
-                aria-current={option === locale ? "true" : undefined}
-              >
-              {localeLabels[option]}
-            </a>
-          ))}
-          </div>
+          <LanguageSelector variant="desktop" />
+          <LanguageSelector variant="mobile" />
           <CountryContactSelector variant="desktop" />
           <Link to="/cart" className="glass-icon relative h-10 w-10 text-yara-wine" aria-label={t("nav.shoppingBag", { count: itemCount })}>
             <ShoppingBag className="h-[19px] w-[19px]" />
