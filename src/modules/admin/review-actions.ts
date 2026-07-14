@@ -42,7 +42,7 @@ export async function createReviewAction(_state: ActionState, formData: FormData
     const { error: updateError } = await supabase.from("product_reviews").update({ status: parsed.data.status }).eq("id", reviewId); if (updateError) throw updateError;
   } catch (error) {
     if (paths.length) await supabase.storage.from("product-reviews").remove(paths); if (reviewId) await supabase.from("product_reviews").delete().eq("id", reviewId);
-    logSupabaseError("admin-reviews-create", "create-review", error, { route: "/admin/reviews/new", table: "product_reviews", userId: staff.userId, productId: parsed.data?.product_id }); return { status: "error", message: messageFromSupabaseError(error, "Unable to create review.") };
+    logSupabaseError("admin-review-create", "create-review", error, { route: "/admin/reviews/new", table: "product_reviews", userId: staff.userId, productId: parsed.data?.product_id }); return { status: "error", message: messageFromSupabaseError(error, "Unable to create review.") };
   }
   refreshReviews(parsed.data.product_id); return { status: "success", message: "Review created." };
 }
@@ -63,14 +63,14 @@ export async function updateReviewAction(reviewId: string, _state: ActionState, 
     for (const [sort_order, imageId] of keep.entries()) { const { error } = await supabase.from("product_review_images").update({ sort_order }).eq("id", imageId).eq("review_id", reviewId); if (error) throw error; }
     const { error } = await supabase.from("product_reviews").update({ ...parsed.data, status: "hidden" }).eq("id", reviewId); if (error) throw error;
     const { error: publishError } = await supabase.from("product_reviews").update({ status: parsed.data.status }).eq("id", reviewId); if (publishError) throw publishError;
-  } catch (error) { if (uploaded.length) await supabase.storage.from("product-reviews").remove(uploaded); logSupabaseError("admin-reviews-edit", "update-review", error, { route: `/admin/reviews/${reviewId}/edit`, table: "product_reviews", userId: staff.userId, reviewId, productId: parsed.data.product_id }); return { status: "error", message: messageFromSupabaseError(error, "Unable to update review.") }; }
+  } catch (error) { if (uploaded.length) await supabase.storage.from("product-reviews").remove(uploaded); logSupabaseError("admin-review-update", "update-review", error, { route: `/admin/reviews/${reviewId}/edit`, table: "product_reviews", userId: staff.userId, reviewId, productId: parsed.data.product_id }); return { status: "error", message: messageFromSupabaseError(error, "Unable to update review.") }; }
   refreshReviews(parsed.data.product_id); return { status: "success", message: "Review updated." };
 }
 
 export async function deleteReviewAction(reviewId: string) {
   const staff = await requireAdmin("/admin/reviews"); if (!uuid.safeParse(reviewId).success) throw new Error("Review not found."); const supabase = getSupabaseAdminClient();
   const { data: review, error } = await supabase.from("product_reviews").select("product_id,product_review_images(storage_path)").eq("id", reviewId).maybeSingle(); if (error || !review) throw new Error(error ? messageFromSupabaseError(error, "Unable to load review.") : "Review not found.");
-  const paths = ((review as { product_review_images?: Array<{ storage_path: string }> }).product_review_images ?? []).map((image) => image.storage_path); const { error: deleteError } = await supabase.from("product_reviews").delete().eq("id", reviewId); if (deleteError) { logSupabaseError("admin-reviews-delete", "delete-review", deleteError, { route: "/admin/reviews", table: "product_reviews", userId: staff.userId, reviewId }); throw new Error(messageFromSupabaseError(deleteError, "Unable to delete review.")); }
-  if (paths.length) { const { error: storageError } = await supabase.storage.from("product-reviews").remove(paths); if (storageError) logSupabaseError("admin-reviews-delete", "delete-review-images", storageError, { route: "/admin/reviews", table: "storage.objects", userId: staff.userId, reviewId }); }
+  const paths = ((review as { product_review_images?: Array<{ storage_path: string }> }).product_review_images ?? []).map((image) => image.storage_path); const { error: deleteError } = await supabase.from("product_reviews").delete().eq("id", reviewId); if (deleteError) { logSupabaseError("admin-review-delete", "delete-review", deleteError, { route: "/admin/reviews", table: "product_reviews", userId: staff.userId, reviewId }); throw new Error(messageFromSupabaseError(deleteError, "Unable to delete review.")); }
+  if (paths.length) { const { error: storageError } = await supabase.storage.from("product-reviews").remove(paths); if (storageError) logSupabaseError("review-image-delete", "delete-review-images", storageError, { route: "/admin/reviews", table: "storage.objects", userId: staff.userId, reviewId }); }
   refreshReviews(String((review as { product_id: string }).product_id));
 }

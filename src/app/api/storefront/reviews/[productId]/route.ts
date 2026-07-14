@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseError } from "@/lib/supabase/log";
 
 const productIdSchema = z.string().uuid();
@@ -9,7 +9,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ productId:
   const { productId } = await params;
   if (!productIdSchema.safeParse(productId).success) return NextResponse.json({ error: "Product not found." }, { status: 404 });
   try {
-    const supabase = getSupabaseAdminClient();
+    const supabase = await getSupabaseServerClient();
+    if (!supabase) throw new Error("Supabase storefront configuration is unavailable.");
     const { data, error } = await supabase
       .from("product_reviews")
       .select("id,customer_name,rating,description,sort_order,product_review_images(id,storage_path,sort_order)")
@@ -31,7 +32,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ productId:
     });
     return NextResponse.json({ reviews }, { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } });
   } catch (error) {
-    logSupabaseError("storefront-reviews", "load-product-reviews", error, { route: `/api/storefront/reviews/${productId}`, table: "product_reviews", productId });
+    logSupabaseError("storefront-product-reviews", "load-product-reviews", error, { route: `/api/storefront/reviews/${productId}`, table: "product_reviews", productId });
     return NextResponse.json({ error: "Reviews are temporarily unavailable." }, { status: 503 });
   }
 }
