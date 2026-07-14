@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Boxes, ChevronRight, CreditCard, FolderTree, LayoutDashboard, LogOut, Menu, Package, ReceiptText, ShoppingBag, Store, Users, X } from "lucide-react";
+import { BarChart3, Boxes, ChevronRight, CreditCard, FolderTree, LayoutDashboard, LogOut, Menu, Package, ReceiptText, ShoppingBag, Store, Users, X, Star } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import type { StaffContext } from "@/lib/supabase/auth";
 const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/categories", label: "Categories", icon: FolderTree },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/customers", label: "Customers", icon: Users },

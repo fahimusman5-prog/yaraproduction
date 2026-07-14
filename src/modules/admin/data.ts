@@ -11,7 +11,24 @@ import type {
   Profile,
   SkinConcern,
   StockMovement,
+  ProductReview,
 } from "@/lib/supabase/types";
+
+export async function getReviews() {
+  const supabase = await client("/admin/reviews");
+  const { data, error } = await supabase.from("product_reviews").select("*,products(name,slug),product_review_images(id,storage_path,sort_order)").order("created_at", { ascending: false }).limit(500);
+  if (error) failLoad("admin-reviews-list", "select-reviews", error, { route: "/admin/reviews", table: "product_reviews", fallback: "Unable to load reviews.", schemaUnavailable: "The product review tables are unavailable. Apply the latest database migration." });
+  return (data ?? []) as ProductReview[];
+}
+
+export async function getReview(reviewId: string) {
+  const supabase = await client(`/admin/reviews/${reviewId}/edit`);
+  const { data, error } = await supabase.from("product_reviews").select("*,products(name,slug),product_review_images(id,review_id,storage_path,sort_order,created_at)").eq("id", reviewId).maybeSingle();
+  if (error) failLoad("admin-reviews-edit", "select-review", error, { route: `/admin/reviews/${reviewId}/edit`, table: "product_reviews", fallback: "Unable to load review.", schemaUnavailable: "The product review tables are unavailable. Apply the latest database migration." });
+  if (!data) return null;
+  const review = data as ProductReview;
+  return { ...review, product_review_images: review.product_review_images?.map((image) => ({ ...image, image_url: supabase.storage.from("product-reviews").getPublicUrl(image.storage_path).data.publicUrl })) };
+}
 
 type LoadFailureOptions = {
   route: string;

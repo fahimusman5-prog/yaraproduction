@@ -4,6 +4,30 @@ export type RecordStatus = "active" | "inactive";
 export type ProductStatus = RecordStatus | "archived";
 export type OrderStatus = "pending" | "paid" | "processing" | "shipped" | "delivered" | "cancelled";
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "cod" | "online";
+export type ReviewStatus = "published" | "hidden";
+
+export interface ProductReviewImage {
+  id: string;
+  review_id: string;
+  storage_path: string;
+  sort_order: number;
+  created_at: string;
+  image_url?: string;
+}
+
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  customer_name: string;
+  rating: number;
+  description: string;
+  status: ReviewStatus;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  product_review_images?: ProductReviewImage[];
+  products?: Pick<Product, "name" | "slug"> | null;
+}
 
 export interface Profile {
   id: string;

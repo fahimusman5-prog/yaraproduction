@@ -7,6 +7,7 @@ export type SupabaseLogContext = {
   table?: string;
   userId?: string;
   productId?: string;
+  reviewId?: string;
   categoryId?: string;
   orderId?: string;
   orderNumber?: string;

@@ -7,6 +7,7 @@ import { createWhatsAppLink, formatPrice, getProductPrice, productOrderMessage }
 import { useCountry } from "../context/CountryContext";
 import { useCatalog } from "../context/CatalogContext";
 import { findProductByRouteKey } from "../lib/product-routing";
+import { ProductReviews } from "../components/ProductReviews";
 
 export function ProductPage() {
   const { id: productKey } = useParams();
@@ -105,6 +106,8 @@ export function ProductPage() {
           </div>
         </div>
       </section>
+
+      <ProductReviews productId={product.id} />
 
       <section className="py-20 sm:py-28">
         <div className="text-center"><p className="eyebrow">Pair it beautifully</p><h2 className="mt-3 text-4xl sm:text-5xl">Complete Your Routine</h2></div>
