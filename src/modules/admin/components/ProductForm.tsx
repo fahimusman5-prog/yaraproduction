@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useActionState } from "react";
+import { useMemo, useActionState, useState } from "react";
 import type { Category, Product, SkinConcern } from "@/lib/supabase/types";
 import { createProductAction, updateProductAction } from "../actions";
 import { initialActionState } from "../action-state";
@@ -22,6 +22,17 @@ export function ProductForm({
     () => new Set(product?.product_skin_concerns?.map((item) => item.skin_concerns?.id).filter(Boolean)),
     [product],
   );
+  const [prices, setPrices] = useState({
+    price_lkr: String(product?.price_lkr ?? 0),
+    original_price_lkr: product?.original_price_lkr === null || product?.original_price_lkr === undefined ? "" : String(product.original_price_lkr),
+    price_aed: String(product?.price_aed ?? 0),
+    original_price_aed: product?.original_price_aed === null || product?.original_price_aed === undefined ? "" : String(product.original_price_aed),
+  });
+  const updatePrice = (field: keyof typeof prices, value: string) => {
+    setPrices((current) => ({ ...current, [field]: value }));
+  };
+  const lkrComparison = compareOriginalPrice(prices.price_lkr, prices.original_price_lkr);
+  const aedComparison = compareOriginalPrice(prices.price_aed, prices.original_price_aed);
 
   return (
     <form action={formAction} className="staff-panel space-y-7 p-5 sm:p-7" encType="multipart/form-data">
@@ -103,12 +114,26 @@ export function ProductForm({
         <legend className="text-base font-bold">Pricing and identification</legend>
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <label>
-            <span className="staff-label">Sri Lanka price (LKR) *</span>
-            <input className="staff-input" name="price_lkr" type="number" min="0" step="0.01" required defaultValue={product?.price_lkr ?? 0} />
+            <span className="staff-label">Sri Lanka Selling Price (LKR) *</span>
+            <input className="staff-input" name="price_lkr" type="number" min="0" step="0.01" required value={prices.price_lkr} onChange={(event) => updatePrice("price_lkr", event.target.value)} />
           </label>
           <label>
-            <span className="staff-label">UAE price (AED) *</span>
-            <input className="staff-input" name="price_aed" type="number" min="0" step="0.01" required defaultValue={product?.price_aed ?? 0} />
+            <span className="staff-label">Sri Lanka Original Price (LKR) — Optional</span>
+            <input className="staff-input" name="original_price_lkr" type="number" min={prices.price_lkr || "0"} step="0.01" placeholder="Leave blank when not on special" value={prices.original_price_lkr} onChange={(event) => updatePrice("original_price_lkr", event.target.value)} aria-describedby="lkr-original-price-help" />
+            <span id="lkr-original-price-help" className={`mt-1 block text-xs ${lkrComparison === "lower" ? "text-red-700" : lkrComparison === "equal" ? "text-amber-700" : "text-slate-500"}`}>
+              {priceHelp(lkrComparison)}
+            </span>
+          </label>
+          <label>
+            <span className="staff-label">UAE Selling Price (AED) *</span>
+            <input className="staff-input" name="price_aed" type="number" min="0" step="0.01" required value={prices.price_aed} onChange={(event) => updatePrice("price_aed", event.target.value)} />
+          </label>
+          <label>
+            <span className="staff-label">UAE Original Price (AED) — Optional</span>
+            <input className="staff-input" name="original_price_aed" type="number" min={prices.price_aed || "0"} step="0.01" placeholder="Leave blank when not on special" value={prices.original_price_aed} onChange={(event) => updatePrice("original_price_aed", event.target.value)} aria-describedby="aed-original-price-help" />
+            <span id="aed-original-price-help" className={`mt-1 block text-xs ${aedComparison === "lower" ? "text-red-700" : aedComparison === "equal" ? "text-amber-700" : "text-slate-500"}`}>
+              {priceHelp(aedComparison)}
+            </span>
           </label>
           <label>
             <span className="staff-label">SKU *</span>
@@ -170,4 +195,22 @@ export function ProductForm({
       </div>
     </form>
   );
+}
+
+type PriceComparison = "empty" | "lower" | "equal" | "higher";
+
+function compareOriginalPrice(selling: string, original: string): PriceComparison {
+  if (!original.trim()) return "empty";
+  const sellingValue = Number(selling);
+  const originalValue = Number(original);
+  if (!Number.isFinite(sellingValue) || !Number.isFinite(originalValue)) return "empty";
+  if (originalValue < sellingValue) return "lower";
+  if (originalValue === sellingValue) return "equal";
+  return "higher";
+}
+
+function priceHelp(comparison: PriceComparison) {
+  if (comparison === "lower") return "Original price must be higher than the selling price.";
+  if (comparison === "equal") return "Equal prices are saved, but no crossed-out price will appear publicly.";
+  return "Shown as a crossed-out price only when it is higher than the selling price.";
 }

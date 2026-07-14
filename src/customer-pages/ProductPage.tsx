@@ -2,8 +2,9 @@ import { Check, ChevronRight, MessageCircle, Minus, Plus, ShieldCheck, ShoppingB
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
+import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCart } from "../context/CartContext";
-import { createWhatsAppLink, formatPrice, getProductPrice, productOrderMessage } from "../lib/format";
+import { createWhatsAppLink, productOrderMessage } from "../lib/format";
 import { useCountry } from "../context/CountryContext";
 import { useCatalog } from "../context/CatalogContext";
 import { findProductByRouteKey } from "../lib/product-routing";
@@ -76,7 +77,15 @@ export function ProductPage() {
             {productConcerns.map((item) => <Link key={item} to={`/shop?concern=${encodeURIComponent(item)}`} className="rounded-full border border-yara-gold/70 px-3 py-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-yara-taupe">{item}</Link>)}
           </div>
           <div className="mt-4 flex items-center gap-3 text-xs"><span className="flex text-yara-gold">{Array.from({ length: 5 }).map((_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}</span><span>{product.rating} · {product.reviews} reviews</span></div>
-          <div className="mt-6 flex items-end gap-2"><span className="font-serif text-4xl text-yara-wine">{country && formatPrice(getProductPrice(product, country), country)}</span><span className="pb-1 text-sm text-yara-taupe">/ {product.size}</span></div>
+          <div className="mt-6 flex items-end gap-2">
+            <RegionalProductPrice
+              product={product}
+              country={country}
+              sellingClassName="font-serif text-4xl leading-none text-yara-wine"
+              originalClassName="mt-2 text-base leading-none text-yara-taupe"
+            />
+            <span className="pb-1 text-sm text-yara-taupe">/ {product.size}</span>
+          </div>
           <p className="mt-6 text-sm font-light leading-7 text-yara-taupe">{product.description}</p>
 
           <div className="mt-7 flex flex-wrap items-center gap-4">

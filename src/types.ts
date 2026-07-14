@@ -7,6 +7,8 @@ export interface Product {
   subtitle: string;
   priceLKR: number;
   priceAED: number;
+  originalPriceLKR: number | null;
+  originalPriceAED: number | null;
   category: Category;
   concern: string;
   concerns?: string[];

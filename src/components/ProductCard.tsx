@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Heart, ShoppingBag, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "../types";
-import { formatPrice, getProductPrice } from "../lib/format";
+import { RegionalProductPrice } from "./RegionalProductPrice";
 import { useCart } from "../context/CartContext";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
@@ -48,7 +48,12 @@ export function ProductCard({ product }: { product: Product }) {
           <p className="mt-1 text-xs font-light leading-5 text-yara-taupe">{displayProduct.subtitle}</p>
         </Link>
         <div className="mt-5 flex items-center justify-between gap-3">
-          <span className="font-serif text-lg font-semibold text-yara-wine">{country && formatPrice(getProductPrice(product, country), country)}</span>
+          <RegionalProductPrice
+            product={product}
+            country={country}
+            sellingClassName="font-serif text-lg font-semibold leading-tight text-yara-wine"
+            originalClassName="mt-0.5 text-xs leading-tight text-yara-taupe"
+          />
           <button onClick={handleAdd} disabled={product.stockQuantity === 0} className="glass-icon h-10 w-10 bg-yara-wine text-white" aria-label={t("product.addNamedToCart", { name: displayProduct.name })}>
             {added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
           </button>

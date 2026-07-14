@@ -9,6 +9,7 @@ const placeholderImage = "/images/yara-product-placeholder.svg";
 type CatalogRow = {
   id: string; name: string; slug: string; description: string; image_url: string | null;
   price_lkr: number | string; price_aed: number | string; stock_quantity: number;
+  original_price_lkr: number | string | null; original_price_aed: number | string | null;
   benefits?: string[] | null; how_to_use?: string | null; ingredients?: string | null; caution?: string | null;
   seo_title?: string | null; seo_description?: string | null; original_category?: string | null; featured?: boolean | null;
   categories: { name: string } | null;
@@ -26,6 +27,8 @@ function mapProduct(row: CatalogRow): Product {
     subtitle: row.original_category || fallback?.subtitle || row.categories?.name || "YARA Collection",
     priceLKR: Number(row.price_lkr),
     priceAED: Number(row.price_aed),
+    originalPriceLKR: row.original_price_lkr === null ? null : Number(row.original_price_lkr),
+    originalPriceAED: row.original_price_aed === null ? null : Number(row.original_price_aed),
     category: row.categories?.name ?? "Uncategorized",
     concern: primaryConcern,
     concerns,

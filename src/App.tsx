@@ -14,6 +14,7 @@ import { CountryLanding } from "./components/CountryLanding";
 import { IngredientsPage } from "./customer-pages/IngredientsPage";
 import { CatalogProvider } from "./context/CatalogContext";
 import { defaultLocale, isLocale, LocaleProvider, type Locale } from "./i18n";
+import { useEffect, useState } from "react";
 
 function CountryGatedSite() {
   const { country } = useCountry();
@@ -42,19 +43,32 @@ function CountryGatedSite() {
 function getInitialLocale(): Locale {
   if (window.location.protocol === "file:") return defaultLocale;
 
-  const { pathname, search, hash } = window.location;
+  const { pathname } = window.location;
   const [, firstSegment] = pathname.split("/");
   if (isLocale(firstSegment)) return firstSegment;
-
-  const normalizedPath = pathname === "/" ? "" : pathname;
-  window.history.replaceState(null, "", `/${defaultLocale}${normalizedPath}${search}${hash}`);
   return defaultLocale;
+}
+
+function hasLocalePath() {
+  if (window.location.protocol === "file:") return true;
+  return isLocale(window.location.pathname.split("/")[1]);
 }
 
 export default function App() {
   const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
-  const locale = getInitialLocale();
+  const [locale] = useState(getInitialLocale);
+  const [localePathReady, setLocalePathReady] = useState(hasLocalePath);
   const routerProps = window.location.protocol === "file:" ? {} : { basename: `/${locale}` };
+
+  useEffect(() => {
+    if (localePathReady) return;
+    const { pathname, search, hash } = window.location;
+    const normalizedPath = pathname === "/" ? "" : pathname;
+    window.history.replaceState(null, "", `/${defaultLocale}${normalizedPath}${search}${hash}`);
+    setLocalePathReady(true);
+  }, [localePathReady]);
+
+  if (!localePathReady) return null;
 
   return (
     <LocaleProvider locale={locale}>

@@ -1,5 +1,11 @@
 import { z } from "zod";
+import { optionalPriceFromForm } from "@/lib/pricing";
 import { toSlug } from "./lib/format";
+
+const optionalPriceSchema = z.preprocess(
+  optionalPriceFromForm,
+  z.coerce.number().min(0, "Original price cannot be negative.").max(999999999).nullable(),
+);
 
 export const productSchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -17,12 +23,29 @@ export const productSchema = z.object({
   seo_description: z.string().trim().max(320).default(""),
   price_lkr: z.coerce.number().min(0).max(999999999),
   price_aed: z.coerce.number().min(0).max(999999999),
+  original_price_lkr: optionalPriceSchema,
+  original_price_aed: optionalPriceSchema,
   sku: z.string().trim().min(1).max(80),
   barcode: z.string().trim().max(120).optional(),
   stock_quantity: z.coerce.number().int().min(0).max(10000000),
   low_stock_alert: z.coerce.number().int().min(0).max(1000000),
   status: z.enum(["active", "inactive", "archived"]),
   featured: z.enum(["true"]).optional(),
+}).superRefine((input, context) => {
+  if (input.original_price_lkr !== null && input.original_price_lkr < input.price_lkr) {
+    context.addIssue({
+      code: "custom",
+      path: ["original_price_lkr"],
+      message: "Sri Lanka original price must be higher than the selling price.",
+    });
+  }
+  if (input.original_price_aed !== null && input.original_price_aed < input.price_aed) {
+    context.addIssue({
+      code: "custom",
+      path: ["original_price_aed"],
+      message: "UAE original price must be higher than the selling price.",
+    });
+  }
 });
 
 export const categorySchema = z.object({
@@ -55,6 +78,8 @@ export function buildProductPayload(input: ProductInput, imageUrl: string | null
     image_url: imageUrl,
     price_lkr: input.price_lkr,
     price_aed: input.price_aed,
+    original_price_lkr: input.original_price_lkr,
+    original_price_aed: input.original_price_aed,
     sku: input.sku,
     barcode: input.barcode || null,
     low_stock_alert: input.low_stock_alert,

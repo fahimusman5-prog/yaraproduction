@@ -64,6 +64,8 @@ export interface Product {
   image_url: string | null;
   price_lkr: number;
   price_aed: number;
+  original_price_lkr: number | null;
+  original_price_aed: number | null;
   sku: string;
   barcode: string | null;
   stock_quantity: number;

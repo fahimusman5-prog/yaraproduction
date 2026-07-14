@@ -2,7 +2,8 @@ import { ArrowRight, Banknote, CreditCard, LockKeyhole, MessageCircle, ShieldChe
 import { useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { cartOrderMessage, createWhatsAppLink, formatPrice, getProductPrice } from "../lib/format";
+import { cartOrderMessage, createWhatsAppLink, formatPrice } from "../lib/format";
+import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
@@ -107,7 +108,7 @@ export function CheckoutPage() {
             {items.map(({ product, quantity }) => {
               const displayProduct = localizeProduct(product, locale);
               return (
-              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><span className="text-sm text-yara-wine">{country && formatPrice(getProductPrice(product, country) * quantity, country)}</span></div>
+              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
             );})}
           </div>
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>

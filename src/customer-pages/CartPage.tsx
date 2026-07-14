@@ -1,7 +1,8 @@
 import { ArrowRight, MessageCircle, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { cartOrderMessage, createWhatsAppLink, formatPrice, getProductPrice } from "../lib/format";
+import { cartOrderMessage, createWhatsAppLink, formatPrice } from "../lib/format";
+import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
@@ -38,7 +39,14 @@ export function CartPage() {
                 </div>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                   <div className="glass-panel flex items-center rounded-full p-0.5"><button onClick={() => updateQuantity(product.id, quantity - 1)} className="glass-icon h-8 w-8" aria-label={t("product.decrease")}><Minus className="h-3.5 w-3.5" /></button><span className="w-7 text-center text-xs">{quantity}</span><button onClick={() => updateQuantity(product.id, quantity + 1)} className="glass-icon h-8 w-8" aria-label={t("product.increase")}><Plus className="h-3.5 w-3.5" /></button></div>
-                  <p className="font-serif text-xl font-semibold text-yara-wine">{country && formatPrice(getProductPrice(product, country) * quantity, country)}</p>
+                  <RegionalProductPrice
+                    product={product}
+                    country={country}
+                    quantity={quantity}
+                    className="flex flex-col items-end"
+                    sellingClassName="font-serif text-xl font-semibold leading-tight text-yara-wine"
+                    originalClassName="mt-0.5 text-xs leading-tight text-yara-taupe"
+                  />
                 </div>
               </div>
             </article>
