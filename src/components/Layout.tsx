@@ -1,7 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  Instagram,
-  Mail,
   Menu,
   ShoppingBag,
   X,
@@ -15,6 +13,7 @@ import { createWhatsAppLink } from "../lib/format";
 import yaraLogo from "../assets/yara-logo-glow.png";
 import { countryDetails, useCountry } from "../context/CountryContext";
 import { getLocalizedPath, localeLabels, locales, useI18n } from "../i18n";
+import { footerSocialLinks } from "../lib/social-links";
 
 function Header() {
   const { itemCount } = useCart();
@@ -125,9 +124,12 @@ function Footer() {
           <p className="mt-5 max-w-xs text-sm font-light leading-7 text-yara-taupe">
             {t("layout.footerText")}
           </p>
-          <div className="mt-5 flex gap-3 text-yara-wine">
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram" className="glass-icon h-9 w-9"><Instagram className="h-4 w-4" /></a>
-            <a href="mailto:hello@yaraskincare.com" aria-label="Email YARA" className="glass-icon h-9 w-9"><Mail className="h-4 w-4" /></a>
+          <div className="mt-5 flex flex-wrap gap-3 text-yara-wine">
+            {footerSocialLinks.map(({ name, href, icon: Icon, ariaLabel }) => href ? (
+              <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} title={ariaLabel} className="glass-icon h-11 w-11 transition duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_10px_22px_rgba(135,66,87,0.18)]"><Icon className="h-5 w-5" /></a>
+            ) : (
+              <button key={name} type="button" disabled aria-label="YARA Facebook page is not yet available" title="YARA Facebook page is not yet available" className="glass-icon h-11 w-11 cursor-not-allowed opacity-45"><Icon className="h-5 w-5" /></button>
+            ))}
           </div>
         </div>
         <div>
