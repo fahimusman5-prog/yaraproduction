@@ -1,7 +1,9 @@
 import { ArrowRight, CheckCircle2, Droplets, Leaf, Sparkles } from "lucide-react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { useCatalog } from "../context/CatalogContext";
+import { prioritizeBestSellers } from "../lib/best-sellers";
 
 const heroImage = "/images/yara-hero-products.png";
 const skinImage = "/images/home/skincare-texture-pink-cream.png";
@@ -10,6 +12,7 @@ const botanicalImage = "/images/home/science-backed-botanical-skincare.png";
 export function HomePage() {
   const { products } = useCatalog();
   const collections = Array.from(new Map(products.map((product) => [product.category, product])).entries()).slice(0, 6);
+  const bestSellers = useMemo(() => prioritizeBestSellers(products), [products]);
   return (
     <>
       <section className="relative overflow-hidden bg-gradient-to-br from-[#fff4f6] via-yara-ivory to-[#fbf5ef] before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/80">
@@ -64,7 +67,7 @@ export function HomePage() {
       <section className="bg-yara-blush py-20 sm:py-28">
         <div className="page-shell">
           <div className="text-center"><p className="eyebrow">Our favorites</p><h2 className="mt-3 text-4xl sm:text-5xl">Best Sellers</h2></div>
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{products.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} />)}</div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{bestSellers.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} />)}</div>
           <div className="mt-10 text-center"><Link to="/shop" className="btn-secondary">Explore all products <ArrowRight className="h-4 w-4" /></Link></div>
         </div>
       </section>
