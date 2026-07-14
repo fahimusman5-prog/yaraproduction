@@ -16,3 +16,10 @@ test("scroll restoration effect never returns the scrollTo result as cleanup", a
   assert.doesNotMatch(source, /useEffect\(\(\) => window\.scrollTo/);
   assert.match(source, /useEffect\(\(\) => \{\s*window\.scrollTo/);
 });
+
+test("stored carts wait for the live catalog before reconciliation", async () => {
+  const source = await readFile(new URL("../src/context/CartContext.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /const \{ products, loading, error \} = useCatalog\(\)/);
+  assert.match(source, /if \(loading \|\| error\) return;\s*setItems/);
+});
