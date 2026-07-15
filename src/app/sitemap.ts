@@ -4,6 +4,10 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const baseUrl = "https://yaraproduct.com";
 
+// Concern and product URLs are managed in Supabase, so the sitemap must reflect
+// admin changes without waiting for the next deployment.
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPaths = ["", "/shop", "/ingredients", "/about", "/contact"];
   const entries: MetadataRoute.Sitemap = locales.flatMap((locale) => staticPaths.map((path) => ({ url: `${baseUrl}/${locale}${path}`, changeFrequency: path === "" ? "weekly" : "daily", priority: path === "" ? 1 : 0.8 })));
