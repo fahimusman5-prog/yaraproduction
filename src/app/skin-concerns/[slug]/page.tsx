@@ -5,6 +5,9 @@ import { getActiveSkinConcernBySlug } from "@/lib/skin-concerns";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
+// Keep the canonical route in sync with admin activation changes as well.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const concern = await getActiveSkinConcernBySlug(slug);
