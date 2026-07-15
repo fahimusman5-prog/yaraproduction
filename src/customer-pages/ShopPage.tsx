@@ -23,12 +23,12 @@ export function ShopPage() {
   useEffect(() => setCategory(requestedCategory ?? "All"), [requestedCategory]);
   useEffect(() => setConcern(requestedConcern ?? "All"), [requestedConcern]);
 
-  const concerns = ["All", ...catalogSkinConcerns];
+  const concerns = [{ id: "all", name: "All", slug: "All", description: null, sort_order: -1 }, ...catalogSkinConcerns];
   const visibleProducts = useMemo(() => {
     const normalizedQuery = query.toLowerCase();
     const filtered = products.filter((product) =>
       (category === "All" || product.category === category) &&
-      (concern === "All" || product.concern === concern || product.concerns?.includes(concern)) &&
+      (concern === "All" || product.concernSlugs?.includes(concern) || product.concerns?.includes(concern)) &&
       (!normalizedQuery || `${product.name} ${product.subtitle} ${product.category} ${product.concern} ${(product.concerns ?? []).join(" ")}`.toLowerCase().includes(normalizedQuery))
     );
     return [...filtered].sort((a, b) => {
@@ -75,8 +75,8 @@ export function ShopPage() {
         <h2 className="eyebrow">Skin concern</h2>
         <div className="mt-5 grid gap-3">
           {concerns.map((item) => (
-            <label key={item} className="flex cursor-pointer items-center gap-3 text-sm font-light">
-              <input type="radio" name="concern" checked={concern === item} onChange={() => updateConcern(item)} className="h-4 w-4 accent-yara-wine" /> {item}
+            <label key={item.id} className="flex cursor-pointer items-center gap-3 text-sm font-light">
+              <input type="radio" name="concern" checked={concern === item.slug} onChange={() => updateConcern(item.slug)} className="h-4 w-4 accent-yara-wine" /> {item.name}
             </label>
           ))}
         </div>

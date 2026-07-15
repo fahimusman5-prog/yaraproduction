@@ -107,4 +107,8 @@ test("maps database failures to safe admin messages", () => {
     messageFromSupabaseError({ code: "XX000", message: "raw internal SQL detail" }, "Save failed."),
     "Save failed.",
   );
+  assert.equal(
+    messageFromSupabaseError({ code: "23505", message: "duplicate key violates skin_concerns_name_normalized_key" }, "Save failed."),
+    "A skin concern with this name already exists.",
+  );
 });

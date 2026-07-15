@@ -7,12 +7,14 @@ import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import type { ActionState } from "./action-state";
+import type { SkinConcern } from "@/lib/supabase/types";
 import {
   buildProductPayload,
   categorySchema,
   formObject,
   productSchema,
   selectedSkinConcerns,
+  skinConcernSchema,
 } from "./input";
 import { toSlug } from "./lib/format";
 
@@ -121,8 +123,177 @@ function revalidateCatalog(productId?: string) {
   revalidatePath("/admin/inventory");
   revalidatePath("/api/storefront/catalog");
   revalidatePath("/shop");
+  revalidatePath("/products");
   revalidatePath("/pos");
+  revalidatePath("/sitemap.xml");
+  revalidatePath("/[locale]/product/[id]", "page");
   if (productId) revalidatePath(`/admin/products/${productId}/edit`);
+}
+
+function revalidateSkinConcerns(...slugs: Array<string | null | undefined>) {
+  revalidateCatalog();
+  revalidatePath("/admin/skin-concerns");
+  revalidatePath("/admin/products/new");
+  revalidatePath("/admin/products/[id]/edit", "page");
+  revalidatePath("/[locale]/skin-concerns/[slug]", "page");
+  revalidatePath("/skin-concerns/[slug]", "page");
+  for (const slug of new Set(slugs.filter((value): value is string => Boolean(value)))) {
+    revalidatePath(`/skin-concerns/${slug}`);
+    for (const locale of ["en", "si", "ta", "ar"]) revalidatePath(`/${locale}/skin-concerns/${slug}`);
+  }
+}
+
+export type SkinConcernActionState = ActionState & { concern?: SkinConcern };
+
+async function saveAdminSkinConcern(
+  supabase: Awaited<ReturnType<typeof actionClient>>,
+  args: {
+    concernId: string | null;
+    actorId: string;
+    name: string;
+    slug: string;
+    description: string;
+    sortOrder: number;
+    isActive: boolean;
+  },
+) {
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: string | null; error: { code?: string; message: string; details?: string; hint?: string } | null }>;
+  const { data: concernId, error } = await rpc("save_admin_skin_concern", {
+    p_concern_id: args.concernId,
+    p_actor_id: args.actorId,
+    p_name: args.name,
+    p_slug: args.slug,
+    p_description: args.description,
+    p_sort_order: args.sortOrder,
+    p_is_active: args.isActive,
+  });
+  if (error) throw error;
+  if (!concernId) throw new Error("The skin concern save did not return an ID.");
+  const result = await supabase.from("skin_concerns").select("*").eq("id", concernId).single();
+  if (result.error) throw result.error;
+  return result.data as unknown as SkinConcern;
+}
+
+export async function createSkinConcernAction(
+  _state: SkinConcernActionState,
+  formData: FormData,
+): Promise<SkinConcernActionState> {
+  const staff = await requireAdmin("/admin/skin-concerns");
+  const parsed = skinConcernSchema.safeParse(formObject(formData));
+  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the skin concern details." };
+  try {
+    const concern = await saveAdminSkinConcern(await actionClient(), {
+      concernId: null,
+      actorId: staff.userId,
+      name: parsed.data.name,
+      slug: toSlug(parsed.data.slug || parsed.data.name),
+      description: parsed.data.description ?? "",
+      sortOrder: parsed.data.sort_order,
+      isActive: parsed.data.is_active === "true",
+    });
+    revalidateSkinConcerns(concern.slug);
+    return { status: "success", message: "Skin concern created.", concern };
+  } catch (error) {
+    logSupabaseError("admin-skin-concerns-create", "create-skin-concern", error, {
+      route: "/admin/skin-concerns",
+      table: "skin_concerns",
+      userId: staff.userId,
+    });
+    return { status: "error", message: messageFromSupabaseError(error, "Unable to create the skin concern.", { duplicate: "A skin concern with this name or slug already exists." }) };
+  }
+}
+
+export async function updateSkinConcernAction(
+  concernId: string,
+  _state: SkinConcernActionState,
+  formData: FormData,
+): Promise<SkinConcernActionState> {
+  const staff = await requireAdmin("/admin/skin-concerns");
+  if (!z.string().uuid().safeParse(concernId).success) return { status: "error", message: "Skin concern not found." };
+  const parsed = skinConcernSchema.safeParse(formObject(formData));
+  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the skin concern details." };
+  const supabase = await actionClient();
+  const before = await supabase.from("skin_concerns").select("slug").eq("id", concernId).maybeSingle();
+  if (before.error) return { status: "error", message: messageFromSupabaseError(before.error, "Unable to load the skin concern before saving.") };
+  if (!before.data) return { status: "error", message: "Skin concern not found." };
+  try {
+    const concern = await saveAdminSkinConcern(supabase, {
+      concernId,
+      actorId: staff.userId,
+      name: parsed.data.name,
+      slug: toSlug(parsed.data.slug || parsed.data.name),
+      description: parsed.data.description ?? "",
+      sortOrder: parsed.data.sort_order,
+      isActive: parsed.data.is_active === "true",
+    });
+    revalidateSkinConcerns(String(before.data.slug), concern.slug);
+    return { status: "success", message: "Skin concern updated.", concern };
+  } catch (error) {
+    logSupabaseError("admin-skin-concerns-update", "update-skin-concern", error, {
+      route: "/admin/skin-concerns",
+      table: "skin_concerns",
+      userId: staff.userId,
+      skinConcernId: concernId,
+    });
+    return { status: "error", message: messageFromSupabaseError(error, "Unable to update the skin concern.", { duplicate: "A skin concern with this name or slug already exists.", notFound: "Skin concern not found." }) };
+  }
+}
+
+export async function setSkinConcernActiveAction(concernId: string, isActive: boolean) {
+  const staff = await requireAdmin("/admin/skin-concerns");
+  if (!z.string().uuid().safeParse(concernId).success) throw new Error("Skin concern not found.");
+  const supabase = await actionClient();
+  const current = await supabase.from("skin_concerns").select("*").eq("id", concernId).maybeSingle();
+  if (current.error) throw new Error(messageFromSupabaseError(current.error, "Unable to load the skin concern."));
+  if (!current.data) throw new Error("Skin concern not found.");
+  const row = current.data as Record<string, unknown>;
+  try {
+    const concern = await saveAdminSkinConcern(supabase, {
+      concernId,
+      actorId: staff.userId,
+      name: String(row.name),
+      slug: String(row.slug),
+      description: typeof row.description === "string" ? row.description : "",
+      sortOrder: Number(row.sort_order ?? 0),
+      isActive,
+    });
+    revalidateSkinConcerns(concern.slug);
+  } catch (error) {
+    logSupabaseError("admin-skin-concerns-status", "set-skin-concern-status", error, {
+      route: "/admin/skin-concerns",
+      table: "skin_concerns",
+      userId: staff.userId,
+      skinConcernId: concernId,
+    });
+    throw new Error(messageFromSupabaseError(error, "Unable to update the skin concern status."));
+  }
+}
+
+export async function deleteSkinConcernAction(concernId: string) {
+  const staff = await requireAdmin("/admin/skin-concerns");
+  if (!z.string().uuid().safeParse(concernId).success) throw new Error("Skin concern not found.");
+  const supabase = await actionClient();
+  const current = await supabase.from("skin_concerns").select("slug").eq("id", concernId).maybeSingle();
+  if (current.error) throw new Error(messageFromSupabaseError(current.error, "Unable to load the skin concern."));
+  if (!current.data) throw new Error("Skin concern not found.");
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ error: { code?: string; message: string; details?: string; hint?: string } | null }>;
+  const { error } = await rpc("delete_admin_skin_concern", { p_concern_id: concernId, p_actor_id: staff.userId });
+  if (error) {
+    logSupabaseError("admin-skin-concerns-delete", "delete-skin-concern", error, {
+      route: "/admin/skin-concerns",
+      table: "skin_concerns",
+      userId: staff.userId,
+      skinConcernId: concernId,
+    });
+    throw new Error(messageFromSupabaseError(error, "Unable to delete the skin concern.", { invalidReference: "Assigned skin concerns must be deactivated instead of deleted.", notFound: "Skin concern not found." }));
+  }
+  revalidateSkinConcerns(String(current.data.slug));
 }
 
 export async function createProductAction(_state: ActionState, formData: FormData): Promise<ActionState> {

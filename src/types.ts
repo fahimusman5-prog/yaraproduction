@@ -12,6 +12,7 @@ export interface Product {
   category: Category;
   concern: string;
   concerns?: string[];
+  concernSlugs?: string[];
   image: string;
   gallery?: string[];
   badge?: string;

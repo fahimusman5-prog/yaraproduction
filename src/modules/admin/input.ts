@@ -54,6 +54,14 @@ export const categorySchema = z.object({
   status: z.enum(["active", "inactive"]),
 });
 
+export const skinConcernSchema = z.object({
+  name: z.string().trim().min(2, "Enter a skin concern name.").max(120),
+  slug: z.string().trim().max(140).optional(),
+  description: z.string().trim().max(1000).optional(),
+  sort_order: z.coerce.number().int().min(0, "Sort order cannot be negative.").max(100000),
+  is_active: z.enum(["true", "false"]),
+});
+
 export type ProductInput = z.infer<typeof productSchema>;
 
 export function formObject(formData: FormData) {
@@ -61,12 +69,11 @@ export function formObject(formData: FormData) {
 }
 
 export function selectedSkinConcerns(formData: FormData) {
-  return [...new Set(
-    formData
-      .getAll("skin_concern_ids")
-      .map(String)
-      .filter((id) => z.string().uuid().safeParse(id).success),
-  )];
+  const submitted = formData.getAll("skin_concern_ids").map(String);
+  if (submitted.some((id) => !z.string().uuid().safeParse(id).success)) {
+    throw new Error("One or more selected skin concerns are invalid.");
+  }
+  return [...new Set(submitted)];
 }
 
 export function buildProductPayload(input: ProductInput, imageUrl: string | null) {

@@ -13,7 +13,7 @@ export async function GET() {
         .eq("status", "active")
         .order("name"),
       supabase.from("categories").select("id,name,slug").eq("status", "active").order("name"),
-      supabase.from("skin_concerns").select("id,name,slug").eq("status", "active").order("name"),
+      supabase.from("skin_concerns").select("id,name,slug,description,sort_order").eq("is_active", true).order("sort_order").order("name"),
     ]);
 
     const failures = [

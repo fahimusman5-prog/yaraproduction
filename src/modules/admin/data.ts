@@ -76,22 +76,27 @@ export async function getCategories() {
     return { ...fields, product_count: Number(products?.[0]?.count ?? 0) } as unknown as Category;
   });
 }
-export async function getSkinConcerns() {
-  const supabase = await client("/admin/products/new");
+export async function getSkinConcerns(nextPath = "/admin/products/new") {
+  const supabase = await client(nextPath);
   const { data, error } = await supabase
     .from("skin_concerns")
-    .select("*")
+    .select("*,product_skin_concerns(count)")
+    .order("sort_order")
     .order("name");
   if (error) {
     logSupabaseError("admin-skin-concerns-list", "select-skin-concerns", error, {
-      route: "/admin/products/new",
+      route: nextPath,
       table: "skin_concerns",
     });
     throw new Error(messageFromSupabaseError(error, "Unable to load skin concerns.", {
       schemaUnavailable: "The skin concerns table is unavailable.",
     }));
   }
-  return (data ?? []) as SkinConcern[];
+  return (data ?? []).map((row) => {
+    const concern = row as Record<string, unknown> & { product_skin_concerns?: Array<{ count?: number }> };
+    const { product_skin_concerns, ...fields } = concern;
+    return { ...fields, product_count: Number(product_skin_concerns?.[0]?.count ?? 0) } as unknown as SkinConcern;
+  });
 }
 export async function getProducts() {
   const supabase = await client("/admin/products");

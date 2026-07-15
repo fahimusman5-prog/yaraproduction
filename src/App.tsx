@@ -9,6 +9,7 @@ import { HomePage } from "./customer-pages/HomePage";
 import { LoginPage } from "./customer-pages/LoginPage";
 import { ProductPage } from "./customer-pages/ProductPage";
 import { ShopPage } from "./customer-pages/ShopPage";
+import { SkinConcernPage } from "./customer-pages/SkinConcernPage";
 import { CountryProvider, useCountry } from "./context/CountryContext";
 import { CountryLanding } from "./components/CountryLanding";
 import { IngredientsPage } from "./customer-pages/IngredientsPage";
@@ -27,6 +28,7 @@ function CountryGatedSite() {
             <Route path="/shop" element={<ShopPage />} />
             <Route path="/ingredients" element={<IngredientsPage />} />
             <Route path="/product/:id" element={<ProductPage />} />
+            <Route path="/skin-concerns/:slug" element={<SkinConcernPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<LoginPage />} />

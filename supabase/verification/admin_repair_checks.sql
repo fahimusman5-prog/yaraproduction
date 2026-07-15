@@ -30,7 +30,9 @@ with required(table_name, column_name) as (
     ('products','pdf_source_page'), ('products','seo_title'), ('products','seo_description'),
     ('products','featured'), ('products','created_at'), ('products','updated_at'),
     ('skin_concerns','id'), ('skin_concerns','name'), ('skin_concerns','slug'),
-    ('skin_concerns','status'), ('skin_concerns','created_at'), ('skin_concerns','updated_at'),
+    ('skin_concerns','description'), ('skin_concerns','is_active'),
+    ('skin_concerns','sort_order'), ('skin_concerns','status'),
+    ('skin_concerns','created_at'), ('skin_concerns','updated_at'),
     ('product_skin_concerns','product_id'), ('product_skin_concerns','skin_concern_id'),
     ('product_skin_concerns','created_at'),
     ('orders','id'), ('orders','order_number'), ('orders','currency'),
@@ -97,6 +99,8 @@ with required(index_name) as (
     ('categories_slug_key'), ('categories_name_key'),
     ('products_slug_key'), ('products_sku_key'), ('products_category_id_idx'),
     ('products_status_stock_idx'), ('skin_concerns_slug_key'),
+    ('skin_concerns_name_normalized_key'), ('skin_concerns_is_active_idx'),
+    ('skin_concerns_sort_name_idx'),
     ('product_skin_concerns_concern_idx'), ('orders_created_at_idx'),
     ('order_items_order_id_idx'), ('pos_sales_created_at_idx'),
     ('pos_sale_items_sale_id_idx'), ('stock_movements_product_created_idx')
@@ -162,6 +166,8 @@ order by table_name, privilege_type;
 with functions(name, signature) as (
   values
     ('save_admin_product', 'public.save_admin_product(uuid,uuid,jsonb,uuid[],integer)'),
+    ('save_admin_skin_concern', 'public.save_admin_skin_concern(uuid,uuid,text,text,text,integer,boolean)'),
+    ('delete_admin_skin_concern', 'public.delete_admin_skin_concern(uuid,uuid)'),
     ('adjust_admin_product_stock', 'public.adjust_admin_product_stock(uuid,integer,text,uuid)'),
     ('complete_admin_pos_sale', 'public.complete_admin_pos_sale(text,numeric,jsonb,text,uuid)')
 )
@@ -218,7 +224,14 @@ select 'duplicate_category_slugs', count(*)
 from (select slug from public.categories group by slug having count(*) > 1) duplicates
 union all
 select 'duplicate_skin_concern_slugs', count(*)
-from (select slug from public.skin_concerns group by slug having count(*) > 1) duplicates;
+from (select slug from public.skin_concerns group by slug having count(*) > 1) duplicates
+union all
+select 'duplicate_normalized_skin_concern_names', count(*)
+from (select lower(btrim(name)) from public.skin_concerns group by lower(btrim(name)) having count(*) > 1) duplicates
+union all
+select 'skin_concern_status_mismatches', count(*)
+from public.skin_concerns
+where is_active <> (status = 'active');
 
 -- Sensible production counts without exposing customer data.
 select

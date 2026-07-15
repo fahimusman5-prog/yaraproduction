@@ -5,15 +5,15 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import { defaultLocale, isLocale, locales, type Locale } from "./lib/locales";
 
-export const locales = ["en", "si", "ta", "ar"] as const;
-export type Locale = (typeof locales)[number];
+export { defaultLocale, isLocale, locales } from "./lib/locales";
+export type { Locale } from "./lib/locales";
+
 type Direction = "ltr" | "rtl";
 type TranslationTree = {
   [key: string]: string | string[] | TranslationTree;
 };
-
-export const defaultLocale: Locale = "en";
 
 export const localeLabels: Record<Locale, string> = {
   en: "EN",
@@ -35,10 +35,6 @@ export const localeDirections: Record<Locale, Direction> = {
   ta: "ltr",
   ar: "rtl",
 };
-
-export function isLocale(value: string | undefined): value is Locale {
-  return locales.includes(value as Locale);
-}
 
 const en = {
   seo: {

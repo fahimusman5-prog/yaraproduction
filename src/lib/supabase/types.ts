@@ -51,8 +51,13 @@ export interface SkinConcern {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
   status: RecordStatus;
   created_at: string;
+  updated_at: string;
+  product_count?: number;
 }
 
 export interface Product {

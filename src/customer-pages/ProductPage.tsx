@@ -38,6 +38,7 @@ export function ProductPage() {
   };
 
   const productConcerns = product.concerns?.length ? product.concerns : [product.concern];
+  const productConcernLinks = productConcerns.map((name, index) => ({ name, slug: product.concernSlugs?.[index] }));
   const related = products.filter((item) => {
     const itemConcerns = item.concerns?.length ? item.concerns : [item.concern];
     return item.id !== product.id && (item.category === product.category || itemConcerns.some((itemConcern) => productConcerns.includes(itemConcern)));
@@ -74,7 +75,7 @@ export function ProductPage() {
           <h1 className="mt-3 text-balance text-4xl leading-tight sm:text-5xl">{product.name}</h1>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link to={`/shop?category=${encodeURIComponent(product.category)}`} className="rounded-full bg-yara-rose px-3 py-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-yara-wine">{product.category}</Link>
-            {productConcerns.map((item) => <Link key={item} to={`/shop?concern=${encodeURIComponent(item)}`} className="rounded-full border border-yara-gold/70 px-3 py-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-yara-taupe">{item}</Link>)}
+            {productConcernLinks.map((item) => <Link key={item.slug ?? item.name} to={item.slug ? `/skin-concerns/${item.slug}` : `/shop?concern=${encodeURIComponent(item.name)}`} className="rounded-full border border-yara-gold/70 px-3 py-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-yara-taupe">{item.name}</Link>)}
           </div>
           <div className="mt-4 flex items-center gap-3 text-xs"><span className="flex text-yara-gold">{Array.from({ length: 5 }).map((_, index) => <Star key={index} className="h-4 w-4 fill-current" />)}</span><span>{product.rating} · {product.reviews} reviews</span></div>
           <div className="mt-6 flex items-end gap-2">

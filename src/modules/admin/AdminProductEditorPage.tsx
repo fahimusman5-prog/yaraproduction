@@ -12,7 +12,7 @@ export async function AdminProductEditorPage({ productId }: { productId?: string
   try {
     const [categories, skinConcerns, product] = await Promise.all([
       getCategories(),
-      getSkinConcerns(),
+      getSkinConcerns(productId ? `/admin/products/${productId}/edit` : "/admin/products/new"),
       productId ? getProduct(productId) : Promise.resolve(undefined),
     ]);
     editorData = { categories, skinConcerns, product };
