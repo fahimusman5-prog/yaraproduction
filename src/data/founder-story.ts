@@ -25,8 +25,8 @@ export const founderStory = {
     role: "Founder & Entrepreneur",
     name: "Fazeena Farook",
     image: {
-      src: "/images/about/yara-about-portrait.png",
-      alt: "Fazeena Farook, founder of YARA",
+      src: "/images/about/fazeena-farook.jpeg",
+      alt: "Fazeena Farook, founder of YARA, holding an award and certificate",
     },
   },
   stats: [
