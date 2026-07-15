@@ -6,6 +6,10 @@ import { isLocale } from "@/lib/locales";
 
 type PageProps = { params: Promise<{ locale: string; slug: string }> };
 
+// Admins can activate or deactivate concerns at any time. Resolve the current
+// database state per request so a cached 404 cannot outlive that change.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
