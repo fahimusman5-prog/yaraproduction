@@ -1,3 +1,5 @@
+"use client";
+
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { CartProvider } from "./context/CartContext";

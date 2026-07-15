@@ -1,96 +1,280 @@
-import { ArrowRight, ArrowUpRight, Building2, Globe2, Leaf, Sparkles } from "lucide-react";
+import { ArrowRight, Award, Check } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
+import Image from "next/image";
 import { Link } from "react-router-dom";
+import { founderStory, type FounderAward } from "../data/founder-story";
 
-const founderImage = "/images/about/yara-about-portrait.png";
-const academyImage = "/images/home/science-backed-botanical-skincare.png";
+const reveal = {
+  hidden: { opacity: 0, y: 18 },
+  visible: { opacity: 1, y: 0 },
+};
 
-const ventures = [
-  ["YARA Production", "Premium Ayurvedic Skincare", Leaf],
-  ["YARA Arabian", "Luxury Clothing", Sparkles],
-  ["YARA International Trading", "Sri Lanka", Building2],
-  ["YARA Global Trading", "Dubai", Globe2],
-];
-
-const milestones = [
-  "Handcrafted Herbal Soap",
-  "Ayurveda Training|Rajasthan, India",
-  "First Customer Success Stories",
-  "Product Expansion",
-  "International Trading",
-  "Premium Iranian Saffron Distribution",
-  "Professional Manufacturing",
-  "GMP & ISO Certifications",
-  "3000+ Monthly Orders",
-  "Global Expansion",
-];
-
-const countries = [
-  ["Sri Lanka", "74%", "68%"], ["United Arab Emirates", "58%", "47%"], ["Qatar", "61%", "45%"],
-  ["United Kingdom", "45%", "32%"], ["France", "48%", "36%"], ["Japan", "84%", "43%"], ["Canada", "25%", "30%"],
-];
-
-const reveal = { hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0 } };
-
-function Reveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+function Reveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
   const reducedMotion = useReducedMotion();
-  return <motion.div className={className} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.18 }} variants={reveal} transition={{ duration: reducedMotion ? 0 : 0.7, delay, ease: [0.22, 1, 0.36, 1] }}>{children}</motion.div>;
+
+  return (
+    <motion.div
+      className={className}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.16 }}
+      variants={reveal}
+      transition={{
+        duration: reducedMotion ? 0 : 0.55,
+        delay: reducedMotion ? 0 : delay,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function AwardCard({ award }: { award: FounderAward }) {
+  const details = [award.year, award.country, award.organisation].filter(Boolean);
+
+  return (
+    <article className="flex h-full min-h-24 items-start gap-3 rounded-2xl border border-yara-gold/20 bg-white/75 p-4 shadow-[0_10px_28px_rgba(91,34,53,.06)] sm:p-5">
+      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-yara-blush text-yara-wine">
+        <Award aria-hidden="true" className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <h3 className="font-sans text-sm font-semibold leading-5 text-yara-ink sm:text-[0.95rem]">
+          {award.title}
+        </h3>
+        {details.length > 0 && (
+          <p className="mt-2 text-xs leading-5 text-yara-taupe">{details.join(" · ")}</p>
+        )}
+        {award.certificateImage && (
+          <div className="relative mt-3 aspect-[4/3] overflow-hidden rounded-xl">
+            <Image
+              src={award.certificateImage.src}
+              alt={award.certificateImage.alt}
+              fill
+              sizes="(max-width: 639px) 100vw, 25vw"
+              className="object-cover"
+            />
+          </div>
+        )}
+      </div>
+    </article>
+  );
 }
 
 export function AboutPage() {
-  const reducedMotion = useReducedMotion();
   return (
-    <main className="overflow-hidden bg-[#fffdfa] text-yara-ink">
-      <section className="relative isolate overflow-hidden bg-[radial-gradient(circle_at_18%_22%,rgba(250,215,222,.75),transparent_28%),radial-gradient(circle_at_88%_74%,rgba(239,210,144,.3),transparent_27%),linear-gradient(135deg,#fffdf8_0%,#fff8f4_55%,#fbeef0_100%)]">
-        <div className="page-shell grid min-h-[680px] items-center gap-12 py-16 sm:py-20 lg:min-h-[760px] lg:grid-cols-[.95fr_1.05fr] lg:py-24">
+    <div className="overflow-hidden bg-[#fffdfa] text-yara-ink">
+      <section
+        aria-labelledby="founder-hero-title"
+        className="relative isolate overflow-hidden bg-[radial-gradient(circle_at_12%_10%,rgba(250,215,222,.82),transparent_34%),radial-gradient(circle_at_90%_86%,rgba(239,210,144,.28),transparent_30%),linear-gradient(140deg,#fffdf8_0%,#fff8f4_57%,#fbeef0_100%)]"
+      >
+        <div
+          aria-hidden="true"
+          className="absolute -right-24 top-16 h-72 w-72 rounded-full border border-yara-gold/20 bg-white/20 blur-sm"
+        />
+        <div className="page-shell grid items-center gap-8 py-10 sm:gap-10 sm:py-14 lg:grid-cols-[.96fr_1.04fr] lg:gap-16 lg:py-20">
           <Reveal className="relative z-10 max-w-2xl">
-            <p className="eyebrow flex items-center gap-3"><span className="h-px w-9 bg-yara-gold" /> The Founder&apos;s Story</p>
-            <h1 className="mt-7 text-balance text-5xl font-medium leading-[1.03] sm:text-6xl lg:text-7xl">Every Great Empire Begins with a <em className="text-yara-wine">Single Purpose.</em></h1>
-            <p className="mt-7 max-w-xl text-base font-light leading-8 text-yara-taupe">A story of purpose, perseverance, and an enduring belief in the transformative power of nature.</p>
-            <Link to="/shop" className="btn-primary mt-9">Explore our products <ArrowRight className="h-4 w-4" /></Link>
+            <p className="eyebrow flex items-center gap-3">
+              <span className="h-px w-8 bg-yara-gold" />
+              {founderStory.hero.label}
+            </p>
+            <h1
+              id="founder-hero-title"
+              className="mt-5 text-balance text-[2.3rem] font-medium leading-[1.04] min-[375px]:text-[2.5rem] sm:mt-6 sm:text-6xl lg:text-[4.15rem]"
+            >
+              <span className="block min-[430px]:inline">{founderStory.hero.titlePrefix} </span>
+              <span>{founderStory.hero.titleLead}</span>{" "}
+              <em className="block text-yara-wine">{founderStory.hero.titleAccent}</em>
+            </h1>
+            <p className="mt-5 max-w-xl text-base font-light leading-7 text-yara-taupe sm:mt-6 sm:text-lg sm:leading-8">
+              {founderStory.hero.description}
+            </p>
           </Reveal>
-          <Reveal className="relative mx-auto w-full max-w-[570px] px-3 sm:px-8" delay={0.12}>
-            <motion.div animate={reducedMotion ? {} : { y: [0, -12, 0], rotate: [2, 3, 2] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }} className="glass-panel relative rounded-[2.9rem] p-3 shadow-[0_32px_80px_rgba(91,34,53,.2)] sm:p-4">
-              <img src={founderImage} alt="Fazeena Farook, founder of YARA" className="aspect-[4/5] w-full rounded-[2.3rem] object-cover object-top" />
-            </motion.div>
-            <div aria-hidden="true" className="absolute -left-2 top-12 h-36 w-36 rounded-full border border-yara-gold/30 bg-white/30 blur-[1px]" />
-            <div aria-hidden="true" className="absolute -bottom-6 right-0 h-32 w-32 rounded-full bg-yara-rose/35 blur-2xl" />
-            <div className="glass-panel absolute -bottom-3 left-0 rounded-2xl px-5 py-4 text-[0.62rem] font-semibold uppercase tracking-[.18em] text-yara-wine shadow-card sm:left-4"><span className="block text-yara-gold">Est. with purpose</span><span className="mt-1 block text-yara-ink">Sri Lanka · The World</span></div>
+
+          <Reveal className="relative mx-auto w-full max-w-[590px]" delay={0.1}>
+            <div className="relative aspect-[5/4] overflow-hidden rounded-[2rem] border border-white/80 bg-yara-blush shadow-[0_26px_70px_rgba(91,34,53,.18)] sm:aspect-[6/5] sm:rounded-[2.5rem] lg:aspect-[5/5.25]">
+              <Image
+                src={founderStory.hero.image.src}
+                alt={founderStory.hero.image.alt}
+                fill
+                priority
+                sizes="(max-width: 1023px) 100vw, 50vw"
+                className="object-cover object-[center_28%]"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-yara-wine/18 to-transparent"
+              />
+            </div>
+            <div className="glass-panel absolute bottom-4 left-4 rounded-2xl px-4 py-3 shadow-card sm:bottom-6 sm:left-6 sm:px-5">
+              <span className="block text-[0.62rem] font-semibold uppercase tracking-[.18em] text-yara-gold">
+                {founderStory.hero.role}
+              </span>
+              <span className="mt-1 block font-serif text-xl text-yara-wine">
+                {founderStory.hero.name}
+              </span>
+            </div>
+          </Reveal>
+
+          <Reveal className="lg:col-span-2" delay={0.16}>
+            <dl className="grid overflow-hidden rounded-[1.6rem] border border-white/80 bg-white/70 shadow-[0_16px_40px_rgba(91,34,53,.09)] backdrop-blur sm:grid-cols-3">
+              {founderStory.stats.map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className={`flex items-center justify-between gap-4 px-5 py-4 sm:block sm:px-6 sm:py-5 sm:text-center ${
+                    index > 0 ? "border-t border-yara-rose/20 sm:border-l sm:border-t-0" : ""
+                  }`}
+                >
+                  <dt className="order-2 text-[0.68rem] font-semibold uppercase tracking-[.15em] text-yara-taupe sm:mt-2">
+                    {stat.label}
+                  </dt>
+                  <dd className="order-1 font-serif text-2xl text-yara-wine sm:text-3xl">{stat.value}</dd>
+                </div>
+              ))}
+            </dl>
           </Reveal>
         </div>
       </section>
 
-      <section className="page-shell py-24 sm:py-32">
-        <Reveal className="mx-auto max-w-4xl text-center"><p className="eyebrow">The beginning</p><h2 className="mt-5 text-balance text-4xl leading-tight sm:text-5xl lg:text-6xl">From One Handmade Soap to a Global Beauty Brand</h2></Reveal>
-        <Reveal className="mx-auto mt-12 max-w-3xl space-y-6 text-base font-light leading-8 text-yara-taupe sm:text-lg" delay={0.1}>
-          <p className="font-serif text-2xl italic leading-9 text-yara-wine">Every great empire begins with a single purpose.</p>
-          <p>For <strong className="font-medium text-yara-ink">Fazeena Farook</strong>, that purpose was simple—to create a handcrafted herbal soap that could genuinely solve everyday skin concerns.</p>
-          <p>What began as a single handmade product soon became the foundation of one of the region&apos;s fastest-growing Ayurvedic skincare brands.</p>
-          <p>Driven by an unwavering passion for natural beauty and wellness, Fazeena travelled to <strong className="font-medium text-yara-ink">Rajasthan, India</strong>, where she immersed herself in the centuries-old science of Ayurveda. There, she studied medicinal herbs, traditional skincare practices, and natural cosmetic formulation, building the authentic knowledge that would become the heart of YARA.</p>
-          <p>Returning with a clear vision, she transformed a small home-based business into a growing skincare company dedicated to creating premium Ayurvedic products that deliver real results.</p>
-          <p>As customers experienced visible improvements in their skin, YARA&apos;s reputation spread through genuine recommendations and trust. Thousands of successful customer journeys became the strongest proof of the brand&apos;s quality and effectiveness.</p>
-          <p>Today, YARA offers a complete collection of certified Ayurvedic skincare solutions, combining nature, tradition, and innovation to help people feel confident in their own skin.</p>
+      <section aria-labelledby="journey-title" className="page-shell py-16 sm:py-20 lg:py-24">
+        <Reveal className="max-w-2xl">
+          <p className="eyebrow">{founderStory.journey.label}</p>
+          <h2 id="journey-title" className="mt-4 text-balance text-4xl leading-tight sm:text-5xl">
+            {founderStory.journey.title}
+          </h2>
+        </Reveal>
+        <div className="mt-9 grid gap-4 sm:mt-11 sm:grid-cols-2 lg:gap-5">
+          {founderStory.milestones.map((milestone, index) => (
+            <Reveal key={milestone.number} className="h-full" delay={index * 0.06}>
+              <article className="group relative h-full overflow-hidden rounded-[1.8rem] border border-yara-rose/20 bg-[linear-gradient(145deg,rgba(255,255,255,.98),rgba(255,247,246,.82))] p-6 shadow-[0_14px_34px_rgba(91,34,53,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(91,34,53,.12)] sm:p-7">
+                <div
+                  aria-hidden="true"
+                  className="absolute -right-7 -top-10 font-serif text-[8rem] leading-none text-yara-rose/[.09]"
+                >
+                  {milestone.number}
+                </div>
+                <div className="relative">
+                  <span className="font-serif text-5xl leading-none text-yara-gold sm:text-6xl">
+                    {milestone.number}
+                  </span>
+                  <p className="mt-5 text-[0.68rem] font-semibold uppercase tracking-[.18em] text-yara-wine">
+                    {milestone.label}
+                  </p>
+                  <p className="mt-3 max-w-xl text-base font-light leading-7 text-yara-taupe">
+                    {milestone.description}
+                  </p>
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="brands-title" className="bg-[#fbf2f0] py-16 sm:py-20">
+        <div className="page-shell">
+          <Reveal className="max-w-2xl">
+            <p className="eyebrow">{founderStory.brands.label}</p>
+            <h2 id="brands-title" className="mt-4 text-4xl leading-tight sm:text-5xl">
+              {founderStory.brands.title}
+            </h2>
+            <p className="mt-4 text-base font-light leading-7 text-yara-taupe sm:text-lg">
+              {founderStory.brands.description}
+            </p>
+          </Reveal>
+          <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {founderStory.brands.items.map((brand, index) => (
+              <Reveal key={brand.name} className="h-full" delay={index * 0.05}>
+                <article className="glass-panel flex h-full min-h-40 flex-col rounded-[1.6rem] p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(91,34,53,.12)] sm:p-6">
+                  <span className="grid h-11 w-11 place-items-center rounded-full border border-yara-gold/25 bg-white/75 font-serif text-sm text-yara-wine">
+                    {brand.initials}
+                  </span>
+                  <h3 className="mt-6 text-xl leading-tight">{brand.name}</h3>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[.12em] text-yara-taupe">
+                    {brand.category}
+                  </p>
+                </article>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="awards-title" className="page-shell py-16 sm:py-20 lg:py-24">
+        <Reveal className="mx-auto max-w-3xl text-center">
+          <p className="eyebrow">{founderStory.awards.label}</p>
+          <h2 id="awards-title" className="mt-4 text-4xl leading-tight sm:text-5xl">
+            {founderStory.awards.title}
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-base font-light leading-7 text-yara-taupe sm:text-lg">
+            {founderStory.awards.description}
+          </p>
+        </Reveal>
+        <div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {founderStory.awards.items.map((award, index) => (
+            <Reveal key={award.title} className="h-full" delay={Math.min(index * 0.035, 0.2)}>
+              <AwardCard award={award} />
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="academy-title" className="page-shell pb-16 sm:pb-20 lg:pb-24">
+        <Reveal>
+          <div className="relative isolate overflow-hidden rounded-[2rem] bg-[#28181e] px-6 py-9 text-white shadow-[0_24px_55px_rgba(54,28,38,.2)] sm:px-9 sm:py-11 lg:px-12">
+            <Image
+              src={founderStory.turningPoint.image.src}
+              alt={founderStory.turningPoint.image.alt}
+              fill
+              sizes="100vw"
+              className="-z-20 object-cover object-center opacity-30"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(40,24,30,.98)_0%,rgba(40,24,30,.9)_55%,rgba(40,24,30,.55)_100%)]"
+            />
+            <div className="max-w-3xl">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[.22em] text-[#f2d58c]">
+                {founderStory.turningPoint.label}
+              </p>
+              <h2 id="academy-title" className="mt-4 text-3xl leading-tight text-white sm:text-4xl">
+                {founderStory.turningPoint.title}
+              </h2>
+              <p className="mt-4 text-base font-light leading-7 text-white/75 sm:text-lg sm:leading-8">
+                {founderStory.turningPoint.description}
+              </p>
+            </div>
+          </div>
         </Reveal>
       </section>
 
-      <section className="relative bg-[#fbf2f0] py-24 sm:py-32"><div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(230,180,99,.2),transparent_20%),radial-gradient(circle_at_12%_92%,rgba(233,140,169,.24),transparent_22%)]" />
-        <div className="page-shell relative"><Reveal className="max-w-2xl"><p className="eyebrow">The YARA Group</p><h2 className="mt-5 text-4xl sm:text-5xl">Building Beyond Beauty</h2></Reveal>
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{ventures.map(([title, subtitle, Icon], index) => <Reveal key={title as string} delay={index * 0.07}><article className="glass-panel group min-h-56 rounded-[2rem] p-7 transition duration-500 hover:-translate-y-2 hover:shadow-[0_24px_50px_rgba(91,34,53,.14)]"><span className="grid h-12 w-12 place-items-center rounded-full bg-white/75 text-yara-wine"><Icon className="h-5 w-5" /></span><h3 className="mt-10 text-2xl leading-tight">{title as string}</h3><p className="mt-3 text-xs uppercase tracking-[.14em] text-yara-taupe">{subtitle as string}</p><ArrowUpRight className="mt-6 h-4 w-4 text-yara-gold transition group-hover:translate-x-1 group-hover:-translate-y-1" /></article></Reveal>)}</div>
-          <Reveal className="mx-auto mt-14 max-w-3xl space-y-5 text-base font-light leading-8 text-yara-taupe sm:text-lg"><p>Entrepreneurship soon expanded beyond skincare.</p><p>Under Fazeena&apos;s leadership, YARA evolved into a diversified international business group spanning premium beauty, fashion, and global trading.</p><p>The company also expanded into international distribution, supplying premium imported Iranian saffron to leading supermarkets and government retail chains across Dubai while continuing to grow its presence across international markets.</p><p>As the business continued to grow, so did its vision—building trusted brands that combine quality, authenticity, and long-term customer relationships.</p></Reveal>
-        </div>
+      <section
+        aria-labelledby="closing-title"
+        className="relative overflow-hidden bg-[radial-gradient(circle_at_12%_50%,rgba(233,140,169,.2),transparent_28%),radial-gradient(circle_at_90%_20%,rgba(238,200,109,.23),transparent_25%),linear-gradient(135deg,#fff8f6,#fffdf8)] py-16 sm:py-20 lg:py-24"
+      >
+        <Reveal className="page-shell mx-auto max-w-5xl text-center">
+          <span className="mx-auto grid h-11 w-11 place-items-center rounded-full border border-yara-gold/30 bg-white/75 text-yara-wine shadow-sm">
+            <Check aria-hidden="true" className="h-5 w-5" />
+          </span>
+          <h2 id="closing-title" className="mt-6 text-balance text-3xl leading-tight sm:text-4xl lg:text-5xl">
+            {founderStory.closing.statement}
+          </h2>
+          <p className="mx-auto mt-5 max-w-3xl text-base font-light leading-7 text-yara-taupe sm:text-lg sm:leading-8">
+            {founderStory.closing.description}
+          </p>
+          <Link to={founderStory.closing.href} className="btn-primary mt-8 w-full sm:w-auto">
+            {founderStory.closing.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Reveal>
       </section>
-
-      <section className="page-shell py-24 sm:py-32"><Reveal className="text-center"><p className="eyebrow">A decade in the making</p><h2 className="mt-5 text-4xl sm:text-5xl">The Journey</h2></Reveal>
-        <div className="hide-scrollbar relative mt-16 flex gap-4 overflow-x-auto pb-6 lg:gap-0 lg:overflow-visible">{milestones.map((milestone, index) => { const [title, place] = milestone.split("|"); return <Reveal key={milestone} className="relative min-w-[185px] flex-1 lg:min-w-0" delay={Math.min(index * 0.045, .35)}><div className="hidden lg:block absolute left-1/2 top-5 h-px w-full bg-gradient-to-r from-yara-gold/70 to-yara-rose/40" /><div className="relative"><span className="relative z-10 mx-auto grid h-10 w-10 place-items-center rounded-full border border-yara-gold/50 bg-[#fffdfa] text-[.64rem] font-semibold text-yara-wine">{String(index + 1).padStart(2, "0")}</span><div className="mt-5 rounded-2xl border border-yara-rose/25 bg-white/75 p-4 text-center shadow-sm"><p className="text-sm font-medium leading-5">{title}</p>{place && <p className="mt-2 text-[.62rem] uppercase tracking-[.12em] text-yara-taupe">{place}</p>}</div></div></Reveal>; })}</div>
-      </section>
-
-      <section className="bg-[#23151a] py-24 text-white sm:py-32"><div className="page-shell grid items-center gap-12 lg:grid-cols-2"><Reveal className="relative order-2 lg:order-1"><div className="absolute -inset-4 rounded-[2.8rem] bg-yara-gold/20 blur-2xl" /><img src={academyImage} alt="Botanical ingredients that inspire YARA formulations" className="relative aspect-[4/5] w-full rounded-[2.5rem] object-cover shadow-2xl" /></Reveal><Reveal className="order-1 lg:order-2" delay={0.1}><p className="text-[.68rem] font-semibold uppercase tracking-[.24em] text-[#e7c46d]">A defining chapter</p><h2 className="mt-5 text-4xl leading-tight sm:text-5xl">The Turning Point</h2><p className="mt-5 font-serif text-2xl italic text-[#f4d5de]">Aroma Flare Academy</p><div className="mt-8 space-y-5 text-base font-light leading-8 text-white/70"><p>Among every milestone, one chapter transformed the future of YARA more than any other—Aroma Flare Academy.</p><p>More than an educational institution, Aroma Flare became the foundation that helped shape the company&apos;s future.</p><p>The academy provided advanced knowledge in formulation, production, quality management, and large-scale manufacturing, allowing Fazeena to transform YARA from a home-based business into a professional manufacturing enterprise.</p><p>This journey also contributed to establishing internationally recognized production standards, leading the company toward GMP and ISO certifications that reflect YARA&apos;s commitment to quality, safety, and excellence.</p></div></Reveal></div></section>
-
-      <section className="page-shell py-24 sm:py-32"><Reveal className="mx-auto max-w-2xl text-center"><p className="eyebrow">A world of YARA</p><h2 className="mt-5 text-4xl sm:text-5xl">Growing Beyond Borders</h2></Reveal><Reveal className="mt-12" delay={0.08}><div className="relative mx-auto aspect-[16/8] max-w-5xl overflow-hidden rounded-[2.5rem] border border-yara-gold/25 bg-[radial-gradient(circle_at_50%_50%,#fffdf8_0%,#f7e8e5_100%)] shadow-card"><div aria-hidden="true" className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(141,18,59,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(141,18,59,.12)_1px,transparent_1px)] [background-size:42px_42px]" /><svg aria-hidden="true" viewBox="0 0 1000 500" className="absolute inset-0 h-full w-full fill-[#c58a9a]/25 stroke-yara-wine/20 stroke-[2]"><path d="M79 139l79-48 86 32 20 78-47 67-95-3-56-55zM352 79l106-22 92 45 39 83-51 58-93-13-74-55zM575 135l95-54 149 18 101 81-47 72-178 8-112-47zM349 274l72-30 68 52 15 115-68 51-63-69zM661 278l102-30 101 54-37 104-115 21-80-71z" /></svg>{countries.map(([country, left, top], index) => <motion.div key={country} className="absolute z-10" style={{ left, top }} initial={{ scale: .5, opacity: 0 }} whileInView={{ scale: 1, opacity: 1 }} viewport={{ once: true }} transition={{ delay: .25 + index * .08, type: "spring", stiffness: 180 }}><span className="relative grid h-3.5 w-3.5 place-items-center rounded-full bg-yara-wine shadow-[0_0_0_5px_rgba(255,255,255,.72),0_0_22px_rgba(141,18,59,.85)]"><span className="absolute h-7 w-7 animate-ping rounded-full border border-yara-wine/50" /></span><span className="mt-2 hidden whitespace-nowrap rounded-full bg-white/90 px-2 py-1 text-[.55rem] font-semibold uppercase tracking-[.1em] text-yara-wine shadow-sm sm:block">{country}</span></motion.div>)}</div></Reveal><Reveal className="mx-auto mt-10 max-w-3xl text-center text-base font-light leading-8 text-yara-taupe sm:text-lg">Today, YARA proudly serves customers across more than ten countries, continuously expanding its international presence while remaining committed to authentic Ayurvedic skincare, premium quality, and customer satisfaction.</Reveal></section>
-
-      <section className="bg-yara-wine py-24 text-white sm:py-28"><div className="page-shell"><Reveal className="text-center"><p className="text-[.68rem] font-semibold uppercase tracking-[.24em] text-[#f5d994]">By the numbers</p><h2 className="mt-5 text-4xl sm:text-5xl">YARA Today</h2></Reveal><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[["3000+", "Monthly Orders"], ["10+", "Countries Served"], ["Thousands", "Satisfied Customers"], ["Growing", "International Presence"]].map(([stat, label], index) => <Reveal key={label} delay={index * .08}><div className="rounded-[1.8rem] border border-white/20 bg-white/10 p-7 text-center backdrop-blur"><p className="font-serif text-4xl text-[#f8df9e] sm:text-5xl">{stat}</p><p className="mt-3 text-[.65rem] font-semibold uppercase tracking-[.15em] text-white/70">{label}</p></div></Reveal>)}</div></div></section>
-
-      <section className="relative py-28 sm:py-36"><div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_10%_70%,rgba(233,140,169,.2),transparent_23%),radial-gradient(circle_at_90%_20%,rgba(238,200,109,.2),transparent_23%)]" /><Reveal className="page-shell relative mx-auto max-w-5xl text-center"><Sparkles className="mx-auto h-6 w-6 text-yara-gold" /><blockquote className="mt-8 font-serif text-3xl leading-tight sm:text-5xl lg:text-6xl">“From a single handcrafted herbal soap to an internationally growing beauty brand, every achievement began with one belief—that quality, purpose, and determination can transform lives.”</blockquote><div className="mx-auto mt-12 max-w-3xl space-y-5 text-base font-light leading-8 text-yara-taupe sm:text-lg"><p>Today, YARA continues to grow with a dedicated team of professionals, skincare specialists, and manufacturing experts who share one common vision—to create products that genuinely improve lives.</p><p>Fazeena Farook&apos;s journey is a testament to resilience, continuous learning, and unwavering determination.</p><p>Her story proves that extraordinary success does not begin with massive resources—it begins with one meaningful idea, pursued with passion and consistency.</p><p className="font-serif text-2xl italic text-yara-wine">The legacy continues. And the story is only just beginning.</p></div><div className="mt-11 flex flex-wrap justify-center gap-3"><Link to="/shop" className="btn-primary">Explore our products <ArrowRight className="h-4 w-4" /></Link><Link to="/contact" className="btn-secondary">Connect with YARA</Link></div></Reveal></section>
-    </main>
+    </div>
   );
 }

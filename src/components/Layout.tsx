@@ -17,6 +17,7 @@ import yaraLogo from "../assets/yara-logo-glow.png";
 import { countryDetails, useCountry } from "../context/CountryContext";
 import { getLocalizedPath, localeLabels, locales, useI18n, type Locale } from "../i18n";
 import { footerSocialLinks } from "../lib/social-links";
+import { founderStory } from "../data/founder-story";
 
 const mobileLocaleLabels: Record<Locale, string> = {
   en: "EN",
@@ -296,8 +297,9 @@ function StorefrontSeo() {
   const { locale, t } = useI18n();
 
   useEffect(() => {
-    const title = t("seo.title");
-    const description = t("seo.description");
+    const isAboutPage = location.pathname === "/about";
+    const title = isAboutPage ? founderStory.seo.title : t("seo.title");
+    const description = isAboutPage ? founderStory.seo.description : t("seo.description");
     document.title = title;
 
     let descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');

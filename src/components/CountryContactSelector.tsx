@@ -124,7 +124,7 @@ export function CountryContactSelector({ variant }: CountryContactSelectorProps)
       >
         <Globe2 className="h-[18px] w-[18px]" aria-hidden="true" />
       </button>
-      <section id={listId} className={`glass-panel absolute right-0 top-[calc(100%+0.65rem)] w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] transition duration-200 ${open ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`} aria-hidden={!open}>
+      <section id={listId} className={`glass-panel absolute right-0 top-[calc(100%+0.65rem)] w-[min(34rem,calc(100vw-2rem))] overflow-hidden rounded-[1.5rem] transition duration-200 rtl:left-0 rtl:right-auto ${open ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`} aria-hidden={!open}>
         <div className="border-b border-yara-rose/50 px-4 py-3"><p className="text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-yara-wine">YARA worldwide</p><p className="mt-1 font-serif text-lg text-yara-ink">Chat with your local YARA team</p></div>
         {contactList}
       </section>
