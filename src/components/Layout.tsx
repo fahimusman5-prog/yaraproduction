@@ -298,8 +298,17 @@ function StorefrontSeo() {
 
   useEffect(() => {
     const isAboutPage = location.pathname === "/about";
-    const title = isAboutPage ? founderStory.seo.title : t("seo.title");
-    const description = isAboutPage ? founderStory.seo.description : t("seo.description");
+    const isIngredientsPage = location.pathname === "/ingredients";
+    const title = isAboutPage
+      ? founderStory.seo.title
+      : isIngredientsPage
+        ? t("ingredients.seoTitle")
+        : t("seo.title");
+    const description = isAboutPage
+      ? founderStory.seo.description
+      : isIngredientsPage
+        ? t("ingredients.seoDescription")
+        : t("seo.description");
     document.title = title;
 
     let descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
