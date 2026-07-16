@@ -140,7 +140,7 @@ export function IngredientsPage() {
             </p>
           </div>
 
-          <div className="mt-10 grid items-stretch gap-5 md:grid-cols-2 lg:mt-12 lg:gap-6">
+          <div className="mt-10 grid auto-rows-fr items-stretch gap-5 md:grid-cols-2 lg:mt-12 lg:gap-6">
             {ingredients.map(({ icon: Icon, name, category, alternateName, description, benefits, featured }) => (
               <article key={name} className={`ingredient-card flex h-full flex-col p-6 sm:p-8 ${featured ? "ingredient-card-featured" : ""}`}>
                 <div className="flex items-start justify-between gap-4">

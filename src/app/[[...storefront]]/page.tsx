@@ -1,6 +1,6 @@
 import { CustomerStorefront } from "@/modules/storefront/CustomerStorefront";
 import { founderStory } from "@/data/founder-story";
-import { defaultLocale, isLocale, translate } from "@/i18n";
+import { ingredientsSeo } from "@/data/ingredients-seo";
 import type { Metadata } from "next";
 
 type StorefrontPageProps = {
@@ -11,7 +11,6 @@ export async function generateMetadata({ params }: StorefrontPageProps): Promise
   const { storefront = [] } = await params;
   const isAboutPage = storefront.at(-1) === "about";
   const isIngredientsPage = storefront.at(-1) === "ingredients";
-  const locale = isLocale(storefront[0]) ? storefront[0] : defaultLocale;
 
   if (isAboutPage) {
     return {
@@ -22,8 +21,8 @@ export async function generateMetadata({ params }: StorefrontPageProps): Promise
 
   if (isIngredientsPage) {
     return {
-      title: translate(locale, "ingredients.seoTitle"),
-      description: translate(locale, "ingredients.seoDescription"),
+      title: ingredientsSeo.title,
+      description: ingredientsSeo.description,
     };
   }
 

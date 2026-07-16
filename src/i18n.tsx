@@ -5,6 +5,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import { ingredientsSeo } from "./data/ingredients-seo";
 import { defaultLocale, isLocale, locales, type Locale } from "./lib/locales";
 
 export { defaultLocale, isLocale, locales } from "./lib/locales";
@@ -272,9 +273,8 @@ const en = {
     ],
   },
   ingredients: {
-    seoTitle: "YARA Skincare Ingredients | Saffron, Alpha Arbutin, Niacinamide & Rose",
-    seoDescription:
-      "Discover the key ingredients behind YARA skincare, including signature saffron, Alpha Arbutin, Niacinamide Vitamin B3 and Rose, selected to support radiant, even-looking and healthy-looking skin.",
+    seoTitle: ingredientsSeo.title,
+    seoDescription: ingredientsSeo.description,
     eyebrow: "YARA signature ingredients",
     title: "Nature’s finest ingredients, chosen with purpose.",
     copy:

@@ -5,6 +5,7 @@ import test from "node:test";
 const pageSource = readFileSync(new URL("../src/customer-pages/IngredientsPage.tsx", import.meta.url), "utf8");
 const translationsSource = readFileSync(new URL("../src/i18n.tsx", import.meta.url), "utf8");
 const metadataSource = readFileSync(new URL("../src/app/[[...storefront]]/page.tsx", import.meta.url), "utf8");
+const metadataContent = readFileSync(new URL("../src/data/ingredients-seo.ts", import.meta.url), "utf8");
 
 test("ingredients page keeps saffron as the signature ingredient and pairs niacinamide with Vitamin B3", () => {
   assert.match(pageSource, /featured: true/);
@@ -22,6 +23,7 @@ test("ingredients page uses optimized local imagery and semantic benefit lists",
 
 test("ingredients route has route-specific metadata", () => {
   assert.match(metadataSource, /isIngredientsPage/);
-  assert.match(metadataSource, /ingredients\.seoTitle/);
-  assert.match(metadataSource, /ingredients\.seoDescription/);
+  assert.match(metadataSource, /ingredientsSeo\.title/);
+  assert.match(metadataSource, /ingredientsSeo\.description/);
+  assert.match(metadataContent, /YARA Skincare Ingredients/);
 });
