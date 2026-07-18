@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
+import { createOrderTrackingToken } from "@/lib/order-tracking";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -17,6 +18,8 @@ const schema = z.object({
     postalCode: z.string().trim().max(40),
   }),
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().positive().max(1000) })).min(1).max(100),
+  shippingMethodId: z.string().uuid().nullable().optional(),
+  couponCode: z.string().trim().max(64).nullable().optional(),
 });
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
@@ -27,6 +30,12 @@ function checkoutErrorResponse(error: CheckoutDatabaseError) {
     return { message: "A product in your cart is no longer available.", status: 409 };
   }
   if (message.startsWith("Insufficient stock for ")) {
+    return { message, status: 409 };
+  }
+  if (message === "Shipping is not configured for this region.") {
+    return { message: "Shipping is not currently configured for this region.", status: 503 };
+  }
+  if (message.startsWith("Coupon ") || message.startsWith("Order does not meet the coupon")) {
     return { message, status: 409 };
   }
   const schemaUnavailable = ["42P01", "42703", "PGRST200", "PGRST205"].includes(error.code ?? "");
@@ -53,17 +62,23 @@ export async function POST(request: Request) {
       console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());
       return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
     }
+    if (!process.env.ORDER_TRACKING_SECRET?.trim()) {
+      console.error("[storefront-checkout] ORDER_TRACKING_SECRET is not configured.");
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
 
     const supabase = getSupabaseAdminClient();
     const rpc = supabase.rpc.bind(supabase) as unknown as (
       name: string,
       args: Record<string, unknown>,
     ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
-    const { data, error } = await rpc("create_storefront_order", {
+    const { data, error } = await rpc("create_storefront_order_with_shipping", {
       p_customer: parsed.data.customer,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
+      p_shipping_method_id: parsed.data.shippingMethodId ?? null,
+      p_coupon_code: parsed.data.couponCode ?? null,
     });
     if (error) {
       logSupabaseError("storefront-checkout", "create-order", error, {
@@ -81,9 +96,16 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
     }
+    let trackingToken: string;
+    try {
+      trackingToken = createOrderTrackingToken(order.order_id, order.order_number);
+    } catch (error) {
+      logSupabaseError("storefront-checkout", "create-tracking-token", error, { route: "/api/checkout" });
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
 
     if (parsed.data.paymentMethod === "cod") {
-      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&cod=1` });
+      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
     }
 
     const amount = Number(order.total_amount).toFixed(2);
@@ -93,8 +115,8 @@ export async function POST(request: Request) {
       action: getPayHereCheckoutUrl(),
       fields: {
         merchant_id: merchantId,
-        return_url: `${origin}/payment/success?order=${order.order_id}`,
-        cancel_url: `${origin}/payment/failure?order=${order.order_id}`,
+        return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
+        cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
         notify_url: `${origin}/api/payhere/notify`,
         order_id: order.order_number,
         items: `YARA order ${order.order_number}`,

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Boxes, ChevronRight, FolderHeart, FolderTree, LayoutDashboard, LogOut, Menu, Package, ShoppingBag, Store, Users, X, Star } from "lucide-react";
+import { BarChart3, Boxes, ChevronRight, FolderHeart, FolderTree, LayoutDashboard, LogOut, Menu, Package, ShoppingBag, Store, Users, X, Star, Truck, TicketPercent } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -16,6 +16,8 @@ const navItems = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/inventory", label: "Inventory", icon: Boxes },
+  { href: "/admin/shipping", label: "Shipping", icon: Truck },
+  { href: "/admin/coupons", label: "Coupons", icon: TicketPercent },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
 ] as const;
 
