@@ -459,10 +459,11 @@ export async function deleteCategoryAction(categoryId: string) {
 
 export async function updateOrderStatusAction(orderId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await requireStaff(`/admin/orders/${orderId}`);
-  const parsed = z.object({ order_status: z.enum(["pending", "paid", "processing", "shipped", "delivered", "cancelled"]), payment_status: z.enum(["pending", "paid", "failed", "refunded"]) }).safeParse(formObject(formData));
+  const parsed = z.object({ order_status: z.enum(["pending", "paid", "processing", "packed", "shipped", "delivered", "cancelled", "refunded"]), payment_status: z.enum(["pending", "paid", "failed", "refunded"]), note: z.string().trim().max(1000).default("") }).safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: "Choose valid order and payment statuses." };
   const supabase = await actionClient();
-  const { data, error } = await supabase.from("orders").update(parsed.data).eq("id", orderId).select("id").maybeSingle();
+  const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+  const { data, error } = await rpc("update_admin_order_status", { p_order_id: orderId, p_order_status: parsed.data.order_status, p_payment_status: parsed.data.payment_status, p_actor_id: staff.userId, p_note: parsed.data.note });
   if (error) {
     logSupabaseError("admin-order-status-update", "update-order-status", error, {
       route: `/admin/orders/${orderId}`,
