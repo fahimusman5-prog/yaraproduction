@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
+import { createOrderTrackingToken } from "@/lib/order-tracking";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
       console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());
       return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
     }
+    if (!process.env.ORDER_TRACKING_SECRET?.trim()) {
+      console.error("[storefront-checkout] ORDER_TRACKING_SECRET is not configured.");
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
 
     const supabase = getSupabaseAdminClient();
     const rpc = supabase.rpc.bind(supabase) as unknown as (
@@ -81,9 +86,16 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
     }
+    let trackingToken: string;
+    try {
+      trackingToken = createOrderTrackingToken(order.order_id, order.order_number);
+    } catch (error) {
+      logSupabaseError("storefront-checkout", "create-tracking-token", error, { route: "/api/checkout" });
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
 
     if (parsed.data.paymentMethod === "cod") {
-      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&cod=1` });
+      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
     }
 
     const amount = Number(order.total_amount).toFixed(2);
@@ -93,8 +105,8 @@ export async function POST(request: Request) {
       action: getPayHereCheckoutUrl(),
       fields: {
         merchant_id: merchantId,
-        return_url: `${origin}/payment/success?order=${order.order_id}`,
-        cancel_url: `${origin}/payment/failure?order=${order.order_id}`,
+        return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
+        cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
         notify_url: `${origin}/api/payhere/notify`,
         order_id: order.order_number,
         items: `YARA order ${order.order_number}`,
