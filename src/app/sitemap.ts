@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { locales } from "@/lib/locales";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-const baseUrl = "https://yaraproduct.com";
+const baseUrl = "https://www.yaraproduct.com";
 
 // Concern and product URLs are managed in Supabase, so the sitemap must reflect
 // admin changes without waiting for the next deployment.

@@ -151,6 +151,26 @@ export async function getOrders() {
   }
   return (data ?? []) as Order[];
 }
+
+export async function getShippingConfiguration() {
+  const supabase = await client("/admin/shipping");
+  const [zones, methods] = await Promise.all([
+    supabase.from("shipping_zones").select("*").order("country_code").order("sort_order").order("name"),
+    supabase.from("shipping_methods").select("*,shipping_zones(name,country_code,region_name)").order("sort_order").order("name"),
+  ]);
+  if (zones.error) failLoad("admin-shipping", "select-zones", zones.error, { route: "/admin/shipping", table: "shipping_zones", fallback: "Unable to load shipping zones." });
+  if (methods.error) failLoad("admin-shipping", "select-methods", methods.error, { route: "/admin/shipping", table: "shipping_methods", fallback: "Unable to load shipping methods." });
+  type Zone = { id: string; name: string; country_code: string; region_name: string; active: boolean; sort_order: number };
+  type Method = { id: string; name: string; fee: number; currency: string; estimated_min_days: number; estimated_max_days: number; active: boolean; shipping_zones?: { name?: string; country_code?: string; region_name?: string } | null };
+  return { zones: (zones.data ?? []) as Zone[], methods: (methods.data ?? []) as Method[] };
+}
+
+export async function getCoupons() {
+  const supabase = await client("/admin/coupons");
+  const { data, error } = await supabase.from("coupons").select("*").order("created_at", { ascending: false });
+  if (error) failLoad("admin-coupons", "select-coupons", error, { route: "/admin/coupons", table: "coupons", fallback: "Unable to load coupons." });
+  return (data ?? []) as Array<{ id: string; code: string; discount_type: string; country_scope: string; discount_value: number; active: boolean }>;
+}
 export async function getOrder(orderId: string) {
   const supabase = await client(`/admin/orders/${orderId}`);
   const [orderResult, itemsResult] = await Promise.all([

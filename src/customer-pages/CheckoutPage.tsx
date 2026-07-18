@@ -1,5 +1,5 @@
 import { ArrowRight, Banknote, CreditCard, LockKeyhole, MessageCircle, ShieldCheck, Truck, UserRound } from "lucide-react";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { cartOrderMessage, createWhatsAppLink, formatPrice } from "../lib/format";
@@ -9,6 +9,7 @@ import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 
 type PaymentMethod = "payhere" | "cod";
+type ShippingMethod = { id: string; name: string; description: string; fee: number; currency: "LKR" | "AED"; free_shipping_threshold: number | null; estimated_min_days: number; estimated_max_days: number };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function CheckoutPage() {
@@ -19,8 +20,27 @@ export function CheckoutPage() {
   const [payment, setPayment] = useState<PaymentMethod>("payhere");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [shippingMethodId, setShippingMethodId] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [shippingError, setShippingError] = useState("");
+  const selectedShipping = shippingMethods.find((method) => method.id === shippingMethodId) ?? shippingMethods[0];
+  const shippingFee = selectedShipping ? (selectedShipping.free_shipping_threshold !== null && subtotal >= selectedShipping.free_shipping_threshold ? 0 : selectedShipping.fee) : 0;
   const total = subtotal;
   const hasLiveCatalogItems = items.every(({ product }) => uuidPattern.test(product.id));
+
+  useEffect(() => {
+    if (!country) return;
+    let cancelled = false;
+    setLoadingShipping(true); setShippingError(""); setShippingMethods([]); setShippingMethodId("");
+    fetch(`/api/checkout/options?country=${encodeURIComponent(country)}`)
+      .then(async (response) => { const result = await response.json(); if (!response.ok) throw new Error(result.error || "Unable to load shipping options."); return result as { methods: ShippingMethod[] }; })
+      .then((result) => { if (!cancelled) { setShippingMethods(result.methods); setShippingMethodId(result.methods[0]?.id ?? ""); } })
+      .catch((reason) => { if (!cancelled) setShippingError(reason instanceof Error ? reason.message : "Unable to load shipping options."); })
+      .finally(() => { if (!cancelled) setLoadingShipping(false); });
+    return () => { cancelled = true; };
+  }, [country]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,6 +56,8 @@ export function CheckoutPage() {
         country, paymentMethod: payment,
         customer: { name: `${data.get("firstName") ?? ""} ${data.get("lastName") ?? ""}`.trim(), email: data.get("email"), phone: data.get("phone"), address: data.get("address"), city: data.get("city"), postalCode: data.get("postalCode") },
         items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
+        shippingMethodId: selectedShipping?.id ?? null,
+        couponCode: couponCode.trim() || null,
       }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || t("checkout.error"));
@@ -79,6 +101,16 @@ export function CheckoutPage() {
           </section>
 
           <section className="surface-card p-6 sm:p-8">
+            <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><Truck className="h-4 w-4" /></span> Delivery method</h2>
+            {loadingShipping && <p className="mt-6 text-sm text-yara-taupe">Loading available delivery methods…</p>}
+            {!loadingShipping && !shippingMethods.length && <p className="mt-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">{shippingError || "Shipping is not currently configured for this region. Please contact us or try again later."}</p>}
+            <div className="mt-6 space-y-3">
+              {shippingMethods.map((method) => <label key={method.id} className={`block cursor-pointer rounded-[1.7rem] border p-5 transition ${selectedShipping?.id === method.id ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}><span className="flex items-center justify-between gap-4 text-sm"><span className="flex items-center gap-3"><input type="radio" name="shippingMethod" checked={selectedShipping?.id === method.id} onChange={() => setShippingMethodId(method.id)} className="accent-yara-wine" />{method.name}</span><span>{country && formatPrice(method.free_shipping_threshold !== null && subtotal >= method.free_shipping_threshold ? 0 : method.fee, country)}</span></span><span className="mt-2 block text-xs text-yara-taupe">{method.description || `${method.estimated_min_days}–${method.estimated_max_days} days`}</span></label>)}
+            </div>
+            <label className="mt-5 block"><span className="field-label">Coupon code (optional)</span><input value={couponCode} onChange={(event) => setCouponCode(event.target.value)} name="couponCode" maxLength={64} className="field" placeholder="Enter code" /></label>
+          </section>
+
+          <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><Truck className="h-4 w-4" /></span> {t("checkout.shippingAddress")}</h2>
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               <label><span className="field-label">{t("checkout.firstName")}</span><input name="firstName" required autoComplete="given-name" className="field" /></label>
@@ -111,10 +143,10 @@ export function CheckoutPage() {
               <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
             );})}
           </div>
-          <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>
-          <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
+          <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{country && formatPrice(shippingFee, country)}</span></div></div>
+          <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total + shippingFee, country)}</span></div>
           {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button type="submit" disabled={submitting || !hasLiveCatalogItems} className="btn-primary mt-7 w-full disabled:opacity-50">{submitting ? t("checkout.preparing") : t("checkout.confirm")} <ArrowRight className="h-4 w-4" /></button>
+          <button type="submit" disabled={submitting || !hasLiveCatalogItems || !selectedShipping} className="btn-primary mt-7 w-full disabled:opacity-50">{submitting ? t("checkout.preparing") : t("checkout.confirm")} <ArrowRight className="h-4 w-4" /></button>
           <button type="button" onClick={handleWhatsAppOrder} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-[#20a852] px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#168a43]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
           <div className="mt-6 flex justify-center gap-6 text-yara-taupe"><ShieldCheck className="h-5 w-5" /><LockKeyhole className="h-5 w-5" /><MessageCircle className="h-5 w-5" /></div>
           <p className="mt-3 text-center text-[0.58rem] uppercase tracking-[0.1em] text-yara-taupe">{t("checkout.encrypted")}</p>

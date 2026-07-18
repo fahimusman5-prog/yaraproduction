@@ -2,7 +2,7 @@ export type StaffRole = "admin" | "staff";
 export type ProfileRole = StaffRole | "customer";
 export type RecordStatus = "active" | "inactive";
 export type ProductStatus = RecordStatus | "archived";
-export type OrderStatus = "pending" | "paid" | "processing" | "shipped" | "delivered" | "cancelled";
+export type OrderStatus = "pending" | "paid" | "processing" | "packed" | "shipped" | "delivered" | "cancelled" | "refunded";
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "cod" | "online";
 export type ReviewStatus = "published" | "hidden";
 

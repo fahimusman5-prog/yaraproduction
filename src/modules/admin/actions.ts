@@ -206,6 +206,59 @@ export async function createSkinConcernAction(
   }
 }
 
+export async function saveShippingZoneAction(formData: FormData) {
+  const staff = await requireAdmin("/admin/shipping");
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const countryCode = String(formData.get("country_code") ?? "").trim();
+  const regionName = String(formData.get("region_name") ?? "").trim();
+  const sortOrder = Number(formData.get("sort_order") ?? 0);
+  if (!name || !["LK", "AE"].includes(countryCode) || !Number.isInteger(sortOrder)) throw new Error("Enter a valid shipping zone.");
+  const supabase = await actionClient();
+  const payload = { name, country_code: countryCode, region_name: regionName, sort_order: sortOrder, active: formData.get("active") === "on", updated_at: new Date().toISOString() };
+  const result = id ? await supabase.from("shipping_zones").update(payload).eq("id", id) : await supabase.from("shipping_zones").insert({ ...payload, created_at: new Date().toISOString() });
+  if (result.error) throw result.error;
+  revalidatePath("/admin/shipping");
+  void staff;
+}
+
+export async function saveShippingMethodAction(formData: FormData) {
+  const staff = await requireAdmin("/admin/shipping");
+  const id = String(formData.get("id") ?? "").trim();
+  const zoneId = String(formData.get("shipping_zone_id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const fee = Number(formData.get("fee"));
+  const currency = String(formData.get("currency") ?? "").trim();
+  const minDays = Number(formData.get("estimated_min_days"));
+  const maxDays = Number(formData.get("estimated_max_days"));
+  const thresholdValue = String(formData.get("free_shipping_threshold") ?? "").trim();
+  const threshold = thresholdValue ? Number(thresholdValue) : null;
+  if (!zoneId || !name || !["LKR", "AED"].includes(currency) || !Number.isFinite(fee) || fee < 0 || !Number.isInteger(minDays) || !Number.isInteger(maxDays) || maxDays < minDays || (threshold !== null && (!Number.isFinite(threshold) || threshold < 0))) throw new Error("Enter valid shipping method details.");
+  const supabase = await actionClient();
+  const payload = { shipping_zone_id: zoneId, name, description: String(formData.get("description") ?? "").trim(), fee, currency, free_shipping_threshold: threshold, estimated_min_days: minDays, estimated_max_days: maxDays, sort_order: Number(formData.get("sort_order") ?? 0), active: formData.get("active") === "on", updated_at: new Date().toISOString() };
+  const result = id ? await supabase.from("shipping_methods").update(payload).eq("id", id) : await supabase.from("shipping_methods").insert({ ...payload, created_at: new Date().toISOString() });
+  if (result.error) throw result.error;
+  revalidatePath("/admin/shipping");
+  void staff;
+}
+
+export async function saveCouponAction(formData: FormData) {
+  const staff = await requireAdmin("/admin/coupons");
+  const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const discountType = String(formData.get("discount_type") ?? "");
+  const discountValue = Number(formData.get("discount_value"));
+  const countryScope = String(formData.get("country_scope") ?? "");
+  const minimumOrderAmount = Number(formData.get("minimum_order_amount") ?? 0);
+  const maximumDiscountValue = String(formData.get("maximum_discount") ?? "").trim();
+  const usageLimitValue = String(formData.get("usage_limit") ?? "").trim();
+  const perCustomerLimit = Number(formData.get("per_customer_limit") ?? 1);
+  if (!code || !["fixed", "percentage"].includes(discountType) || !["sri-lanka", "uae", "both"].includes(countryScope) || !Number.isFinite(discountValue) || discountValue <= 0 || discountType === "percentage" && discountValue > 100 || !Number.isFinite(minimumOrderAmount) || minimumOrderAmount < 0 || (maximumDiscountValue && Number(maximumDiscountValue) < 0) || (usageLimitValue && (!Number.isInteger(Number(usageLimitValue)) || Number(usageLimitValue) <= 0)) || !Number.isInteger(perCustomerLimit) || perCustomerLimit <= 0) throw new Error("Enter valid coupon details.");
+  const supabase = await actionClient();
+  const result = await supabase.from("coupons").insert({ code, discount_type: discountType, discount_value: discountValue, country_scope: countryScope, starts_at: formData.get("starts_at") ? new Date(String(formData.get("starts_at"))).toISOString() : null, ends_at: formData.get("ends_at") ? new Date(String(formData.get("ends_at"))).toISOString() : null, minimum_order_amount: minimumOrderAmount, maximum_discount: maximumDiscountValue ? Number(maximumDiscountValue) : null, usage_limit: usageLimitValue ? Number(usageLimitValue) : null, per_customer_limit: perCustomerLimit, active: formData.get("active") === "on", created_by: staff.userId });
+  if (result.error) throw result.error;
+  revalidatePath("/admin/coupons");
+}
+
 export async function updateSkinConcernAction(
   concernId: string,
   _state: SkinConcernActionState,
@@ -459,10 +512,11 @@ export async function deleteCategoryAction(categoryId: string) {
 
 export async function updateOrderStatusAction(orderId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
   const staff = await requireStaff(`/admin/orders/${orderId}`);
-  const parsed = z.object({ order_status: z.enum(["pending", "paid", "processing", "shipped", "delivered", "cancelled"]), payment_status: z.enum(["pending", "paid", "failed", "refunded"]) }).safeParse(formObject(formData));
+  const parsed = z.object({ order_status: z.enum(["pending", "paid", "processing", "packed", "shipped", "delivered", "cancelled", "refunded"]), payment_status: z.enum(["pending", "paid", "failed", "refunded"]), note: z.string().trim().max(1000).default("") }).safeParse(formObject(formData));
   if (!parsed.success) return { status: "error", message: "Choose valid order and payment statuses." };
   const supabase = await actionClient();
-  const { data, error } = await supabase.from("orders").update(parsed.data).eq("id", orderId).select("id").maybeSingle();
+  const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+  const { data, error } = await rpc("update_admin_order_status", { p_order_id: orderId, p_order_status: parsed.data.order_status, p_payment_status: parsed.data.payment_status, p_actor_id: staff.userId, p_note: parsed.data.note });
   if (error) {
     logSupabaseError("admin-order-status-update", "update-order-status", error, {
       route: `/admin/orders/${orderId}`,
