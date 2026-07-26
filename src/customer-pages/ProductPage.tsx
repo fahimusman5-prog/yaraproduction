@@ -1,5 +1,5 @@
 import { Check, ChevronRight, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Star, Truck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
 import { RegionalProductPrice } from "../components/RegionalProductPrice";
@@ -17,11 +17,16 @@ export function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [added, setAdded] = useState(false);
+  const successTimerRef = useRef<number | null>(null);
   const { addItem } = useCart();
   const navigate = useNavigate();
   const { country } = useCountry();
 
   const gallery = useMemo(() => product ? Array.from(new Set([product.gallery?.[0] ?? product.image, product.image, ...(product.gallery?.slice(1) ?? [])])) : [], [product]);
+
+  useEffect(() => () => {
+    if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
+  }, []);
 
   if (!product && loading) {
     return <div className="page-shell py-28 text-center"><p className="eyebrow">Loading product</p><h1 className="mt-4 text-5xl">Preparing your product details.</h1></div>;
@@ -31,10 +36,12 @@ export function ProductPage() {
     return <div className="page-shell py-28 text-center"><p className="eyebrow">Product not found</p><h1 className="mt-4 text-5xl">This product has wandered off.</h1><Link to="/shop" className="btn-primary mt-8">Return to shop</Link></div>;
   }
 
+  const outOfStock = product.stockQuantity === 0;
   const handleAdd = () => {
+    if (outOfStock) return;
     addItem(product, quantity);
     setAdded(true);
-    window.setTimeout(() => setAdded(false), 1800);
+    successTimerRef.current = window.setTimeout(() => setAdded(false), 1800);
   };
 
   const productConcerns = product.concerns?.length ? product.concerns : [product.concern];
@@ -91,16 +98,16 @@ export function ProductPage() {
 
           <div className="mt-7 flex flex-wrap items-center gap-4">
             <div className="glass-panel flex items-center rounded-full p-1">
-              <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="glass-icon h-9 w-9" aria-label="Decrease quantity"><Minus className="h-4 w-4" /></button>
+              <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="glass-icon h-11 w-11" aria-label="Decrease quantity" disabled={outOfStock}><Minus className="h-4 w-4" /></button>
               <span className="w-8 text-center text-sm">{quantity}</span>
-              <button onClick={() => setQuantity((value) => value + 1)} className="glass-icon h-9 w-9" aria-label="Increase quantity"><Plus className="h-4 w-4" /></button>
+              <button onClick={() => setQuantity((value) => value + 1)} className="glass-icon h-11 w-11" aria-label="Increase quantity" disabled={outOfStock}><Plus className="h-4 w-4" /></button>
             </div>
-            <span className="flex items-center gap-2 text-[0.62rem] font-semibold uppercase tracking-[0.12em]"><span className="h-2 w-2 rounded-full bg-green-500" /> In stock & ready to ship</span>
+            <span className="flex items-center gap-2 text-[0.62rem] font-semibold uppercase tracking-[0.12em]"><span className={`h-2 w-2 rounded-full ${outOfStock ? "bg-yara-taupe" : "bg-green-500"}`} /> {outOfStock ? "Out of stock" : "In stock & ready to ship"}</span>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <button onClick={handleAdd} className="btn-primary w-full">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {added ? "Added to bag" : "Add to cart"}</button>
-            <button onClick={() => { addItem(product, quantity); navigate("/checkout"); }} className="btn-secondary w-full">Buy now</button>
+            <button onClick={handleAdd} className="btn-primary w-full" disabled={outOfStock} aria-live="polite">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {outOfStock ? "Out of stock" : added ? "Added to bag" : "Add to cart"}</button>
+            <button onClick={() => { if (!outOfStock) { addItem(product, quantity); navigate("/checkout"); } }} className="btn-primary w-full" disabled={outOfStock}>Buy now</button>
             {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/55 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#117a3a] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
           </div>
 

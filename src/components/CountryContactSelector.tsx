@@ -102,7 +102,7 @@ export function CountryContactSelector({ variant }: CountryContactSelectorProps)
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-yara-taupe/30" />
             <div className="flex items-center justify-between px-2 pb-3">
               <div><p className="eyebrow">YARA worldwide</p><h2 className="mt-1 font-serif text-2xl text-yara-ink">Choose your country</h2></div>
-              <button type="button" onClick={() => setOpen(false)} className="glass-icon h-10 w-10" aria-label="Close country contact selector"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setOpen(false)} className="glass-icon h-11 w-11" aria-label="Close country contact selector"><X className="h-4 w-4" /></button>
             </div>
             {contactList}
           </section>
@@ -117,7 +117,7 @@ export function CountryContactSelector({ variant }: CountryContactSelectorProps)
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="glass-icon h-10 w-10 text-yara-wine"
+        className="glass-icon h-11 w-11 text-yara-wine"
         aria-label="Contact YARA by country"
         aria-expanded={open}
         aria-controls={listId}

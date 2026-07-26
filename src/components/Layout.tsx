@@ -194,7 +194,7 @@ function Header() {
           <LanguageSelector variant="desktop" />
           <LanguageSelector variant="mobile" />
           <CountryContactSelector variant="desktop" />
-          <Link to="/cart" className="glass-icon relative h-10 w-10 text-yara-wine" aria-label={t("nav.shoppingBag", { count: itemCount })}>
+          <Link to="/cart" className="glass-icon relative h-11 w-11 text-yara-wine" aria-label={t("nav.shoppingBag", { count: itemCount })}>
             <ShoppingBag className="h-[19px] w-[19px]" />
             {itemCount > 0 && (
               <span className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-yara-wine px-1 text-[10px] font-semibold text-white">
@@ -202,9 +202,9 @@ function Header() {
               </span>
             )}
           </Link>
-          <button onClick={changeCountry} className="glass-control hidden min-h-10 px-3 py-2 text-[0.5rem] font-semibold uppercase tracking-[0.07em] text-yara-wine lg:block xl:text-[0.54rem] xl:tracking-[0.09em]">{t("nav.changeCountry")}</button>
+          <button onClick={changeCountry} className="glass-control hidden min-h-11 px-3 py-2 text-[0.5rem] font-semibold uppercase tracking-[0.07em] text-yara-wine lg:block xl:text-[0.54rem] xl:tracking-[0.09em]">{t("nav.changeCountry")}</button>
           <button
-            className="glass-icon h-10 w-10 text-yara-wine lg:hidden"
+            className="glass-icon h-11 w-11 text-yara-wine lg:hidden"
             onClick={() => setMenuOpen((open) => !open)}
             aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={menuOpen}
@@ -228,7 +228,7 @@ function Header() {
               ))}
             </div>
             <CountryContactSelector variant="mobile" />
-            {country && <div className="glass-panel mt-3 rounded-2xl p-4"><p className="text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-yara-wine">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</p><Link to="/cart" className="mt-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em]"><ShoppingBag className="h-4 w-4" /> {t("nav.cart")} ({itemCount})</Link><button onClick={changeCountry} className="mt-4 text-[0.62rem] font-semibold uppercase tracking-[0.1em] underline">{t("nav.changeCountry")}</button></div>}
+            {country && <div className="glass-panel mt-3 rounded-2xl p-4"><p className="text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-yara-wine">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</p><Link to="/cart" className="btn-primary mt-4 w-full"><ShoppingBag className="h-4 w-4" /> {t("nav.cart")} ({itemCount})</Link><button onClick={changeCountry} className="btn-secondary mt-3 w-full">{t("nav.changeCountry")}</button></div>}
           </nav>
         </div>
       )}
@@ -252,7 +252,7 @@ function Footer() {
             {footerSocialLinks.map(({ name, href, icon: Icon, ariaLabel }) => href ? (
               <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} title={ariaLabel} className="glass-icon h-11 w-11 transition duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_10px_22px_rgba(135,66,87,0.18)]"><Icon className="h-5 w-5" /></a>
             ) : (
-              <button key={name} type="button" disabled aria-label="YARA Facebook page is not yet available" title="YARA Facebook page is not yet available" className="glass-icon h-11 w-11 cursor-not-allowed opacity-45"><Icon className="h-5 w-5" /></button>
+              <button key={name} type="button" disabled aria-label="YARA Facebook page is not yet available" title="YARA Facebook page is not yet available" className="glass-icon h-11 w-11"><Icon className="h-5 w-5" /></button>
             ))}
           </div>
         </div>

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, Heart, LoaderCircle, ShoppingBag, Star } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Heart, LoaderCircle, PackageX, ShoppingBag, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "../types";
 import { RegionalProductPrice } from "./RegionalProductPrice";
@@ -16,16 +16,32 @@ export function ProductCard({ product }: { product: Product }) {
   const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
+  const addingTimerRef = useRef<number | null>(null);
+  const successTimerRef = useRef<number | null>(null);
   const productPath = `/product/${product.slug || product.id}`;
+  const outOfStock = product.stockQuantity === 0;
+
+  useEffect(() => () => {
+    if (addingTimerRef.current) window.clearTimeout(addingTimerRef.current);
+    if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
+  }, []);
 
   const handleAdd = () => {
-    if (adding || product.stockQuantity === 0) return;
+    if (adding || outOfStock) return;
     setAdding(true);
     addItem(product);
     setAdded(true);
-    window.setTimeout(() => setAdding(false), 260);
-    window.setTimeout(() => setAdded(false), 1500);
+    addingTimerRef.current = window.setTimeout(() => setAdding(false), 260);
+    successTimerRef.current = window.setTimeout(() => setAdded(false), 1500);
   };
+
+  const cartButtonLabel = outOfStock
+    ? `${displayProduct.name} is out of stock`
+    : adding
+      ? `Adding ${displayProduct.name} to cart`
+      : added
+        ? `${displayProduct.name} added to cart`
+        : t("product.addNamedToCart", { name: displayProduct.name });
 
   return (
     <article className="group overflow-hidden rounded-[1.8rem] border border-white/80 bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-soft">
@@ -36,8 +52,9 @@ export function ProductCard({ product }: { product: Product }) {
         {displayProduct.badge && <span className="glass-panel absolute left-4 top-4 rounded-full px-3 py-1 text-[0.58rem] uppercase tracking-[0.12em] text-yara-wine">{displayProduct.badge}</span>}
         <button
           onClick={() => setSaved((value) => !value)}
-          className="glass-icon absolute right-4 top-4 h-10 w-10"
+          className="glass-icon absolute right-4 top-4 h-11 w-11"
           aria-label={saved ? t("product.removeFavorite", { name: displayProduct.name }) : t("product.addFavorite", { name: displayProduct.name })}
+          aria-pressed={saved}
         >
           <Heart className={`h-4 w-4 ${saved ? "fill-yara-wine text-yara-wine" : ""}`} />
         </button>
@@ -58,8 +75,8 @@ export function ProductCard({ product }: { product: Product }) {
             sellingClassName="font-serif text-lg font-semibold leading-tight text-yara-wine"
             originalClassName="mt-0.5 text-xs leading-tight text-yara-taupe"
           />
-          <button onClick={handleAdd} disabled={adding || product.stockQuantity === 0} className="glass-icon-primary h-11 w-11 shrink-0" aria-label={added ? `${displayProduct.name} added to cart` : t("product.addNamedToCart", { name: displayProduct.name })}>
-            {adding ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : added ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
+          <button onClick={handleAdd} disabled={adding || outOfStock} className="glass-icon-primary h-11 w-11 shrink-0" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
+            {outOfStock ? <PackageX className="h-4 w-4" aria-hidden="true" /> : adding ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : added ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
           </button>
         </div>
       </div>

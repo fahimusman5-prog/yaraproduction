@@ -38,7 +38,7 @@ export function CartPage() {
                   <button onClick={() => removeItem(product.id)} className="glass-icon-destructive h-11 w-11" aria-label={t("cart.remove", { name: displayProduct.name })}><Trash2 className="h-4 w-4" /></button>
                 </div>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="glass-panel flex items-center rounded-full p-0.5"><button onClick={() => updateQuantity(product.id, quantity - 1)} className="glass-icon h-8 w-8" aria-label={t("product.decrease")}><Minus className="h-3.5 w-3.5" /></button><span className="w-7 text-center text-xs">{quantity}</span><button onClick={() => updateQuantity(product.id, quantity + 1)} className="glass-icon h-8 w-8" aria-label={t("product.increase")}><Plus className="h-3.5 w-3.5" /></button></div>
+                  <div className="glass-panel flex items-center rounded-full p-0.5"><button onClick={() => updateQuantity(product.id, quantity - 1)} className="glass-icon h-11 w-11" aria-label={t("product.decrease")}><Minus className="h-3.5 w-3.5" /></button><span className="w-8 text-center text-xs">{quantity}</span><button onClick={() => updateQuantity(product.id, quantity + 1)} className="glass-icon h-11 w-11" aria-label={t("product.increase")}><Plus className="h-3.5 w-3.5" /></button></div>
                   <RegionalProductPrice
                     product={product}
                     country={country}
@@ -51,7 +51,7 @@ export function CartPage() {
               </div>
             </article>
           );})}
-          <Link to="/shop" className="inline-flex items-center gap-2 pt-3 text-xs font-semibold uppercase tracking-[0.13em] text-yara-wine">← {t("common.continueShopping")}</Link>
+          <Link to="/shop" className="btn-secondary mt-3">← {t("common.continueShopping")}</Link>
         </div>
 
         <aside className="surface-card p-6 sm:p-8 lg:sticky lg:top-28">
