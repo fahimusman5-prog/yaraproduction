@@ -145,6 +145,20 @@ function revalidateSkinConcerns(...slugs: Array<string | null | undefined>) {
 
 export type SkinConcernActionState = ActionState & { concern?: SkinConcern };
 
+export async function setNewsletterSubscriberStatusAction(subscriberId: string, status: "subscribed" | "unsubscribed") {
+  const staff = await requireAdmin("/admin/newsletter");
+  if (!z.string().uuid().safeParse(subscriberId).success || !z.enum(["subscribed", "unsubscribed"]).safeParse(status).success) return;
+  const updates = status === "subscribed"
+    ? { status, subscribed_at: new Date().toISOString(), unsubscribed_at: null }
+    : { status, unsubscribed_at: new Date().toISOString() };
+  const { error } = await getSupabaseAdminClient().from("newsletter_subscribers").update(updates).eq("id", subscriberId);
+  if (error) {
+    logSupabaseError("admin-newsletter", "update-subscriber-status", error, { route: "/admin/newsletter", table: "newsletter_subscribers", userId: staff.userId });
+    throw new Error("Unable to update newsletter subscriber.");
+  }
+  revalidatePath("/admin/newsletter");
+}
+
 async function saveAdminSkinConcern(
   supabase: Awaited<ReturnType<typeof actionClient>>,
   args: {

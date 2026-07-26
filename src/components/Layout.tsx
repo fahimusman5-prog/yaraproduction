@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   X,
   MessageCircle,
-  ArrowRight
 } from "lucide-react";
 import { CountryContactSelector } from "./CountryContactSelector";
 import { Link, NavLink, useLocation } from "react-router-dom";
@@ -18,6 +17,7 @@ import { countryDetails, useCountry } from "../context/CountryContext";
 import { getLocalizedPath, localeLabels, locales, useI18n, type Locale } from "../i18n";
 import { footerSocialLinks } from "../lib/social-links";
 import { founderStory } from "../data/founder-story";
+import { NewsletterForm } from "./NewsletterForm";
 
 const mobileLocaleLabels: Record<Locale, string> = {
   en: "EN",
@@ -271,10 +271,7 @@ function Footer() {
         <div>
           <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.17em]">{t("layout.newsletter")}</h3>
           <p className="mt-5 text-sm font-light leading-6 text-yara-taupe">{t("layout.newsletterText")}</p>
-          <form className="glass-panel mt-5 flex rounded-full p-1" onSubmit={(event) => event.preventDefault()}>
-            <input type="email" required placeholder={t("layout.emailAddress")} aria-label={t("layout.emailAddress")} className="min-w-0 flex-1 bg-transparent px-4 text-xs" />
-            <button className="glass-icon h-10 w-10 bg-yara-wine text-white" aria-label={t("layout.joinNewsletter")}><ArrowRight className="h-4 w-4" /></button>
-          </form>
+          <NewsletterForm />
         </div>
       </div>
       <div className="border-t border-white/60 py-6 text-center text-[0.65rem] uppercase tracking-[0.12em] text-yara-taupe">

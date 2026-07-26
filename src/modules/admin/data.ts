@@ -1,7 +1,7 @@
 import "server-only";
 import { unstable_noStore as noStore } from "next/cache";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
-import { requireStaff } from "@/lib/supabase/auth";
+import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import type {
   Category,
@@ -13,6 +13,7 @@ import type {
   SkinConcern,
   StockMovement,
   ProductReview,
+  NewsletterSubscriber,
 } from "@/lib/supabase/types";
 
 export async function getReviews() {
@@ -215,6 +216,26 @@ export async function getCustomers() {
     profiles: (profiles.data ?? []) as Profile[],
     orders: (orders.data ?? []) as Order[],
   };
+}
+
+export async function getNewsletterSubscribers() {
+  noStore();
+  await requireAdmin("/admin/newsletter");
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("newsletter_subscribers")
+    .select("*")
+    .order("subscribed_at", { ascending: false })
+    .limit(2_000);
+  if (error) {
+    failLoad("admin-newsletter-list", "select-subscribers", error, {
+      route: "/admin/newsletter",
+      table: "newsletter_subscribers",
+      fallback: "Unable to load newsletter subscribers.",
+      schemaUnavailable: "The newsletter table is unavailable. Apply the newsletter migration.",
+    });
+  }
+  return (data ?? []) as NewsletterSubscriber[];
 }
 export async function getInventory() {
   const supabase = await client("/admin/inventory");

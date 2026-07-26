@@ -5,6 +5,7 @@ export type ProductStatus = RecordStatus | "archived";
 export type OrderStatus = "pending" | "paid" | "processing" | "packed" | "shipped" | "delivered" | "cancelled" | "refunded";
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "cod" | "online";
 export type ReviewStatus = "published" | "hidden";
+export type NewsletterSubscriberStatus = "subscribed" | "unsubscribed";
 
 export interface ProductReviewImage {
   id: string;
@@ -35,6 +36,20 @@ export interface Profile {
   full_name: string;
   role: ProfileRole;
   created_at: string;
+}
+
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  normalized_email: string;
+  status: NewsletterSubscriberStatus;
+  source: string;
+  locale: string | null;
+  country: string | null;
+  subscribed_at: string;
+  unsubscribed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Category {
