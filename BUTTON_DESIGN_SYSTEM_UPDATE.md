@@ -1,65 +1,100 @@
 # Premium pink liquid-glass button system
 
-## Original visual problem
+## Original visual problems
 
-The storefront had a shared glass button base, but primary actions were not consistently strong enough against pale product, ivory, and pink surfaces. The product-card Add to Cart control was particularly easy to miss: it was a 40px control with a local dark-background override rather than a dedicated primary icon variant.
+- Storefront actions mixed pale glass controls, one-off utility classes, and stronger primary buttons without a complete shared state system.
+- The product-card Add to Cart control was only 40×40px and depended on a local colour override, making it easy to miss on white, blush, or image-heavy cards.
+- Hover, focus, loading, success, disabled, and destructive treatments were not equally complete across every semantic variant.
+- Several compact controls fell below the desired 44px touch target, and the shop filter/sort toolbar could create horizontal overflow at 320px.
 
 ## Design decisions
 
-The existing shared CSS system in `src/index.css` remains the single source of truth. It now uses a deep rose-to-burgundy translucent gradient, fine light edge, internal highlight, controlled rose shadow, and backdrop blur/saturation. The treatment favours depth and legibility over bright or neon colour.
+`src/index.css` remains the single source of truth. The existing YARA rose palette was extended into semantic liquid-glass tokens rather than replacing the storefront design or adding file-level visual recipes.
 
-## Variants
+The primary treatment uses a deep rose-to-burgundy translucent gradient, a fine pearl edge, a static reflective layer, restrained blur/saturation, a soft lower shadow, and an internal top highlight. Secondary controls retain a visibly pink glass surface with dark ink text. WhatsApp actions remain green-accented where brand recognition is more useful than forcing a pink primary style.
 
-- `btn-primary`: purchasing, submit, checkout, and prominent calls to action.
-- `btn-secondary`: lower-emphasis, pale-pink glass actions with strong dark text.
-- `glass-control`: compact secondary controls for filters, selectors, and utility actions.
+Transitions are 200ms, hover lifts by 1px, active compresses to `0.985`, and decorative movement is disabled under `prefers-reduced-motion`. No animation library or continuous glow animation was added.
+
+## Shared variants
+
+- `btn-primary`: Add to Cart, Buy Now, checkout, submit, and prominent calls to action.
+- `btn-secondary`: lower-emphasis actions such as Continue Shopping, account actions, and country changes.
+- `glass-control`: filters, sorting, language/country controls, and branded secondary utility actions.
 - `glass-icon`: secondary icon-only controls.
-- `glass-icon-primary`: dark rose 44px minimum icon CTA, used by product-card Add to Cart and newsletter submit.
-- `btn-destructive` and `glass-icon-destructive`: reserved red-toned destructive action treatments; cart removal uses the 44px icon variant.
+- `glass-icon-primary`: deep rose 44px icon CTA used by product-card Add to Cart, newsletter submit, and review-gallery controls.
+- `btn-destructive` and `glass-icon-destructive`: accessible red-toned destructive treatments; cart removal uses the icon variant.
 
-## Tokens and interaction states
+All semantic variants directly share the glass surface, reflective overlays, hover, active, focus, disabled, reduced-motion, and fallback rules. There is no competing second button system.
 
-The system adds `--yara-rose-700`, `--yara-rose-600`, `--yara-rose-500`, `--yara-focus-ring`, `--yara-button-border`, `--yara-button-highlight`, and layered button-shadow tokens. Hover lifts by 1px, active compresses to `0.985`, and disabled states remove elevation and reduce saturation. All motion uses CSS transforms and opacity with a 200ms transition; the existing reduced-motion rules disable the decorative movement.
+## Tokens
 
-## Accessibility and responsive behaviour
-
-- Primary labels and icons are white against a dark rose base; secondary text uses the existing dark ink colour.
-- The shared visible focus outline is now a 3px rose focus ring with offset.
-- Primary icon actions have a 44×44px minimum target. The product-card control was increased from 40px to 44px.
-- Product-card Add to Cart prevents repeat activation while the short confirmation state is shown, displays a spinner, then a checkmark, and preserves its dimensions.
-- Existing semantic buttons/links and icon `aria-label`s are retained. No navigation links were converted into oversized controls.
+- `--yara-rose-700`, `--yara-rose-600`, `--yara-rose-500`, `--yara-rose-400`
+- `--yara-button-border`, `--yara-button-highlight`
+- `--yara-button-shadow`, `--yara-button-shadow-hover`
+- `--yara-control-border`, `--yara-control-surface`, `--yara-control-surface-hover`
+- `--yara-disabled-surface`
+- `--yara-focus-ring`
 
 ## Components and files changed
 
-- `src/index.css`: centralized tokens, variants, Safari-prefixed glass treatment, non-blur fallback, focus, disabled, and state styling.
-- `src/components/ProductCard.tsx`: primary 44px Add to Cart control plus loading and success feedback.
-- `src/components/NewsletterForm.tsx`: primary icon submit control retains its spinner behaviour.
-- `src/customer-pages/ProductPage.tsx`, `CartPage.tsx`, and `CheckoutPage.tsx`: checkout and WhatsApp action consistency; checkout now has an in-button loading spinner.
-- `src/components/ProductReviews.tsx`: modal close and carousel controls use the shared primary icon treatment.
+- `src/index.css`: centralized tokens, all variants, interaction states, Safari-prefixed blur, opaque no-blur fallback, and reduced-motion behavior.
+- `src/components/ProductCard.tsx`: 44×44px primary Add to Cart control with spinner, repeat-click protection, checkmark confirmation, cleanup-safe timers, and out-of-stock state.
+- `src/components/Layout.tsx`: navigation, cart, mobile menu, footer social controls, country actions, and newsletter anchor consistency.
+- `src/components/CountryContactSelector.tsx`: 44px selector and dialog controls.
+- `src/components/NewsletterForm.tsx`: primary submit icon with loading and success feedback.
+- `src/components/ProductReviews.tsx`: shared primary gallery close and carousel controls.
+- `src/customer-pages/ProductPage.tsx`: primary Add to Cart and Buy Now actions, 44px quantity controls, stock state, and confirmation feedback.
+- `src/customer-pages/CartPage.tsx`: secondary Continue Shopping, 44px quantity controls, and destructive Remove.
+- `src/customer-pages/CheckoutPage.tsx`: readable disabled state, loading spinner, and `aria-busy`.
+- `src/customer-pages/ShopPage.tsx`: filters, sorting, search clear, working newsletter link, responsive toolbar, and narrow-layout overflow repair.
+- `src/customer-pages/LoginPage.tsx`: 44px password visibility control and secondary account action.
+
+Home, About, Contact, skin-concern, empty-state, promotional, and form CTAs inherit the upgraded shared variants without unrelated layout or content redesign.
+
+## Accessibility
+
+- White against the primary gradient stops measures from 6.04:1 to 10.92:1; dark ink against the secondary surface measures from 11.42:1 to 15.08:1.
+- The shared focus state combines a 3px non-colour-only outline with an offset ring.
+- Every visible button on the audited routes is at least 44px high; icon buttons are 44×44px or larger.
+- Icon-only controls have accessible names. The product-card state exposes `aria-busy`, disables repeat activation while loading, and announces loading/success/out-of-stock labels.
+- Native button, link, select, and form semantics were retained.
+- Disabled controls remain readable, remove hover movement, and use `not-allowed` feedback without fading into the background.
+
+## Responsive and interaction checks
+
+Chromium browser QA covered 320×700, 375×812, 390×844, 768×900, 1024×900, 1280×900, and 1440×1000.
+
+- No horizontal overflow remained at any audited width.
+- No visible customer-facing button was below 44px.
+- Sort labels remained contained, circular controls stayed circular, and product cards did not shift.
+- Home, Shop, Product Detail, Cart, Checkout, Login, and Contact had no unnamed visible buttons or horizontal overflow at mobile and desktop widths.
+- Product-card Add to Cart was confirmed at 44×44px with white icon, deep-rose gradient, loading spinner, disabled repeat-click state, and checkmark success feedback.
+- Keyboard focus on Add to Cart showed the shared 3px outline and offset focus ring.
+- Client console review found no errors. The local fallback catalog continues to emit its pre-existing missing-priority-product warning.
+- The local browser run used the built-in fallback catalog because Supabase public configuration is absent in this checkout. Cart state and checkout layout were exercised, but provider-backed catalog, reviews, and payment submission were not live-verifiable locally.
 
 ## Browser fallback
 
-Where `backdrop-filter` is unavailable, the system removes the translucent image layer and provides opaque deep rose primary surfaces and pale rose secondary surfaces. Buttons remain polished, readable, and visibly actionable without blur.
+The standard `backdrop-filter` and Safari `-webkit-backdrop-filter` declarations are both present. An `@supports` fallback replaces translucent surfaces with opaque deep rose, pink, or red gradients, so controls remain readable when blur is unsupported. Runtime visual QA was performed in the available Chromium browser; Safari and Firefox compatibility was verified at the CSS/fallback level, not in separate browser engines.
 
-## Verification
-
-Completed after implementation:
+## Test and build results
 
 - `npm run lint` — passed.
 - `npm run typecheck` — passed.
-- `npm test` — passed (35 tests).
-- `npm run build` — passed (Next.js 16.2.9 production build).
+- `npm test` — passed, 35/35.
+- `npm run build` — passed with Next.js 16.2.9.
+- `git diff --check` — passed.
 
-## Visual review evidence
+## Before-and-after screenshot locations
 
-The planned after screenshots are:
-
-- `/tmp/yara-button-system-2026-07-26/shop-desktop-after.png`
-- `/tmp/yara-button-system-2026-07-26/shop-mobile-after.png`
-- `/tmp/yara-button-system-2026-07-26/product-detail-after.png`
-- `/tmp/yara-button-system-2026-07-26/cart-after.png`
-- `/tmp/yara-button-system-2026-07-26/checkout-after.png`
-- `/tmp/yara-button-system-2026-07-26/footer-newsletter-after.png`
-- `/tmp/yara-button-system-2026-07-26/navigation-controls-after.png`
-
-The local in-app browser could not connect to the development server in this run (`ERR_CONNECTION_REFUSED`), including after a direct server launch attempt. As a result, the screenshot files were not generated and desktop/mobile interaction visual QA remains blocked by this execution environment. The implementation has build and type-level verification, but the above browser checks should be run in an environment where the browser can access the local dev server before calling visual QA complete.
+| Surface | Before | After |
+| --- | --- | --- |
+| Desktop shop | `docs/button-design-system/before/desktop-shop.png` | `docs/button-design-system/after/desktop-shop.png` |
+| Mobile shop | `docs/button-design-system/before/mobile-shop.png` | `docs/button-design-system/after/mobile-shop.png` |
+| Mobile product card | — | `docs/button-design-system/after/mobile-product-card.png` |
+| Product details | `docs/button-design-system/before/product-details.png` | `docs/button-design-system/after/product-details.png` |
+| Cart | `docs/button-design-system/before/cart.png` | `docs/button-design-system/after/cart.png` |
+| Checkout | `docs/button-design-system/before/checkout.png` | `docs/button-design-system/after/checkout.png` |
+| Footer newsletter | `docs/button-design-system/before/footer-newsletter.png` | `docs/button-design-system/after/footer-newsletter.png` |
+| Desktop navigation | `docs/button-design-system/before/navigation-controls.png` | `docs/button-design-system/after/navigation-controls.png` |
+| Mobile navigation | `docs/button-design-system/before/mobile-navigation-controls.png` | `docs/button-design-system/after/mobile-navigation-controls.png` |

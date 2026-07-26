@@ -82,7 +82,7 @@ export function ShopPage() {
         </div>
       </div>
       <div className="glass-panel rounded-[1.7rem] p-6">
-        <p className="font-serif text-lg">Join the Inner Circle</p><p className="mt-2 text-xs font-light leading-5 text-yara-taupe">Early access to products and private offers.</p><button className="btn-primary mt-5 w-full">Subscribe</button>
+        <p className="font-serif text-lg">Join the Inner Circle</p><p className="mt-2 text-xs font-light leading-5 text-yara-taupe">Early access to products and private offers.</p><a href="#newsletter-signup" className="btn-primary mt-5 w-full">Subscribe</a>
       </div>
     </div>
   );
@@ -97,12 +97,12 @@ export function ShopPage() {
 
       <div className="mt-12 grid gap-10 lg:grid-cols-[220px_1fr] xl:grid-cols-[250px_1fr]">
         <aside className="hidden lg:block">{filters}</aside>
-        <div>
-          <div className="glass-panel mb-7 flex items-center justify-between gap-3 rounded-full px-5 py-3.5 sm:px-6">
+        <div className="min-w-0">
+          <div className="glass-panel mb-7 flex flex-col gap-3 rounded-[1.5rem] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:rounded-full sm:px-6 sm:py-3.5">
             <p className="text-xs italic text-yara-taupe">Showing {visibleProducts.length} product{visibleProducts.length === 1 ? "" : "s"}</p>
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:flex">
               <button onClick={() => setFiltersOpen(true)} className="glass-control flex min-h-11 items-center gap-2 px-3 py-1.5 text-xs lg:hidden"><SlidersHorizontal className="h-4 w-4" /> Filters</button>
-              <select value={sort} onChange={(event) => setSort(event.target.value)} className="glass-control min-h-11 px-3 py-2 text-xs sm:text-sm" aria-label="Sort products">
+              <select value={sort} onChange={(event) => setSort(event.target.value)} className="glass-control min-h-11 min-w-0 w-full px-3 py-2 text-xs sm:w-auto sm:text-sm" aria-label="Sort products">
                 <option value="recommended">Recommended</option><option value="price-low">Price: Low to high</option><option value="price-high">Price: High to low</option><option value="rating">Top rated</option>
               </select>
             </div>

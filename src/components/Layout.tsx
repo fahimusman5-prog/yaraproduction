@@ -250,7 +250,7 @@ function Footer() {
           </p>
           <div className="mt-5 flex flex-wrap gap-3 text-yara-wine">
             {footerSocialLinks.map(({ name, href, icon: Icon, ariaLabel }) => href ? (
-              <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} title={ariaLabel} className="glass-icon h-11 w-11 transition duration-200 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_10px_22px_rgba(135,66,87,0.18)]"><Icon className="h-5 w-5" /></a>
+              <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} title={ariaLabel} className="glass-icon h-11 w-11"><Icon className="h-5 w-5" /></a>
             ) : (
               <button key={name} type="button" disabled aria-label="YARA Facebook page is not yet available" title="YARA Facebook page is not yet available" className="glass-icon h-11 w-11"><Icon className="h-5 w-5" /></button>
             ))}
@@ -268,7 +268,7 @@ function Footer() {
             <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/contact">{t("layout.shippingPolicy")}</Link><Link to="/contact">{t("layout.terms")}</Link><Link to="/contact">{t("layout.privacy")}</Link>
           </div>
         </div>
-        <div>
+        <div id="newsletter-signup" className="scroll-mt-28">
           <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.17em]">{t("layout.newsletter")}</h3>
           <p className="mt-5 text-sm font-light leading-6 text-yara-taupe">{t("layout.newsletterText")}</p>
           <NewsletterForm />
