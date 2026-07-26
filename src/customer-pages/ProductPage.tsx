@@ -101,7 +101,7 @@ export function ProductPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button onClick={handleAdd} className="btn-primary w-full">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {added ? "Added to bag" : "Add to cart"}</button>
             <button onClick={() => { addItem(product, quantity); navigate("/checkout"); }} className="btn-secondary w-full">Buy now</button>
-            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/40 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#168a43] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
+            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/55 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#117a3a] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-3 text-[0.62rem] uppercase tracking-[0.09em] text-yara-taupe">

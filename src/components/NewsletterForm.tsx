@@ -35,7 +35,7 @@ export function NewsletterForm() {
     <div className="glass-panel flex min-w-0 rounded-full p-1 focus-within:ring-2 focus-within:ring-yara-wine/35 focus-within:ring-offset-2 focus-within:ring-offset-[#fde8ee]">
       <input id="newsletter-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" inputMode="email" placeholder="Enter your email address" aria-describedby="newsletter-feedback" aria-invalid={feedback?.status === "invalid_email" ? true : undefined} disabled={submitting} className="min-w-0 flex-1 bg-transparent px-4 py-2 text-sm text-yara-ink placeholder:text-yara-taupe/75 focus:outline-none disabled:opacity-70" />
       <input ref={honeypotRef} name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute h-px w-px overflow-hidden opacity-0" />
-      <button type="submit" disabled={submitting} className="glass-icon h-10 w-10 shrink-0 bg-yara-wine text-white transition hover:bg-[#751139] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yara-wine disabled:cursor-wait disabled:opacity-75" aria-label={submitting ? "Subscribing" : t("layout.joinNewsletter")}>
+      <button type="submit" disabled={submitting} className="glass-icon-primary h-11 w-11 shrink-0 disabled:cursor-wait" aria-label={submitting ? "Subscribing" : t("layout.joinNewsletter")}>
         {submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
       </button>
     </div>
