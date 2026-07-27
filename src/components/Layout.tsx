@@ -168,8 +168,8 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/70 bg-yara-ivory/85 shadow-[0_8px_30px_rgba(86,45,56,0.06)] backdrop-blur-xl">
-      <div className="page-shell grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:h-[82px]">
-        <Link to="/" className="h-14 w-20 shrink-0 overflow-hidden" aria-label="YARA">
+      <div className="mobile-header-shell page-shell grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:h-[82px]">
+        <Link to="/" className="mobile-header-logo h-14 w-20 shrink-0 overflow-hidden" aria-label="YARA">
           <img src={yaraLogo.src} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
         </Link>
 
@@ -189,7 +189,7 @@ function Header() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <div className="mobile-header-actions ml-auto flex items-center gap-1 sm:gap-2">
           {country && <span className="hidden text-[0.54rem] font-semibold uppercase tracking-[0.08em] text-yara-wine lg:block xl:text-[0.58rem] xl:tracking-[0.1em]">{t(country === "sri-lanka" ? "region.sriLankaLabel" : "region.uaeLabel")}</span>}
           <LanguageSelector variant="desktop" />
           <LanguageSelector variant="mobile" />

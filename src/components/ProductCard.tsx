@@ -83,7 +83,7 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
       <div className="product-card-body flex flex-1 flex-col p-4 sm:p-6">
         <div className="mb-3 flex items-center gap-2">
           <span className="max-w-full truncate rounded-full border border-yara-gold/70 px-2.5 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.09em] text-yara-taupe" title={displayProduct.concern}>{displayProduct.concern}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-1 text-[0.63rem] text-yara-taupe"><Star className="h-3 w-3 fill-yara-gold text-yara-gold" /> {product.rating}</span>
+          <span className="mobile-card-rating ml-auto flex shrink-0 items-center gap-1 text-[0.63rem] text-yara-taupe"><Star className="h-3 w-3 fill-yara-gold text-yara-gold" /> {product.rating}</span>
         </div>
         <Link to={productPath} className="block" title={displayProduct.name}>
           <h3 className="product-card-title text-lg leading-tight transition group-hover:text-yara-wine sm:text-xl">{displayProduct.name}</h3>
@@ -97,16 +97,16 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
               sellingClassName="font-serif text-lg font-semibold leading-tight text-yara-wine sm:text-xl"
               originalClassName="mt-0.5 text-xs leading-tight text-yara-taupe"
             />
-            <span className="truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
+            <span className="mobile-card-size truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
           </div>
           <div className="mt-3 grid gap-2">
-            <button type="button" onClick={handleBuyNow} disabled={outOfStock || adding || added} className="product-card-buy btn-primary w-full" aria-label={`Buy ${displayProduct.name} now`}>
+            <button type="button" onClick={handleBuyNow} disabled={outOfStock || adding || added} className="product-card-buy btn-primary w-full" aria-label={`${t("common.buyNow")}: ${displayProduct.name}`}>
               {outOfStock ? <PackageX className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-              {outOfStock ? "Sold out" : "Buy now"}
+              {outOfStock ? "Sold out" : t("common.buyNow")}
             </button>
             <button type="button" onClick={handleAdd} disabled={adding || added || outOfStock} className="product-card-cart btn-secondary w-full" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
               {outOfStock ? <PackageX className="h-4 w-4" aria-hidden="true" /> : adding ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : added ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
-              {outOfStock ? "Unavailable" : adding ? "Adding" : added ? "Added to cart" : "Add to cart"}
+              {outOfStock ? "Unavailable" : adding ? "Adding" : added ? t("common.addedToBag") : t("common.addToCart")}
             </button>
           </div>
           <span className="sr-only" aria-live="polite">{added ? `${displayProduct.name} added to cart.` : ""}</span>
