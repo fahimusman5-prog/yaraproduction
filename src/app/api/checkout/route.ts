@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
+import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
+import { createOrderTrackingToken } from "@/lib/order-tracking";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -17,31 +20,82 @@ const schema = z.object({
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().positive().max(1000) })).min(1).max(100),
 });
 
+type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
+
+function checkoutErrorResponse(error: CheckoutDatabaseError) {
+  const message = error.message ?? "";
+  if (message === "A product is unavailable") {
+    return { message: "A product in your cart is no longer available.", status: 409 };
+  }
+  if (message.startsWith("Insufficient stock for ")) {
+    return { message, status: 409 };
+  }
+  const schemaUnavailable = ["42P01", "42703", "PGRST200", "PGRST205"].includes(error.code ?? "");
+  return {
+    message: messageFromSupabaseError(error, "Unable to start checkout.", {
+      schemaUnavailable: "Checkout is temporarily unavailable.",
+    }),
+    status: schemaUnavailable ? 503 : 500,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     if (!request.headers.get("content-type")?.includes("application/json")) {
       return NextResponse.json({ error: "JSON request required." }, { status: 415 });
     }
-    const parsed = schema.safeParse(await request.json());
+    const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
     if (parsed.data.paymentMethod === "payhere" && (!process.env.PAYHERE_MERCHANT_ID?.trim() || !process.env.PAYHERE_MERCHANT_SECRET?.trim())) {
       return NextResponse.json({ error: "Online payments are not configured yet." }, { status: 503 });
     }
+    const origin = getAppOrigin(request.url);
+    if (!origin) {
+      console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
+    if (!process.env.ORDER_TRACKING_SECRET?.trim()) {
+      console.error("[storefront-checkout] ORDER_TRACKING_SECRET is not configured.");
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
 
     const supabase = getSupabaseAdminClient();
-    const { data, error } = await (supabase.rpc as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>)("create_storefront_order", {
+    const rpc = supabase.rpc.bind(supabase) as unknown as (
+      name: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
+    const { data, error } = await rpc("create_storefront_order", {
       p_customer: parsed.data.customer,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      logSupabaseError("storefront-checkout", "create-order", error, {
+        route: "/api/checkout",
+        table: "orders",
+      });
+      const response = checkoutErrorResponse(error);
+      return NextResponse.json({ error: response.message }, { status: response.status });
+    }
     const order = (Array.isArray(data) ? data[0] : data) as { order_id: string; order_number: string; total_amount: number; currency: "LKR" | "AED" } | null;
-    if (!order) throw new Error("Order creation failed.");
+    if (!order) {
+      logSupabaseError("storefront-checkout", "read-created-order", new Error("Order RPC returned no data."), {
+        route: "/api/checkout",
+        table: "orders",
+      });
+      return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
+    }
+    let trackingToken: string;
+    try {
+      trackingToken = createOrderTrackingToken(order.order_id, order.order_number);
+    } catch (error) {
+      logSupabaseError("storefront-checkout", "create-tracking-token", error, { route: "/api/checkout" });
+      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+    }
 
-    const origin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || new URL(request.url).origin;
     if (parsed.data.paymentMethod === "cod") {
-      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&cod=1` });
+      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
     }
 
     const amount = Number(order.total_amount).toFixed(2);
@@ -51,8 +105,8 @@ export async function POST(request: Request) {
       action: getPayHereCheckoutUrl(),
       fields: {
         merchant_id: merchantId,
-        return_url: `${origin}/payment/success?order=${order.order_id}`,
-        cancel_url: `${origin}/payment/failure?order=${order.order_id}`,
+        return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
+        cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
         notify_url: `${origin}/api/payhere/notify`,
         order_id: order.order_number,
         items: `YARA order ${order.order_number}`,
@@ -69,7 +123,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Checkout initiation failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unable to start checkout." }, { status: 500 });
+    logSupabaseError("storefront-checkout", "initiate-checkout", error, { route: "/api/checkout" });
+    return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
   }
 }

@@ -2,8 +2,33 @@ export type StaffRole = "admin" | "staff";
 export type ProfileRole = StaffRole | "customer";
 export type RecordStatus = "active" | "inactive";
 export type ProductStatus = RecordStatus | "archived";
-export type OrderStatus = "pending" | "paid" | "processing" | "shipped" | "delivered" | "cancelled";
+export type OrderStatus = "pending" | "paid" | "processing" | "packed" | "shipped" | "delivered" | "cancelled" | "refunded";
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "cod" | "online";
+export type ReviewStatus = "published" | "hidden";
+export type NewsletterSubscriberStatus = "subscribed" | "unsubscribed";
+
+export interface ProductReviewImage {
+  id: string;
+  review_id: string;
+  storage_path: string;
+  sort_order: number;
+  created_at: string;
+  image_url?: string;
+}
+
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  customer_name: string;
+  rating: number;
+  description: string;
+  status: ReviewStatus;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  product_review_images?: ProductReviewImage[];
+  products?: Pick<Product, "name" | "slug"> | null;
+}
 
 export interface Profile {
   id: string;
@@ -13,20 +38,41 @@ export interface Profile {
   created_at: string;
 }
 
+export interface NewsletterSubscriber {
+  id: string;
+  email: string;
+  normalized_email: string;
+  status: NewsletterSubscriberStatus;
+  source: string;
+  locale: string | null;
+  country: string | null;
+  subscribed_at: string;
+  unsubscribed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Category {
   id: string;
   name: string;
   slug: string;
   status: RecordStatus;
   created_at: string;
+  updated_at?: string;
+  product_count?: number;
 }
 
 export interface SkinConcern {
   id: string;
   name: string;
   slug: string;
+  description: string | null;
+  sort_order: number;
+  is_active: boolean;
   status: RecordStatus;
   created_at: string;
+  updated_at: string;
+  product_count?: number;
 }
 
 export interface Product {
@@ -38,6 +84,8 @@ export interface Product {
   image_url: string | null;
   price_lkr: number;
   price_aed: number;
+  original_price_lkr: number | null;
+  original_price_aed: number | null;
   sku: string;
   barcode: string | null;
   stock_quantity: number;

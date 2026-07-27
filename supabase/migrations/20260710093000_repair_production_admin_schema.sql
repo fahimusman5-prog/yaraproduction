@@ -16,8 +16,11 @@ create table if not exists public.categories (
   name text not null,
   slug text not null,
   status text not null default 'active' check (status in ('active', 'inactive')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+alter table public.categories add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
@@ -190,11 +193,53 @@ create table if not exists public.skin_concerns (
   created_at timestamptz not null default now()
 );
 
+alter table public.skin_concerns add column if not exists status text;
+alter table public.skin_concerns add column if not exists created_at timestamptz not null default now();
+alter table public.skin_concerns add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'skin_concerns' and column_name = 'is_active'
+  ) then
+    update public.skin_concerns
+    set status = case when is_active then 'active' else 'inactive' end
+    where status is null;
+  else
+    update public.skin_concerns set status = 'active' where status is null;
+  end if;
+end $$;
+
+alter table public.skin_concerns alter column status set default 'active';
+alter table public.skin_concerns alter column status set not null;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'skin_concerns_status_check'
+      and conrelid = 'public.skin_concerns'::regclass
+  ) then
+    alter table public.skin_concerns
+      add constraint skin_concerns_status_check
+      check (status in ('active', 'inactive')) not valid;
+  end if;
+end $$;
+alter table public.skin_concerns validate constraint skin_concerns_status_check;
+
 create table if not exists public.product_skin_concerns (
   product_id uuid not null references public.products(id) on delete cascade,
   skin_concern_id uuid not null references public.skin_concerns(id) on delete cascade,
+  created_at timestamptz not null default now(),
   primary key (product_id, skin_concern_id)
 );
+
+alter table public.product_skin_concerns add column if not exists created_at timestamptz not null default now();
+
+delete from public.product_skin_concerns psc
+where not exists (select 1 from public.products p where p.id = psc.product_id)
+   or not exists (select 1 from public.skin_concerns sc where sc.id = psc.skin_concern_id);
 
 delete from public.product_skin_concerns a
 using public.product_skin_concerns b
@@ -220,14 +265,53 @@ begin
   end if;
 end $$;
 
+alter table public.product_skin_concerns validate constraint product_skin_concerns_product_id_fkey;
+alter table public.product_skin_concerns validate constraint product_skin_concerns_skin_concern_id_fkey;
+
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'products_category_id_fkey' and conrelid = 'public.products'::regclass) then
+  update public.products p
+  set category_id = null
+  where category_id is not null
+    and not exists (select 1 from public.categories c where c.id = p.category_id);
+
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'products_category_id_fkey'
+      and conrelid = 'public.products'::regclass
+      and confdeltype <> 'r'
+  ) then
+    alter table public.products drop constraint products_category_id_fkey;
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'products_category_id_fkey'
+      and conrelid = 'public.products'::regclass
+  ) then
     alter table public.products
       add constraint products_category_id_fkey
-      foreign key (category_id) references public.categories(id) on delete set null not valid;
+      foreign key (category_id) references public.categories(id) on delete restrict not valid;
   end if;
 end $$;
+alter table public.products validate constraint products_category_id_fkey;
+
+with ranked as (
+  select id, slug, row_number() over (partition by slug order by created_at, id) as row_number
+  from public.products
+)
+update public.products p
+set slug = ranked.slug || '-' || substr(replace(p.id::text, '-', ''), 1, 8)
+from ranked
+where p.id = ranked.id and ranked.row_number > 1;
+
+with ranked as (
+  select id, sku, row_number() over (partition by sku order by created_at, id) as row_number
+  from public.products
+)
+update public.products p
+set sku = ranked.sku || '-' || upper(substr(replace(p.id::text, '-', ''), 1, 8))
+from ranked
+where p.id = ranked.id and ranked.row_number > 1;
 
 create unique index if not exists categories_slug_key on public.categories(slug);
 create unique index if not exists categories_name_key on public.categories(name);
@@ -235,8 +319,9 @@ create unique index if not exists skin_concerns_slug_key on public.skin_concerns
 create unique index if not exists skin_concerns_name_key on public.skin_concerns(name);
 create index if not exists products_category_id_idx on public.products(category_id);
 create index if not exists products_status_stock_idx on public.products(status, stock_quantity);
-create index if not exists products_slug_idx on public.products(slug);
-create index if not exists products_sku_idx on public.products(sku);
+create unique index if not exists products_slug_key on public.products(slug);
+create unique index if not exists products_sku_key on public.products(sku);
+create unique index if not exists products_barcode_key on public.products(barcode) where barcode is not null;
 create index if not exists orders_created_at_idx on public.orders(created_at desc);
 create index if not exists orders_customer_user_id_idx on public.orders(customer_user_id);
 create index if not exists orders_payment_provider_idx on public.orders(payment_provider, payment_status, created_at desc);
@@ -253,13 +338,13 @@ stable
 security definer
 set search_path = ''
 as $$
-  select (auth.role() = 'service_role') or exists (
+  select exists (
     select 1 from public.profiles
     where id = (select auth.uid()) and role in ('admin', 'staff')
   );
 $$;
-revoke all on function private.is_staff() from public;
-grant execute on function private.is_staff() to authenticated, service_role;
+revoke all on function private.is_staff() from public, anon, service_role;
+grant execute on function private.is_staff() to authenticated;
 
 create or replace function private.is_admin()
 returns boolean
@@ -268,13 +353,13 @@ stable
 security definer
 set search_path = ''
 as $$
-  select (auth.role() = 'service_role') or exists (
+  select exists (
     select 1 from public.profiles
     where id = (select auth.uid()) and role = 'admin'
   );
 $$;
-revoke all on function private.is_admin() from public;
-grant execute on function private.is_admin() to authenticated, service_role;
+revoke all on function private.is_admin() from public, anon, service_role;
+grant execute on function private.is_admin() to authenticated;
 
 create or replace function private.handle_new_user()
 returns trigger
@@ -310,6 +395,16 @@ $$;
 drop trigger if exists products_set_updated_at on public.products;
 create trigger products_set_updated_at
 before update on public.products
+for each row execute procedure private.set_updated_at();
+
+drop trigger if exists categories_set_updated_at on public.categories;
+create trigger categories_set_updated_at
+before update on public.categories
+for each row execute procedure private.set_updated_at();
+
+drop trigger if exists skin_concerns_set_updated_at on public.skin_concerns;
+create trigger skin_concerns_set_updated_at
+before update on public.skin_concerns
 for each row execute procedure private.set_updated_at();
 
 alter table public.profiles enable row level security;
@@ -395,7 +490,12 @@ drop policy if exists "Staff manage stock movements" on public.stock_movements;
 create policy "Staff manage stock movements" on public.stock_movements for all to authenticated using ((select private.is_staff())) with check ((select private.is_staff()));
 
 drop policy if exists "Active skin concerns are public" on public.skin_concerns;
-create policy "Active skin concerns are public" on public.skin_concerns for select to anon, authenticated using (status = 'active' or (select private.is_staff()));
+drop policy if exists "Public can view active skin concerns" on public.skin_concerns;
+drop policy if exists "Public view active skin concerns" on public.skin_concerns;
+drop policy if exists "Admins can manage skin concerns" on public.skin_concerns;
+drop policy if exists "Staff view all skin concerns" on public.skin_concerns;
+create policy "Public view active skin concerns" on public.skin_concerns for select to anon using (status = 'active');
+create policy "Staff view all skin concerns" on public.skin_concerns for select to authenticated using (status = 'active' or (select private.is_staff()));
 drop policy if exists "Staff insert skin concerns" on public.skin_concerns;
 create policy "Staff insert skin concerns" on public.skin_concerns for insert to authenticated with check ((select private.is_staff()));
 drop policy if exists "Staff update skin concerns" on public.skin_concerns;
@@ -403,14 +503,29 @@ create policy "Staff update skin concerns" on public.skin_concerns for update to
 drop policy if exists "Staff delete skin concerns" on public.skin_concerns;
 create policy "Staff delete skin concerns" on public.skin_concerns for delete to authenticated using ((select private.is_staff()));
 drop policy if exists "Product skin concerns are public" on public.product_skin_concerns;
-create policy "Product skin concerns are public" on public.product_skin_concerns for select to anon, authenticated using (true);
+drop policy if exists "Public can view product skin concerns" on public.product_skin_concerns;
+drop policy if exists "Admins can manage product skin concerns" on public.product_skin_concerns;
+drop policy if exists "Public view active product skin concerns" on public.product_skin_concerns;
+drop policy if exists "Staff view product skin concerns" on public.product_skin_concerns;
+create policy "Public view active product skin concerns" on public.product_skin_concerns for select to anon using (
+  exists (select 1 from public.products p where p.id = product_id and p.status = 'active')
+  and exists (select 1 from public.skin_concerns sc where sc.id = skin_concern_id and sc.status = 'active')
+);
+create policy "Staff view product skin concerns" on public.product_skin_concerns for select to authenticated using (
+  (
+    exists (select 1 from public.products p where p.id = product_id and p.status = 'active')
+    and exists (select 1 from public.skin_concerns sc where sc.id = skin_concern_id and sc.status = 'active')
+  )
+  or (select private.is_staff())
+);
 drop policy if exists "Staff manage product skin concerns" on public.product_skin_concerns;
-create policy "Staff manage product skin concerns" on public.product_skin_concerns for all to authenticated using ((select private.is_staff())) with check ((select private.is_staff()));
 
 grant usage on schema public to anon, authenticated, service_role;
 grant select on public.categories, public.products, public.skin_concerns, public.product_skin_concerns to anon, authenticated;
-grant select on public.profiles to authenticated;
-grant select, insert, update, delete on public.categories, public.products, public.orders, public.order_items, public.pos_sales, public.pos_sale_items, public.stock_movements, public.skin_concerns, public.product_skin_concerns to authenticated, service_role;
+grant select on public.profiles, public.orders, public.order_items, public.pos_sales, public.pos_sale_items, public.stock_movements to authenticated;
+revoke insert, update, delete, truncate, references, trigger on public.categories, public.products, public.skin_concerns, public.product_skin_concerns, public.orders, public.order_items, public.pos_sales, public.pos_sale_items, public.stock_movements, public.profiles from anon;
+revoke insert, update, delete, truncate, references, trigger on public.categories, public.products, public.skin_concerns, public.product_skin_concerns from authenticated;
+grant select, insert, update, delete on public.categories, public.products, public.orders, public.order_items, public.pos_sales, public.pos_sale_items, public.stock_movements, public.skin_concerns, public.product_skin_concerns, public.profiles to service_role;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('product-images', 'product-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
@@ -430,37 +545,184 @@ with check (bucket_id = 'product-images' and (select private.is_staff()));
 create policy "Staff delete product images" on storage.objects for delete to authenticated
 using (bucket_id = 'product-images' and (select private.is_staff()));
 
-create or replace function public.adjust_product_stock(
+drop function if exists public.adjust_product_stock(uuid, integer, text);
+
+create or replace function public.adjust_admin_product_stock(
   p_product_id uuid,
   p_quantity_change integer,
-  p_movement_type text default 'manual_adjustment'
+  p_movement_type text,
+  p_actor_id uuid
 )
 returns integer
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
   v_previous integer;
   v_new integer;
 begin
-  if auth.role() <> 'service_role' and not (select private.is_staff()) then raise exception 'Staff access required'; end if;
+  if not exists (
+    select 1 from public.profiles
+    where id = p_actor_id and role in ('admin', 'staff')
+  ) then
+    raise exception using errcode = '42501', message = 'Staff access required.';
+  end if;
   if p_quantity_change = 0 then raise exception 'Quantity change cannot be zero'; end if;
   if p_movement_type not in ('manual_adjustment', 'restock') then raise exception 'Invalid movement type'; end if;
 
   select stock_quantity into v_previous from public.products where id = p_product_id for update;
-  if not found then raise exception 'Product not found'; end if;
+  if not found then raise exception using errcode = 'P0002', message = 'Product not found.'; end if;
   v_new := v_previous + p_quantity_change;
   if v_new < 0 then raise exception 'Stock cannot be negative'; end if;
 
   update public.products set stock_quantity = v_new where id = p_product_id;
   insert into public.stock_movements (product_id, movement_type, quantity_change, previous_stock, new_stock, created_by)
-  values (p_product_id, p_movement_type, p_quantity_change, v_previous, v_new, (select auth.uid()));
+  values (p_product_id, p_movement_type, p_quantity_change, v_previous, v_new, p_actor_id);
   return v_new;
 end;
 $$;
-revoke all on function public.adjust_product_stock(uuid, integer, text) from public, anon;
-grant execute on function public.adjust_product_stock(uuid, integer, text) to authenticated, service_role;
+revoke all on function public.adjust_admin_product_stock(uuid, integer, text, uuid) from public, anon, authenticated;
+grant execute on function public.adjust_admin_product_stock(uuid, integer, text, uuid) to service_role;
+
+create or replace function public.save_admin_product(
+  p_product_id uuid,
+  p_actor_id uuid,
+  p_product jsonb,
+  p_skin_concern_ids uuid[],
+  p_target_stock integer
+)
+returns uuid
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_product_id uuid := coalesce(p_product_id, gen_random_uuid());
+  v_previous_stock integer := 0;
+  v_category_id uuid;
+  v_skin_concern_ids uuid[];
+  v_valid_concern_count integer;
+  v_benefits text[] := '{}'::text[];
+begin
+  if not exists (
+    select 1 from public.profiles
+    where id = p_actor_id and role = 'admin'
+  ) then
+    raise exception using errcode = '42501', message = 'Administrator access required.';
+  end if;
+  if p_product is null or jsonb_typeof(p_product) <> 'object' then
+    raise exception using errcode = '22023', message = 'Invalid product payload.';
+  end if;
+  if nullif(trim(p_product->>'name'), '') is null
+     or nullif(trim(p_product->>'slug'), '') is null
+     or nullif(trim(p_product->>'sku'), '') is null then
+    raise exception using errcode = '23514', message = 'Product name, slug, and SKU are required.';
+  end if;
+  if p_target_stock is null or p_target_stock < 0 then
+    raise exception using errcode = '23514', message = 'Stock cannot be negative.';
+  end if;
+
+  v_category_id := nullif(p_product->>'category_id', '')::uuid;
+  if v_category_id is not null and not exists (
+    select 1 from public.categories where id = v_category_id
+  ) then
+    raise exception using errcode = '23503', message = 'Selected category does not exist.';
+  end if;
+
+  select coalesce(array_agg(id order by id), '{}'::uuid[])
+  into v_skin_concern_ids
+  from (
+    select distinct unnest(coalesce(p_skin_concern_ids, '{}'::uuid[])) as id
+  ) selected;
+
+  select count(*) into v_valid_concern_count
+  from public.skin_concerns
+  where id = any(v_skin_concern_ids);
+  if v_valid_concern_count <> cardinality(v_skin_concern_ids) then
+    raise exception using errcode = '23503', message = 'One or more selected skin concerns do not exist.';
+  end if;
+
+  if jsonb_typeof(p_product->'benefits') = 'array' then
+    select coalesce(array_agg(value), '{}'::text[])
+    into v_benefits
+    from jsonb_array_elements_text(p_product->'benefits') benefit(value);
+  end if;
+
+  if p_product_id is null then
+    insert into public.products (
+      id, name, slug, description, category_id, image_url, price_lkr, price_aed,
+      sku, barcode, stock_quantity, low_stock_alert, status, benefits, how_to_use,
+      ingredients, caution, original_category, image_status, pdf_source_page,
+      seo_title, seo_description, featured
+    ) values (
+      v_product_id, trim(p_product->>'name'), trim(p_product->>'slug'), coalesce(p_product->>'description', ''),
+      v_category_id, nullif(p_product->>'image_url', ''), (p_product->>'price_lkr')::numeric,
+      (p_product->>'price_aed')::numeric, trim(p_product->>'sku'), nullif(p_product->>'barcode', ''),
+      0, (p_product->>'low_stock_alert')::integer, p_product->>'status', v_benefits,
+      coalesce(p_product->>'how_to_use', ''), coalesce(p_product->>'ingredients', ''),
+      coalesce(p_product->>'caution', ''), coalesce(p_product->>'original_category', ''),
+      coalesce(p_product->>'image_status', ''), coalesce(p_product->>'pdf_source_page', ''),
+      coalesce(p_product->>'seo_title', ''), coalesce(p_product->>'seo_description', ''),
+      coalesce((p_product->>'featured')::boolean, false)
+    );
+  else
+    select stock_quantity into v_previous_stock
+    from public.products
+    where id = p_product_id
+    for update;
+    if not found then
+      raise exception using errcode = 'P0002', message = 'Product not found.';
+    end if;
+
+    update public.products set
+      name = trim(p_product->>'name'),
+      slug = trim(p_product->>'slug'),
+      description = coalesce(p_product->>'description', ''),
+      category_id = v_category_id,
+      image_url = nullif(p_product->>'image_url', ''),
+      price_lkr = (p_product->>'price_lkr')::numeric,
+      price_aed = (p_product->>'price_aed')::numeric,
+      sku = trim(p_product->>'sku'),
+      barcode = nullif(p_product->>'barcode', ''),
+      low_stock_alert = (p_product->>'low_stock_alert')::integer,
+      status = p_product->>'status',
+      benefits = v_benefits,
+      how_to_use = coalesce(p_product->>'how_to_use', ''),
+      ingredients = coalesce(p_product->>'ingredients', ''),
+      caution = coalesce(p_product->>'caution', ''),
+      original_category = coalesce(p_product->>'original_category', ''),
+      image_status = coalesce(p_product->>'image_status', ''),
+      pdf_source_page = coalesce(p_product->>'pdf_source_page', ''),
+      seo_title = coalesce(p_product->>'seo_title', ''),
+      seo_description = coalesce(p_product->>'seo_description', ''),
+      featured = coalesce((p_product->>'featured')::boolean, false)
+    where id = p_product_id;
+  end if;
+
+  delete from public.product_skin_concerns where product_id = v_product_id;
+  insert into public.product_skin_concerns (product_id, skin_concern_id)
+  select v_product_id, unnest(v_skin_concern_ids);
+
+  if p_target_stock <> v_previous_stock then
+    update public.products set stock_quantity = p_target_stock where id = v_product_id;
+    insert into public.stock_movements (
+      product_id, movement_type, quantity_change, previous_stock, new_stock, created_by
+    ) values (
+      v_product_id,
+      case when p_target_stock > v_previous_stock then 'restock' else 'manual_adjustment' end,
+      p_target_stock - v_previous_stock,
+      v_previous_stock,
+      p_target_stock,
+      p_actor_id
+    );
+  end if;
+
+  return v_product_id;
+end;
+$$;
+revoke all on function public.save_admin_product(uuid, uuid, jsonb, uuid[], integer) from public, anon, authenticated;
+grant execute on function public.save_admin_product(uuid, uuid, jsonb, uuid[], integer) to service_role;
 
 create or replace function public.create_storefront_order(
   p_customer jsonb,
@@ -482,7 +744,6 @@ declare
   v_product public.products%rowtype;
   v_price numeric(12,2);
 begin
-  if auth.role() <> 'service_role' then raise exception 'Server credentials required'; end if;
   if p_country not in ('sri-lanka', 'uae') then raise exception 'Invalid country'; end if;
   if p_payment_method not in ('payhere', 'cod') then raise exception 'Invalid payment method'; end if;
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) < 1 or jsonb_array_length(p_items) > 100 then
@@ -546,19 +807,33 @@ revoke all on function public.create_storefront_order(jsonb, text, text, jsonb) 
 grant execute on function public.create_storefront_order(jsonb, text, text, jsonb) to service_role;
 
 insert into public.categories(name, slug, status) values
-  ('Face Care', 'face-care', 'active'),
+  ('Skincare', 'skincare', 'active'),
+  ('Haircare', 'haircare', 'active'),
   ('Body Care', 'body-care', 'active'),
-  ('Soap Collection', 'soap-collection', 'active'),
-  ('Hair Care', 'hair-care', 'active'),
-  ('Lip Care', 'lip-care', 'active'),
-  ('Herbal Powders & Face Packs', 'herbal-powders-face-packs', 'active'),
-  ('Bridal & Whitening Packages', 'bridal-whitening-packages', 'active'),
-  ('Supplements', 'supplements', 'active'),
-  ('Weight Loss / Wellness', 'weight-loss-wellness', 'active'),
-  ('Combos & Kits', 'combos-kits', 'active')
+  ('Gift Sets', 'gift-sets', 'active')
 on conflict (slug) do update set name = excluded.name, status = excluded.status;
 
-insert into public.skin_concerns(name, slug, status) values
+update public.products p
+set category_id = c.id
+from public.categories c,
+  (values
+    ('saffron-face-wash', 'skincare'),
+    ('night-repair-cream', 'skincare'),
+    ('alpha-arbutin-serum', 'skincare'),
+    ('vip-body-lotion', 'body-care'),
+    ('botanical-hair-oil', 'haircare'),
+    ('lash-brow-oil', 'haircare'),
+    ('rosehip-glow-serum', 'skincare'),
+    ('jasmine-facial-mist', 'skincare'),
+    ('the-glow-collection', 'gift-sets')
+  ) as mapping(product_slug, category_slug)
+where p.slug = mapping.product_slug
+  and c.slug = mapping.category_slug
+  and p.category_id is null;
+
+insert into public.skin_concerns(name, slug, status)
+select seed.name, seed.slug, seed.status
+from (values
   ('Brightening', 'brightening', 'active'),
   ('Acne Care', 'acne-care', 'active'),
   ('Pigmentation', 'pigmentation', 'active'),
@@ -570,6 +845,8 @@ insert into public.skin_concerns(name, slug, status) values
   ('Men''s Care', 'men-s-care', 'active'),
   ('Hair Care', 'hair-care', 'active'),
   ('Wellness', 'wellness', 'active')
+) as seed(name, slug, status)
+where not exists (select 1 from public.skin_concerns)
 on conflict (slug) do update set name = excluded.name, status = excluded.status;
 
 notify pgrst, 'reload schema';

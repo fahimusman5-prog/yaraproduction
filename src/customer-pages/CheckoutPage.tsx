@@ -1,8 +1,9 @@
-import { ArrowRight, Banknote, CreditCard, LockKeyhole, MessageCircle, ShieldCheck, Truck, UserRound } from "lucide-react";
-import { useRef, useState, type FormEvent } from "react";
+import { ArrowRight, Banknote, CreditCard, LoaderCircle, LockKeyhole, MessageCircle, ShieldCheck, Truck, UserRound } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
-import { cartOrderMessage, createWhatsAppLink, formatPrice, getProductPrice } from "../lib/format";
+import { cartOrderMessage, createWhatsAppLink, formatPrice } from "../lib/format";
+import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
@@ -20,6 +21,29 @@ export function CheckoutPage() {
   const [error, setError] = useState("");
   const total = subtotal;
   const hasLiveCatalogItems = items.every(({ product }) => uuidPattern.test(product.id));
+
+  useEffect(() => {
+    const draft = sessionStorage.getItem("yara-checkout-policy-draft");
+    if (!draft || !formRef.current) return;
+    try {
+      const values = JSON.parse(draft) as Record<string, string>;
+      for (const [name, value] of Object.entries(values)) {
+        const field = formRef.current.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+        if (field && name !== "payment") field.value = value;
+      }
+      if (values.payment === "payhere" || values.payment === "cod") setPayment(values.payment);
+    } catch {
+      // Ignore a malformed browser-session draft.
+    } finally {
+      sessionStorage.removeItem("yara-checkout-policy-draft");
+    }
+  }, []);
+
+  const preserveCheckoutDraft = () => {
+    if (!formRef.current) return;
+    const values = Object.fromEntries(new FormData(formRef.current).entries());
+    sessionStorage.setItem("yara-checkout-policy-draft", JSON.stringify(values));
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,14 +131,15 @@ export function CheckoutPage() {
             {items.map(({ product, quantity }) => {
               const displayProduct = localizeProduct(product, locale);
               return (
-              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><span className="text-sm text-yara-wine">{country && formatPrice(getProductPrice(product, country) * quantity, country)}</span></div>
+              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
             );})}
           </div>
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>
           <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
           {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button type="submit" disabled={submitting || !hasLiveCatalogItems} className="btn-primary mt-7 w-full disabled:opacity-50">{submitting ? t("checkout.preparing") : t("checkout.confirm")} <ArrowRight className="h-4 w-4" /></button>
-          <button type="button" onClick={handleWhatsAppOrder} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-[#20a852] px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#168a43]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
+          <p className="mt-5 text-center text-xs leading-5 text-yara-taupe">By placing your order, you agree to YARA’s <Link to="/terms-and-conditions" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Terms and Conditions</Link> and acknowledge the <Link to="/privacy-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Privacy Policy</Link> and <Link to="/refund-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>.</p>
+          <button type="submit" disabled={submitting || !hasLiveCatalogItems} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? t("checkout.preparing") : t("checkout.confirm")}</button>
+          <button type="button" onClick={handleWhatsAppOrder} className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
           <div className="mt-6 flex justify-center gap-6 text-yara-taupe"><ShieldCheck className="h-5 w-5" /><LockKeyhole className="h-5 w-5" /><MessageCircle className="h-5 w-5" /></div>
           <p className="mt-3 text-center text-[0.58rem] uppercase tracking-[0.1em] text-yara-taupe">{t("checkout.encrypted")}</p>
         </aside>

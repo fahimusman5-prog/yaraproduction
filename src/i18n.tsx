@@ -5,15 +5,16 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
+import { ingredientsSeo } from "./data/ingredients-seo";
+import { defaultLocale, isLocale, locales, type Locale } from "./lib/locales";
 
-export const locales = ["en", "si", "ta", "ar"] as const;
-export type Locale = (typeof locales)[number];
+export { defaultLocale, isLocale, locales } from "./lib/locales";
+export type { Locale } from "./lib/locales";
+
 type Direction = "ltr" | "rtl";
 type TranslationTree = {
   [key: string]: string | string[] | TranslationTree;
 };
-
-export const defaultLocale: Locale = "en";
 
 export const localeLabels: Record<Locale, string> = {
   en: "EN",
@@ -35,10 +36,6 @@ export const localeDirections: Record<Locale, Direction> = {
   ta: "ltr",
   ar: "rtl",
 };
-
-export function isLocale(value: string | undefined): value is Locale {
-  return locales.includes(value as Locale);
-}
 
 const en = {
   seo: {
@@ -155,17 +152,13 @@ const en = {
     approach: "Our approach",
     routineEyebrow: "Real routines, real radiance",
     routineTitle: "Loved by Skin Enthusiasts",
-    followEyebrow: "Follow YARA",
-    followTitle: "On the Gram",
-    followUs: "Follow us",
     heroAlt: "YARA skincare collection displayed on rose satin",
     skinAlt: "Healthy glowing skin",
     botanicalAlt: "Botanical skincare ingredients",
-    instagramAlt: "YARA skincare inspiration {count}",
     testimonials: [
-      "The Saffron Face Wash changed how my skin feels in the morning: clean, calm and never tight.|Elena V.",
-      "I have never used a face wash that feels this luxurious. The saffron scent is subtle and dreamy.|Sienna J.",
-      "The packaging is beautiful, but the glow is what keeps me coming back. Truly worth it.|Marcus L.",
+      "The Saffron Face Wash changed how my skin feels in the morning: clean, calm and never tight.|Amina F.",
+      "I have never used a face wash that feels this luxurious. The saffron scent is subtle and dreamy.|Kavitha S.",
+      "The packaging is beautiful, but the glow is what keeps me coming back. Truly worth it.|Dinithi P.",
     ],
     features: [
       "Brightening|Naturally derived actives that boost luminosity.",
@@ -280,29 +273,84 @@ const en = {
     ],
   },
   ingredients: {
-    eyebrow: "Ingredient education",
-    title: "Know what cares for your skin.",
+    seoTitle: ingredientsSeo.title,
+    seoDescription: ingredientsSeo.description,
+    eyebrow: "YARA signature ingredients",
+    title: "Nature’s finest ingredients, chosen with purpose.",
     copy:
-      "We choose ingredients for a clear purpose: to cleanse gently, hydrate deeply, support the skin barrier, or improve the look of tone and texture.",
-    keyEyebrow: "Key ingredients",
-    keyTitle: "Purposeful care, ingredient by ingredient.",
-    whyEyebrow: "Why YARA chooses them",
-    whyTitle: "Every formula has a reason.",
-    whyCopy:
-      "Our approach combines effective skincare actives with supportive hydrators and botanicals. Each ingredient is selected for its role in the complete formula, not because it is fashionable.",
-    cards: [
-      "Saffron|Radiance & comfort|A treasured botanical known for antioxidant compounds that help support a brighter, refreshed appearance.",
-      "Alpha Arbutin|Even-looking tone|A focused skincare active used to reduce the visible appearance of dark spots and uneven tone.",
-      "Hyaluronic Acid|Lasting hydration|A moisture-binding ingredient that helps skin feel plump, supple, and comfortably hydrated.",
-      "Rosehip Oil|Nourishment & glow|Naturally rich in skin-supporting lipids that soften dry-feeling skin and promote a healthy-looking glow.",
-      "Aloe Vera|Soothing care|A gentle botanical used to comfort skin and support a calm, hydrated feel.",
-      "Ceramides|Barrier support|Skin-identical lipids that help reinforce the moisture barrier and reduce feelings of dryness.",
+      "From precious saffron to modern skin-loving actives, every YARA formula is thoughtfully created to support brighter, softer and healthier-looking skin.",
+    imageAlt: "YARA skincare ingredients featuring saffron, rose and botanical elements.",
+    heroBadgeEyebrow: "Our hero ingredient",
+    heroBadgeTitle: "Saffron",
+    heroBadgeCopy:
+      "Used across many of YARA’s signature formulas for its traditional beauty value and its ability to support radiant, refreshed and even-looking skin.",
+    featureEyebrow: "YARA’s signature ingredient",
+    featureTitle: "Saffron — the heart of many YARA formulas.",
+    featureCopy:
+      "A treasured beauty ingredient used for generations, saffron is central to many YARA skincare creations. It is selected to help revive dull-looking skin, support a naturally radiant appearance and complement brightening skincare routines.",
+    featureBenefitsLabel: "Saffron benefits",
+    featureBenefits: [
+      "Helps brighten the appearance of dull skin",
+      "Supports a more even-looking complexion",
+      "Helps promote a naturally radiant glow",
+      "Traditionally valued in beauty and Ayurvedic-inspired care",
     ],
+    keyEyebrow: "Purposeful skincare",
+    keyTitle: "Four ingredients. Four clear roles.",
+    keyCopy: "A thoughtful balance of treasured botanicals and modern skincare actives, selected around the needs of everyday skin.",
+    signatureLabel: "YARA signature",
+    benefitsLabel: "benefits",
+    saffron: {
+      category: "Signature radiance",
+      name: "Saffron",
+      description: "YARA’s hero ingredient, traditionally valued for helping dull-looking skin appear brighter, refreshed and naturally radiant.",
+      benefits: [
+        "Supports visible radiance",
+        "Helps improve the look of dullness",
+        "Complements even-tone skincare routines",
+      ],
+    },
+    alphaArbutin: {
+      category: "Even-tone care",
+      name: "Alpha Arbutin",
+      description: "A focused skincare active that helps reduce the appearance of dark spots, uneven tone and post-blemish marks.",
+      benefits: [
+        "Helps improve the appearance of pigmentation",
+        "Supports a more even-looking complexion",
+        "Promotes clearer and brighter-looking skin",
+      ],
+    },
+    niacinamide: {
+      category: "Vitamin B3 care",
+      name: "Niacinamide",
+      alternateName: "Vitamin B3",
+      description: "A versatile skincare ingredient that supports the skin barrier while helping improve the appearance of oiliness, blemishes, enlarged-looking pores and uneven tone.",
+      benefits: [
+        "Supports the skin barrier",
+        "Helps balance the appearance of excess oil",
+        "Helps improve the look of blemishes and uneven tone",
+      ],
+    },
+    rose: {
+      category: "Soothing botanical",
+      name: "Rose",
+      description: "A gentle botanical traditionally used to refresh, soften and comfort the skin while supporting a naturally healthy-looking glow.",
+      benefits: [
+        "Helps soothe and refresh the skin",
+        "Supports softness and hydration",
+        "Promotes a fresh, radiant appearance",
+      ],
+    },
+    whyEyebrow: "Why YARA chooses them",
+    whyTitle: "Every ingredient has a purpose.",
+    whyCopy:
+      "YARA brings together traditional botanical inspiration and carefully selected modern skincare ingredients. Each formula is designed around a specific concern while remaining gentle, practical and easy to include in a daily routine.",
+    whyPointsLabel: "YARA formulation principles",
     reasons: [
-      "Focused ingredients selected for visible skincare benefits",
-      "Hydration and barrier support balanced with active care",
-      "Gentle textures designed for consistent use",
-      "Clear guidance on how and when to use each product",
+      "Saffron-led formulas designed to support visible radiance",
+      "Modern brightening ingredients selected for more even-looking skin",
+      "Hydrating and soothing ingredients chosen to support skin comfort",
+      "Clear product guidance to help customers choose with confidence",
     ],
   },
   contact: {
@@ -310,7 +358,7 @@ const en = {
     title: "We're here to help.",
     copy: "Reach our team for product questions, ordering support, delivery information, or general enquiries.",
     sriLankaWhatsApp: "Sri Lanka WhatsApp",
-    uaeWhatsApp: "UAE / Dubai WhatsApp",
+    uaeWhatsApp: "Dubai WhatsApp",
     email: "Email",
     sendEyebrow: "Send a message",
     sendTitle: "How can we help?",
@@ -425,7 +473,7 @@ const fullSi = mergeTree(si, {
   common: { loading: "YARA පූරණය වේ...", closeFilters: "පෙරහන් වසන්න" },
   catalog: { collection: "YARA එකතුව", uncategorized: "වර්ගීකරණය නොකළ", beauty: "රූපලාවණ්‍ය", unavailable: "සජීවී තොග තොරතුරු තාවකාලිකව නොමැත.", directionsFallback: "භාවිතා කරන ආකාරය සඳහා නිෂ්පාදන ඇසුරුම බලන්න.", ingredientsFallback: "සම්පූර්ණ අමුද්‍රව්‍ය ලැයිස්තුව සඳහා නිෂ්පාදන ඇසුරුම බලන්න." },
   layout: { footerText: "සිතට සත්කාරක නවීන සම සත්කාර. උසස් විද්‍යාව සහ ස්වයං සත්කාර කලාව එකතු කරයි.", explore: "බලන්න", shopAll: "සියල්ල මිලදී ගන්න", bestsellers: "ජනප්‍රිය නිෂ්පාදන", giftSets: "තෑගි කට්ටල", ourStory: "අපගේ කතාව", care: "පාරිභෝගික සත්කාර", contactUs: "අප අමතන්න", shippingPolicy: "බෙදාහැරීමේ ප්‍රතිපත්තිය", terms: "සේවා කොන්දේසි", privacy: "පෞද්ගලිකත්ව ප්‍රතිපත්තිය", newsletter: "පුවත් ලිපිය", newsletterText: "නව නිෂ්පාදන සහ විශේෂ දීමනා මුලින්ම දැනගන්න.", emailAddress: "ඊමේල් ලිපිනය", joinNewsletter: "පුවත් ලිපියට එක් වන්න", rights: "සියලු හිමිකම් ඇවිරිණි.", chatHelp: "Hello YARA, මගේ සමට සුදුසු නිෂ්පාදන තෝරා ගැනීමට සහාය අවශ්‍යයි.", chatLabel: "WhatsApp හරහා YARA සමඟ කතා කරන්න" },
-  home: { heroEyebrow: "ප්‍රිමියම් සම සත්කාර", heroTitle: "ඔබේ ස්වාභාවික දීප්තිය හෙළි කරන්න", heroCopy: "සායනික ප්‍රතිඵල සහ වෘක්ෂමය සුඛෝපභෝගය එක් කරන අත්දැකීමක්. නවීන සමට සහ අවධානයෙන් කරන ස්වයං සත්කාරයට නිර්මාණය කර ඇත.", vegan: "Vegan සූත්‍ර", crueltyFree: "සතුන්ට හානියක් නොකළ", delivery: "රට පුරා බෙදාහැරීම", categoriesEyebrow: "ඔබේ ප්‍රියතම දේ සොයන්න", categoriesTitle: "නිෂ්පාදන කාණ්ඩ", categoriesCopy: "පිරිසිදු කිරීමේ සිට ගැඹුරු සත්කාර දක්වා සෑම අවශ්‍යතාවකටම විසඳුම්.", favoritesEyebrow: "අපගේ ප්‍රියතම", favoritesTitle: "වැඩියෙන් අලෙවි වන", standardEyebrow: "YARA ප්‍රමිතිය", standardTitle: "විද්‍යාත්මක සහ මෘදු සත්කාරයෙන් පෝෂිතයි.", standardCopy: "සෑම සූත්‍රයක්ම සනාථ කළ ක්‍රියාකාරී අමුද්‍රව්‍ය සහ සුවඳවත් වෘක්ෂමය සත්කාර සමබර කරයි. ප්‍රතිඵලදායී සම සත්කාරය එය කරන තරමටම ලස්සනව දැනිය යුතුය.", approach: "අපගේ ප්‍රවේශය", routineEyebrow: "සැබෑ රූටීන්, සැබෑ දීප්තිය", routineTitle: "සම සත්කාර රසිකයන්ගේ ආදරය", followEyebrow: "YARA අනුගමනය කරන්න", followTitle: "Gram මත", followUs: "අප අනුගමනය කරන්න", heroAlt: "රෝස සැටින් මත දැක්වෙන YARA සම සත්කාර එකතුව", skinAlt: "සෞඛ්‍යමත් දීප්තිමත් සම", botanicalAlt: "වෘක්ෂමය සම සත්කාර අමුද්‍රව්‍ය", instagramAlt: "YARA සම සත්කාර ආශ්වාදය {count}", features: ["දීප්තිය|දීප්තිය වැඩි කරන ස්වාභාවික අමුද්‍රව්‍ය.", "ගැඹුරු තෙතමනය|දිගු කාලීන සුවපහසුවට බහු-බර hydration.", "වයසට එරෙහි සත්කාර|නවීකරණයට peptides සහ retinoid විකල්ප.", "පිරිසිදු සූත්‍ර|Vegan, cruelty-free සහ අවධානයෙන් සංවර්ධනය කළ."], testimonials: ["Saffron Face Wash භාවිතා කළ පසු උදෑසන මගේ සම පිරිසිදු, සන්සුන් සහ කිසිදා තද නොවන ලෙස දැනුණා.|එලේනා V.", "මෙතරම් සුඛෝපභෝගී ලෙස දැනෙන face wash එකක් මම භාවිතා කර නැහැ. saffron සුවඳ මෘදුයි.|සියෙනා J.", "ඇසුරුම ලස්සනයි, නමුත් මාව නැවත ගෙන එන්නේ ඒ දීප්තියයි. ඇත්තටම වටිනවා.|මාකස් L."] },
+  home: { heroEyebrow: "ප්‍රිමියම් සම සත්කාර", heroTitle: "ඔබේ ස්වාභාවික දීප්තිය හෙළි කරන්න", heroCopy: "සායනික ප්‍රතිඵල සහ වෘක්ෂමය සුඛෝපභෝගය එක් කරන අත්දැකීමක්. නවීන සමට සහ අවධානයෙන් කරන ස්වයං සත්කාරයට නිර්මාණය කර ඇත.", vegan: "Vegan සූත්‍ර", crueltyFree: "සතුන්ට හානියක් නොකළ", delivery: "රට පුරා බෙදාහැරීම", categoriesEyebrow: "ඔබේ ප්‍රියතම දේ සොයන්න", categoriesTitle: "නිෂ්පාදන කාණ්ඩ", categoriesCopy: "පිරිසිදු කිරීමේ සිට ගැඹුරු සත්කාර දක්වා සෑම අවශ්‍යතාවකටම විසඳුම්.", favoritesEyebrow: "අපගේ ප්‍රියතම", favoritesTitle: "වැඩියෙන් අලෙවි වන", standardEyebrow: "YARA ප්‍රමිතිය", standardTitle: "විද්‍යාත්මක සහ මෘදු සත්කාරයෙන් පෝෂිතයි.", standardCopy: "සෑම සූත්‍රයක්ම සනාථ කළ ක්‍රියාකාරී අමුද්‍රව්‍ය සහ සුවඳවත් වෘක්ෂමය සත්කාර සමබර කරයි. ප්‍රතිඵලදායී සම සත්කාරය එය කරන තරමටම ලස්සනව දැනිය යුතුය.", approach: "අපගේ ප්‍රවේශය", routineEyebrow: "සැබෑ රූටීන්, සැබෑ දීප්තිය", routineTitle: "සම සත්කාර රසිකයන්ගේ ආදරය", heroAlt: "රෝස සැටින් මත දැක්වෙන YARA සම සත්කාර එකතුව", skinAlt: "සෞඛ්‍යමත් දීප්තිමත් සම", botanicalAlt: "වෘක්ෂමය සම සත්කාර අමුද්‍රව්‍ය", features: ["දීප්තිය|දීප්තිය වැඩි කරන ස්වාභාවික අමුද්‍රව්‍ය.", "ගැඹුරු තෙතමනය|දිගු කාලීන සුවපහසුවට බහු-බර hydration.", "වයසට එරෙහි සත්කාර|නවීකරණයට peptides සහ retinoid විකල්ප.", "පිරිසිදු සූත්‍ර|Vegan, cruelty-free සහ අවධානයෙන් සංවර්ධනය කළ."], testimonials: ["Saffron Face Wash භාවිතා කළ පසු උදෑසන මගේ සම පිරිසිදු, සන්සුන් සහ කිසිදා තද නොවන ලෙස දැනුණා.|Amina F.", "මෙතරම් සුඛෝපභෝගී ලෙස දැනෙන face wash එකක් මම භාවිතා කර නැහැ. saffron සුවඳ මෘදුයි.|Kavitha S.", "ඇසුරුම ලස්සනයි, නමුත් මාව නැවත ගෙන එන්නේ ඒ දීප්තියයි. ඇත්තටම වටිනවා.|Dinithi P."] },
   shop: { innerCircle: "Inner Circle වෙත එක් වන්න", innerCircleCopy: "නව නිෂ්පාදන සහ විශේෂ දීමනා කලින්ම.", resultsFor: "“{query}” සඳහා ප්‍රතිඵල", showing: "නිෂ්පාදන {count}ක් පෙන්වයි", priceLow: "මිල: අඩු සිට වැඩි", priceHigh: "මිල: වැඩි සිට අඩු", topRated: "ඉහළම ශ්‍රේණිගත", viewProducts: "නිෂ්පාදන {count}ක් බලන්න", clearSearch: "සෙවුම ඉවත් කරන්න", searchPlaceholder: "නිෂ්පාදන සොයන්න" },
   product: { notFound: "නිෂ්පාදනය හමු නොවීය", notFoundTitle: "මෙම නිෂ්පාදනය හමු නොවේ.", returnToShop: "වෙළඳසැලට ආපසු", addFavorite: "{name} ප්‍රියතමවලට එක් කරන්න", removeFavorite: "{name} ප්‍රියතමවලින් ඉවත් කරන්න", addNamedToCart: "{name} කරත්තයට එක් කරන්න", vegan: "Vegan", decrease: "ප්‍රමාණය අඩු කරන්න", increase: "ප්‍රමාණය වැඩි කරන්න", benefits: "ප්‍රතිලාභ", howToUse: "භාවිතා කරන ආකාරය", ingredients: "සම්පූර්ණ අමුද්‍රව්‍ය", pairEyebrow: "එකට හොඳින් ගැලපේ", pairTitle: "ඔබේ රූටීන් සම්පූර්ණ කරන්න", breadcrumb: "මාර්ග සටහන", imageAlt: "{name} නිෂ්පාදන රූපය", galleryImage: "නිෂ්පාදන රූපය {count} බලන්න" },
   cart: { emptyEyebrow: "ඔබේ ප්‍රියතම දේ බලා සිටී", emptyTitle: "ඔබේ බෑගය තවම හිස්යි.", emptyCopy: "අපගේ සූත්‍ර බලන්න, ඔබටම ගැලපෙන නිෂ්පාදන සොයා ගන්න.", discover: "එකතුව බලන්න", eyebrow: "ඔබේ තේරීම්", title: "මිලදී ගැනීමේ බෑගය", remove: "{name} ඉවත් කරන්න" },
@@ -442,7 +490,7 @@ const fullTa = mergeTree(ta, {
   common: { loading: "YARA ஏற்றப்படுகிறது...", securePayments: "பாதுகாப்பான கட்டணம் · எளிய உதவி · அக்கறையான டெலிவரி", closeFilters: "வடிகட்டிகளை மூடு" },
   catalog: { collection: "YARA தொகுப்பு", uncategorized: "வகைப்படுத்தப்படாதது", beauty: "அழகு", unavailable: "நேரடி கையிருப்பு தகவல் தற்காலிகமாக கிடைக்கவில்லை.", directionsFallback: "பயன்பாட்டு வழிமுறைகளுக்கு பொருள் பொதியைப் பார்க்கவும்.", ingredientsFallback: "முழு மூலப்பொருள் பட்டியலுக்கு பொருள் பொதியைப் பார்க்கவும்." },
   layout: { footerText: "அறிந்த மனதிற்கான நவீன சரும பராமரிப்பு. உயர் அறிவியலையும் சுய பராமரிப்பு கலையையும் இணைக்கிறது.", explore: "ஆராயுங்கள்", shopAll: "அனைத்தையும் வாங்குங்கள்", bestsellers: "அதிகம் விற்கப்படும்", giftSets: "பரிசு தொகுப்புகள்", ourStory: "எங்கள் கதை", care: "வாடிக்கையாளர் பராமரிப்பு", contactUs: "தொடர்பு கொள்ளுங்கள்", shippingPolicy: "டெலிவரி கொள்கை", terms: "சேவை விதிமுறைகள்", privacy: "தனியுரிமை கொள்கை", newsletter: "செய்திமடல்", newsletterText: "புதிய பொருட்கள் மற்றும் தனிப்பட்ட சலுகைகளை முன்கூட்டியே பெறுங்கள்.", emailAddress: "மின்னஞ்சல் முகவரி", joinNewsletter: "செய்திமடலில் சேருங்கள்", rights: "அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.", chatHelp: "Hello YARA, எனக்கான சரும பராமரிப்பு பொருட்களை தேர்வு செய்ய உதவி வேண்டும்.", chatLabel: "WhatsApp-ல் YARA-வுடன் பேசுங்கள்" },
-  home: { heroEyebrow: "பிரீமியம் சரும பராமரிப்பு", heroTitle: "உங்கள் இயல்பான பொலிவை வெளிப்படுத்துங்கள்", heroCopy: "மருத்துவ திறனும் தாவர ஆடம்பரமும் இணையும் அனுபவம். நவீன சருமத்திற்கும் கவனமான சுய பராமரிப்பிற்கும் உருவாக்கப்பட்டது.", vegan: "Vegan சூத்திரங்கள்", crueltyFree: "விலங்குகளுக்கு தீங்கு இல்லாதது", delivery: "நாடு முழுவதும் டெலிவரி", categoriesEyebrow: "உங்கள் விருப்பங்களை கண்டுபிடிக்கவும்", categoriesTitle: "பொருள் வகைகள்", categoriesCopy: "சுத்திகரிப்பிலிருந்து தீவிர பராமரிப்பு வரை ஒவ்வொரு தேவைக்கும் தீர்வுகள்.", favoritesEyebrow: "எங்கள் விருப்பங்கள்", favoritesTitle: "அதிகம் விரும்பப்படும்", standardEyebrow: "YARA தரம்", standardTitle: "அறிவியலால் ஆதரித்து, மென்மையாக பராமரிக்கப்பட்டது.", standardCopy: "ஒவ்வொரு சூத்திரமும் நிரூபிக்கப்பட்ட actives மற்றும் உணர்வூட்டும் botanicals ஆகியவற்றை சமநிலைப்படுத்துகிறது. பயனுள்ள சரும பராமரிப்பு அதன் செயல்பாட்டைப் போலவே அழகாக உணர வேண்டும்.", approach: "எங்கள் அணுகுமுறை", routineEyebrow: "உண்மையான routines, உண்மையான பொலிவு", routineTitle: "சரும ஆர்வலர்கள் விரும்பியது", followEyebrow: "YARA-வை பின்தொடருங்கள்", followTitle: "Gram-ல்", followUs: "பின்தொடருங்கள்", heroAlt: "ரோஜா satin மீது வைக்கப்பட்ட YARA சரும பராமரிப்பு தொகுப்பு", skinAlt: "ஆரோக்கியமான பொலிவு மிக்க சருமம்", botanicalAlt: "தாவர சரும பராமரிப்பு மூலப்பொருட்கள்", instagramAlt: "YARA சரும பராமரிப்பு ஊக்கம் {count}", features: ["பொலிவு|ஒளிர்வை உயர்த்தும் இயற்கை சார்ந்த actives.", "ஆழமான hydration|நீடித்த சுகத்திற்கான பல-எடை hydration.", "வயதைக் குறைக்கும் பராமரிப்பு|புதுப்பிப்பிற்கான peptides மற்றும் retinoid மாற்றுகள்.", "சுத்தமான சூத்திரங்கள்|Vegan, cruelty-free, கவனமாக உருவாக்கப்பட்டது."], testimonials: ["Saffron Face Wash என் காலை சரும உணர்வை மாற்றியது: சுத்தம், அமைதி, இறுக்கம் இல்லை.|எலெனா V.", "இவ்வளவு ஆடம்பரமாக உணரும் face wash நான் பயன்படுத்தியதில்லை. saffron மணம் மென்மையாக உள்ளது.|சியன்னா J.", "பேக்கேஜிங் அழகாக உள்ளது, ஆனால் அந்த பொலிவே என்னை மீண்டும் வரவைக்கிறது. உண்மையில் மதிப்புள்ளது.|மார்கஸ் L."] },
+  home: { heroEyebrow: "பிரீமியம் சரும பராமரிப்பு", heroTitle: "உங்கள் இயல்பான பொலிவை வெளிப்படுத்துங்கள்", heroCopy: "மருத்துவ திறனும் தாவர ஆடம்பரமும் இணையும் அனுபவம். நவீன சருமத்திற்கும் கவனமான சுய பராமரிப்பிற்கும் உருவாக்கப்பட்டது.", vegan: "Vegan சூத்திரங்கள்", crueltyFree: "விலங்குகளுக்கு தீங்கு இல்லாதது", delivery: "நாடு முழுவதும் டெலிவரி", categoriesEyebrow: "உங்கள் விருப்பங்களை கண்டுபிடிக்கவும்", categoriesTitle: "பொருள் வகைகள்", categoriesCopy: "சுத்திகரிப்பிலிருந்து தீவிர பராமரிப்பு வரை ஒவ்வொரு தேவைக்கும் தீர்வுகள்.", favoritesEyebrow: "எங்கள் விருப்பங்கள்", favoritesTitle: "அதிகம் விரும்பப்படும்", standardEyebrow: "YARA தரம்", standardTitle: "அறிவியலால் ஆதரித்து, மென்மையாக பராமரிக்கப்பட்டது.", standardCopy: "ஒவ்வொரு சூத்திரமும் நிரூபிக்கப்பட்ட actives மற்றும் உணர்வூட்டும் botanicals ஆகியவற்றை சமநிலைப்படுத்துகிறது. பயனுள்ள சரும பராமரிப்பு அதன் செயல்பாட்டைப் போலவே அழகாக உணர வேண்டும்.", approach: "எங்கள் அணுகுமுறை", routineEyebrow: "உண்மையான routines, உண்மையான பொலிவு", routineTitle: "சரும ஆர்வலர்கள் விரும்பியது", heroAlt: "ரோஜா satin மீது வைக்கப்பட்ட YARA சரும பராமரிப்பு தொகுப்பு", skinAlt: "ஆரோக்கியமான பொலிவு மிக்க சருமம்", botanicalAlt: "தாவர சரும பராமரிப்பு மூலப்பொருட்கள்", features: ["பொலிவு|ஒளிர்வை உயர்த்தும் இயற்கை சார்ந்த actives.", "ஆழமான hydration|நீடித்த சுகத்திற்கான பல-எடை hydration.", "வயதைக் குறைக்கும் பராமரிப்பு|புதுப்பிப்பிற்கான peptides மற்றும் retinoid மாற்றுகள்.", "சுத்தமான சூத்திரங்கள்|Vegan, cruelty-free, கவனமாக உருவாக்கப்பட்டது."], testimonials: ["Saffron Face Wash என் காலை சரும உணர்வை மாற்றியது: சுத்தம், அமைதி, இறுக்கம் இல்லை.|Amina F.", "இவ்வளவு ஆடம்பரமாக உணரும் face wash நான் பயன்படுத்தியதில்லை. saffron மணம் மென்மையாக உள்ளது.|Kavitha S.", "பேக்கேஜிங் அழகாக உள்ளது, ஆனால் அந்த பொலிவே என்னை மீண்டும் வரவைக்கிறது. உண்மையில் மதிப்புள்ளது.|Dinithi P."] },
   shop: { innerCircle: "Inner Circle-ல் சேருங்கள்", innerCircleCopy: "புதிய பொருட்கள் மற்றும் தனிப்பட்ட சலுகைகளை முன்கூட்டியே பெறுங்கள்.", resultsFor: "“{query}” க்கான முடிவுகள்", showing: "{count} பொருட்கள் காட்டப்படுகின்றன", priceLow: "விலை: குறைவிலிருந்து அதிகம்", priceHigh: "விலை: அதிகத்திலிருந்து குறைவு", topRated: "உயர் மதிப்பீடு", viewProducts: "{count} பொருட்களைப் பார்க்க", clearSearch: "தேடலை நீக்கு", searchPlaceholder: "பொருட்களை தேடுங்கள்" },
   product: { notFound: "பொருள் கிடைக்கவில்லை", notFoundTitle: "இந்த பொருள் தற்போது கிடைக்கவில்லை.", returnToShop: "கடைக்கு திரும்பு", addFavorite: "{name} விருப்பங்களில் சேர்க்க", removeFavorite: "{name} விருப்பங்களில் இருந்து நீக்கு", addNamedToCart: "{name} கார்ட்டில் சேர்க்க", vegan: "Vegan", decrease: "அளவை குறை", increase: "அளவை அதிகரி", benefits: "நன்மைகள்", howToUse: "பயன்படுத்தும் முறை", ingredients: "முழு மூலப்பொருட்கள்", pairEyebrow: "அழகாக இணைக்கவும்", pairTitle: "உங்கள் Routine-ஐ முடிக்கவும்", breadcrumb: "வழித்தடம்", imageAlt: "{name} பொருள் படம்", galleryImage: "பொருள் படம் {count} பார்க்க" },
   cart: { emptyEyebrow: "உங்கள் விருப்பங்கள் காத்திருக்கின்றன", emptyTitle: "உங்கள் பை அழகாக காலியாக உள்ளது.", emptyCopy: "எங்கள் சூத்திரங்களை ஆராய்ந்து உங்களுக்கான பொருட்களை கண்டுபிடிக்கவும்.", discover: "தொகுப்பை பாருங்கள்", eyebrow: "உங்கள் தேர்வுகள்", title: "ஷாப்பிங் பை", remove: "{name} நீக்கு" },
@@ -459,7 +507,7 @@ const fullAr = mergeTree(ar, {
   common: { loading: "جار تحميل YARA...", closeFilters: "إغلاق الفلاتر" },
   catalog: { collection: "مجموعة YARA", uncategorized: "غير مصنف", beauty: "الجمال", unavailable: "معلومات المخزون المباشر غير متاحة مؤقتا.", directionsFallback: "راجعي عبوة المنتج لمعرفة طريقة الاستخدام.", ingredientsFallback: "راجعي عبوة المنتج لقائمة المكونات الكاملة." },
   layout: { footerText: "عناية حديثة بالبشرة للروح الواعية. تجمع بين العلم المتقدم وفن العناية الذاتية.", explore: "استكشفي", shopAll: "تسوقي الكل", bestsellers: "الأكثر مبيعا", giftSets: "مجموعات الهدايا", ourStory: "قصتنا", care: "خدمة العملاء", contactUs: "تواصلي معنا", shippingPolicy: "سياسة الشحن", terms: "شروط الخدمة", privacy: "سياسة الخصوصية", newsletter: "النشرة البريدية", newsletterText: "انضمي لدائرتنا للحصول على وصول مبكر للمنتجات والعروض الخاصة.", emailAddress: "البريد الإلكتروني", joinNewsletter: "الاشتراك في النشرة", rights: "جميع الحقوق محفوظة.", chatHelp: "Hello YARA، أحتاج مساعدة في اختيار منتجات العناية بالبشرة.", chatLabel: "تحدثي مع YARA عبر واتساب" },
-  home: { heroEyebrow: "عناية فاخرة بالبشرة", heroTitle: "اكشفي تألقك الطبيعي مع", heroCopy: "اختبري مزيجا من الفعالية السريرية والفخامة النباتية. صممت للبشرة الحديثة ومستوحاة من العناية الذاتية الواعية.", vegan: "تركيبات Vegan", crueltyFree: "دون قسوة على الحيوانات", delivery: "توصيل داخل الدولة", categoriesEyebrow: "اكتشفي مفضلاتك", categoriesTitle: "فئات المنتجات", categoriesCopy: "حلول مخصصة لكل احتياج، من التنظيف إلى العناية المكثفة.", favoritesEyebrow: "مفضلاتنا", favoritesTitle: "الأكثر مبيعا", standardEyebrow: "معيار YARA", standardTitle: "مدعوم بالعلم ومغذى بالعاطفة.", standardCopy: "توازن كل تركيبة بين المكونات الفعالة المثبتة والنباتات الحسية، لأن العناية الفعالة بالبشرة يجب أن تكون جميلة في الإحساس كما هي في الأداء.", approach: "نهجنا", routineEyebrow: "روتينات حقيقية، إشراقة حقيقية", routineTitle: "محبوب من عاشقات العناية بالبشرة", followEyebrow: "تابعي YARA", followTitle: "على Gram", followUs: "تابعينا", heroAlt: "مجموعة YARA للعناية بالبشرة على ساتان وردي", skinAlt: "بشرة صحية ومتوهجة", botanicalAlt: "مكونات نباتية للعناية بالبشرة", instagramAlt: "إلهام YARA للعناية بالبشرة {count}", features: ["تفتيح|مكونات مشتقة طبيعيا تعزز الإشراق.", "ترطيب عميق|ترطيب متعدد الأوزان لراحة تدوم.", "مقاومة علامات التقدم|Peptides وبدائل retinoid للتجدد.", "تركيبات نظيفة|Vegan، cruelty-free، ومطورة بعناية."], testimonials: ["غيّر Saffron Face Wash إحساس بشرتي صباحا: نظيفة وهادئة ولا تشد أبدا.|إلينا V.", "لم أستخدم غسولا للوجه يشعرني بهذه الفخامة. رائحة saffron ناعمة وحالمة.|سيينا J.", "العبوة جميلة، لكن الإشراقة هي ما يعيدني دائما. يستحق فعلا.|ماركوس L."] },
+  home: { heroEyebrow: "عناية فاخرة بالبشرة", heroTitle: "اكشفي تألقك الطبيعي مع", heroCopy: "اختبري مزيجا من الفعالية السريرية والفخامة النباتية. صممت للبشرة الحديثة ومستوحاة من العناية الذاتية الواعية.", vegan: "تركيبات Vegan", crueltyFree: "دون قسوة على الحيوانات", delivery: "توصيل داخل الدولة", categoriesEyebrow: "اكتشفي مفضلاتك", categoriesTitle: "فئات المنتجات", categoriesCopy: "حلول مخصصة لكل احتياج، من التنظيف إلى العناية المكثفة.", favoritesEyebrow: "مفضلاتنا", favoritesTitle: "الأكثر مبيعا", standardEyebrow: "معيار YARA", standardTitle: "مدعوم بالعلم ومغذى بالعاطفة.", standardCopy: "توازن كل تركيبة بين المكونات الفعالة المثبتة والنباتات الحسية، لأن العناية الفعالة بالبشرة يجب أن تكون جميلة في الإحساس كما هي في الأداء.", approach: "نهجنا", routineEyebrow: "روتينات حقيقية، إشراقة حقيقية", routineTitle: "محبوب من عاشقات العناية بالبشرة", heroAlt: "مجموعة YARA للعناية بالبشرة على ساتان وردي", skinAlt: "بشرة صحية ومتوهجة", botanicalAlt: "مكونات نباتية للعناية بالبشرة", features: ["تفتيح|مكونات مشتقة طبيعيا تعزز الإشراق.", "ترطيب عميق|ترطيب متعدد الأوزان لراحة تدوم.", "مقاومة علامات التقدم|Peptides وبدائل retinoid للتجدد.", "تركيبات نظيفة|Vegan، cruelty-free، ومطورة بعناية."], testimonials: ["غيّر Saffron Face Wash إحساس بشرتي صباحا: نظيفة وهادئة ولا تشد أبدا.|Amina F.", "لم أستخدم غسولا للوجه يشعرني بهذه الفخامة. رائحة saffron ناعمة وحالمة.|Kavitha S.", "العبوة جميلة، لكن الإشراقة هي ما يعيدني دائما. يستحق فعلا.|Dinithi P."] },
   shop: { innerCircle: "انضمي إلى Inner Circle", innerCircleCopy: "وصول مبكر للمنتجات وعروض خاصة.", resultsFor: "نتائج “{query}”", showing: "عرض {count} منتج", priceLow: "السعر: من الأقل إلى الأعلى", priceHigh: "السعر: من الأعلى إلى الأقل", topRated: "الأعلى تقييما", viewProducts: "عرض {count} منتج", clearSearch: "مسح البحث", searchPlaceholder: "ابحثي عن المنتجات" },
   product: { notFound: "المنتج غير موجود", notFoundTitle: "هذا المنتج غير متاح حاليا.", returnToShop: "العودة إلى المتجر", addFavorite: "أضيفي {name} إلى المفضلة", removeFavorite: "إزالة {name} من المفضلة", addNamedToCart: "أضيفي {name} إلى السلة", vegan: "Vegan", decrease: "تقليل الكمية", increase: "زيادة الكمية", benefits: "الفوائد", howToUse: "طريقة الاستخدام", ingredients: "المكونات الكاملة", pairEyebrow: "ينسجم معها بجمال", pairTitle: "أكملي روتينك", breadcrumb: "مسار الصفحة", imageAlt: "صورة منتج {name}", galleryImage: "عرض صورة المنتج {count}" },
   cart: { emptyEyebrow: "مفضلاتك بانتظارك", emptyTitle: "سلتك فارغة بأناقة.", emptyCopy: "استكشفي تركيباتنا واختاري منتجات تشبهك تماما.", discover: "اكتشفي المجموعة", eyebrow: "اختياراتك", title: "سلة التسوق", remove: "إزالة {name}" },

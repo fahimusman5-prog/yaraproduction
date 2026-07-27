@@ -29,7 +29,7 @@ const readStoredCart = (): CartItem[] => {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { country } = useCountry();
-  const { products } = useCatalog();
+  const { products, loading, error } = useCatalog();
   const [items, setItems] = useState<CartItem[]>(readStoredCart);
 
   useEffect(() => {
@@ -37,12 +37,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   useEffect(() => {
+    if (loading || error) return;
     setItems((current) => current.flatMap((item) => {
       const product = products.find((candidate) => candidate.id === item.product.id);
       if (!product || product.stockQuantity === 0) return [];
       return [{ product, quantity: Math.min(item.quantity, product.stockQuantity ?? item.quantity) }];
     }));
-  }, [products]);
+  }, [products, loading, error]);
 
   const addItem = (product: Product, quantity = 1) => {
     if (product.stockQuantity === 0) return;

@@ -6,8 +6,11 @@ import type { CartItem, Product } from "../types";
 export const getProductPrice = (product: Product, country: Country) =>
   country === "sri-lanka" ? product.priceLKR : product.priceAED;
 
+export const getProductOriginalPrice = (product: Product, country: Country) =>
+  country === "sri-lanka" ? product.originalPriceLKR : product.originalPriceAED;
+
 export const formatPrice = (price: number, country: Country) => {
-  const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(price);
+  const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(price);
   return country === "sri-lanka" ? `Rs. ${amount}` : `AED ${amount}`;
 };
 

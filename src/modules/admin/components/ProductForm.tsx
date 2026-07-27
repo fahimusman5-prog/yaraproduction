@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useActionState } from "react";
+import { X } from "lucide-react";
+import { useActionState, useRef, useState } from "react";
 import type { Category, Product, SkinConcern } from "@/lib/supabase/types";
-import { createProductAction, initialActionState, updateProductAction } from "../actions";
+import { createProductAction, updateProductAction } from "../actions";
+import { initialActionState } from "../action-state";
 import { ActionMessage } from "./ActionMessage";
 import { SubmitButton } from "./SubmitButton";
+import { SkinConcernForm } from "./SkinConcernForm";
+import { SkinConcernSelector } from "./SkinConcernSelector";
 
 export function ProductForm({
   categories,
@@ -17,15 +21,35 @@ export function ProductForm({
 }) {
   const action = product ? updateProductAction.bind(null, product.id) : createProductAction;
   const [state, formAction] = useActionState(action, initialActionState);
-  const selectedConcernIds = useMemo(
-    () => new Set(product?.product_skin_concerns?.map((item) => item.skin_concerns?.id).filter(Boolean)),
-    [product],
-  );
+  const [concernOptions, setConcernOptions] = useState(skinConcerns);
+  const [selectedConcernIds, setSelectedConcernIds] = useState(() => new Set(
+    product?.product_skin_concerns?.map((item) => item.skin_concerns?.id).filter((id): id is string => Boolean(id)) ?? [],
+  ));
+  const addConcernDialogRef = useRef<HTMLDialogElement>(null);
+  const [addConcernFormVersion, setAddConcernFormVersion] = useState(0);
+  const [prices, setPrices] = useState({
+    price_lkr: String(product?.price_lkr ?? 0),
+    original_price_lkr: product?.original_price_lkr === null || product?.original_price_lkr === undefined ? "" : String(product.original_price_lkr),
+    price_aed: String(product?.price_aed ?? 0),
+    original_price_aed: product?.original_price_aed === null || product?.original_price_aed === undefined ? "" : String(product.original_price_aed),
+  });
+  const updatePrice = (field: keyof typeof prices, value: string) => {
+    setPrices((current) => ({ ...current, [field]: value }));
+  };
+  const lkrComparison = compareOriginalPrice(prices.price_lkr, prices.original_price_lkr);
+  const aedComparison = compareOriginalPrice(prices.price_aed, prices.original_price_aed);
+
+  const addCreatedConcern = (concern: SkinConcern) => {
+    setConcernOptions((current) => [...new Map([...current, concern].map((item) => [item.id, item])).values()]);
+    setSelectedConcernIds((current) => new Set(current).add(concern.id));
+    setAddConcernFormVersion((current) => current + 1);
+    addConcernDialogRef.current?.close();
+  };
 
   return (
+    <>
     <form action={formAction} className="staff-panel space-y-7 p-5 sm:p-7" encType="multipart/form-data">
       <ActionMessage state={state} />
-      {product?.image_url && <input type="hidden" name="existing_image_url" value={product.image_url} />}
 
       <fieldset>
         <legend className="text-base font-bold">Product information</legend>
@@ -89,26 +113,33 @@ export function ProductForm({
 
       <fieldset>
         <legend className="text-base font-bold">Skin concerns</legend>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {skinConcerns.map((concern) => (
-            <label key={concern.id} className="flex items-center gap-3 rounded-xl border border-[var(--staff-line)] bg-white px-3 py-2 text-sm">
-              <input type="checkbox" name="skin_concern_ids" value={concern.id} defaultChecked={selectedConcernIds.has(concern.id)} className="h-4 w-4 accent-yara-wine" />
-              {concern.name}
-            </label>
-          ))}
-        </div>
+        <SkinConcernSelector concerns={concernOptions} selectedIds={selectedConcernIds} onSelectedIdsChange={setSelectedConcernIds} onAdd={() => addConcernDialogRef.current?.showModal()} />
       </fieldset>
 
       <fieldset>
         <legend className="text-base font-bold">Pricing and identification</legend>
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <label>
-            <span className="staff-label">Sri Lanka price (LKR) *</span>
-            <input className="staff-input" name="price_lkr" type="number" min="0" step="0.01" required defaultValue={product?.price_lkr ?? 0} />
+            <span className="staff-label">Sri Lanka Selling Price (LKR) *</span>
+            <input className="staff-input" name="price_lkr" type="number" min="0" step="0.01" required value={prices.price_lkr} onChange={(event) => updatePrice("price_lkr", event.target.value)} />
           </label>
           <label>
-            <span className="staff-label">UAE price (AED) *</span>
-            <input className="staff-input" name="price_aed" type="number" min="0" step="0.01" required defaultValue={product?.price_aed ?? 0} />
+            <span className="staff-label">Sri Lanka Original Price (LKR) — Optional</span>
+            <input className="staff-input" name="original_price_lkr" type="number" min={prices.price_lkr || "0"} step="0.01" placeholder="Leave blank when not on special" value={prices.original_price_lkr} onChange={(event) => updatePrice("original_price_lkr", event.target.value)} aria-describedby="lkr-original-price-help" />
+            <span id="lkr-original-price-help" className={`mt-1 block text-xs ${lkrComparison === "lower" ? "text-red-700" : lkrComparison === "equal" ? "text-amber-700" : "text-slate-500"}`}>
+              {priceHelp(lkrComparison)}
+            </span>
+          </label>
+          <label>
+            <span className="staff-label">UAE Selling Price (AED) *</span>
+            <input className="staff-input" name="price_aed" type="number" min="0" step="0.01" required value={prices.price_aed} onChange={(event) => updatePrice("price_aed", event.target.value)} />
+          </label>
+          <label>
+            <span className="staff-label">UAE Original Price (AED) — Optional</span>
+            <input className="staff-input" name="original_price_aed" type="number" min={prices.price_aed || "0"} step="0.01" placeholder="Leave blank when not on special" value={prices.original_price_aed} onChange={(event) => updatePrice("original_price_aed", event.target.value)} aria-describedby="aed-original-price-help" />
+            <span id="aed-original-price-help" className={`mt-1 block text-xs ${aedComparison === "lower" ? "text-red-700" : aedComparison === "equal" ? "text-amber-700" : "text-slate-500"}`}>
+              {priceHelp(aedComparison)}
+            </span>
           </label>
           <label>
             <span className="staff-label">SKU *</span>
@@ -169,5 +200,34 @@ export function ProductForm({
         <SubmitButton pendingLabel={product ? "Updating..." : "Creating..."}>{product ? "Update product" : "Create product"}</SubmitButton>
       </div>
     </form>
+    <dialog ref={addConcernDialogRef} className="staff-dialog">
+      <div className="p-6 sm:p-8">
+        <div className="flex items-center justify-between gap-4">
+          <div><p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">Product editor</p><h2 className="mt-1 text-xl font-bold">Add Skin Concern</h2></div>
+          <button type="button" className="grid min-h-11 min-w-11 place-items-center rounded-xl" onClick={() => addConcernDialogRef.current?.close()} aria-label="Close add skin concern dialog"><X className="h-5 w-5" /></button>
+        </div>
+        <p className="mt-2 text-sm leading-6 text-slate-500">The new concern will be selected automatically without clearing this product form.</p>
+        <div className="mt-5"><SkinConcernForm key={addConcernFormVersion} defaultSortOrder={Math.max(0, ...concernOptions.map((concern) => concern.sort_order)) + 1} onSaved={addCreatedConcern} onCancel={() => addConcernDialogRef.current?.close()} /></div>
+      </div>
+    </dialog>
+    </>
   );
+}
+
+type PriceComparison = "empty" | "lower" | "equal" | "higher";
+
+function compareOriginalPrice(selling: string, original: string): PriceComparison {
+  if (!original.trim()) return "empty";
+  const sellingValue = Number(selling);
+  const originalValue = Number(original);
+  if (!Number.isFinite(sellingValue) || !Number.isFinite(originalValue)) return "empty";
+  if (originalValue < sellingValue) return "lower";
+  if (originalValue === sellingValue) return "equal";
+  return "higher";
+}
+
+function priceHelp(comparison: PriceComparison) {
+  if (comparison === "lower") return "Original price must be higher than the selling price.";
+  if (comparison === "equal") return "Equal prices are saved, but no crossed-out price will appear publicly.";
+  return "Shown as a crossed-out price only when it is higher than the selling price.";
 }

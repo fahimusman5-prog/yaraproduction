@@ -2,13 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { products as fallbackProducts } from "../data/products";
 import type { Product } from "../types";
 
-interface CatalogValue { products: Product[]; categories: string[]; skinConcerns: string[]; loading: boolean; error: string | null }
+export interface CatalogSkinConcern { id: string; name: string; slug: string; description: string | null; sort_order: number }
+interface CatalogValue { products: Product[]; categories: string[]; skinConcerns: CatalogSkinConcern[]; loading: boolean; error: string | null }
 const CatalogContext = createContext<CatalogValue | null>(null);
 const placeholderImage = "/images/yara-product-placeholder.svg";
 
 type CatalogRow = {
   id: string; name: string; slug: string; description: string; image_url: string | null;
   price_lkr: number | string; price_aed: number | string; stock_quantity: number;
+  original_price_lkr: number | string | null; original_price_aed: number | string | null;
   benefits?: string[] | null; how_to_use?: string | null; ingredients?: string | null; caution?: string | null;
   seo_title?: string | null; seo_description?: string | null; original_category?: string | null; featured?: boolean | null;
   categories: { name: string } | null;
@@ -18,6 +20,7 @@ type CatalogRow = {
 function mapProduct(row: CatalogRow): Product {
   const fallback = fallbackProducts.find((product) => product.id === row.slug);
   const concerns = row.product_skin_concerns?.map((item) => item.skin_concerns?.name).filter((name): name is string => Boolean(name)) ?? [];
+  const concernSlugs = row.product_skin_concerns?.map((item) => item.skin_concerns?.slug).filter((slug): slug is string => Boolean(slug)) ?? [];
   const primaryConcern = concerns[0] ?? fallback?.concern ?? row.categories?.name ?? "Beauty";
   return {
     id: row.id,
@@ -26,9 +29,12 @@ function mapProduct(row: CatalogRow): Product {
     subtitle: row.original_category || fallback?.subtitle || row.categories?.name || "YARA Collection",
     priceLKR: Number(row.price_lkr),
     priceAED: Number(row.price_aed),
+    originalPriceLKR: row.original_price_lkr === null ? null : Number(row.original_price_lkr),
+    originalPriceAED: row.original_price_aed === null ? null : Number(row.original_price_aed),
     category: row.categories?.name ?? "Uncategorized",
     concern: primaryConcern,
     concerns,
+    concernSlugs,
     image: row.image_url || fallback?.image || placeholderImage,
     gallery: fallback?.gallery,
     badge: row.featured ? "Featured" : fallback?.badge,
@@ -49,7 +55,7 @@ function mapProduct(row: CatalogRow): Product {
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(fallbackProducts);
   const [categories, setCategories] = useState<string[]>([...new Set(fallbackProducts.map((product) => product.category))]);
-  const [skinConcerns, setSkinConcerns] = useState<string[]>([...new Set(fallbackProducts.flatMap((product) => product.concerns?.length ? product.concerns : [product.concern]))]);
+  const [skinConcerns, setSkinConcerns] = useState<CatalogSkinConcern[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -59,7 +65,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       .then((payload) => {
         setProducts((payload.products as CatalogRow[]).map(mapProduct));
         setCategories((payload.categories as Array<{ name: string }>).map((category) => category.name));
-        setSkinConcerns((payload.skinConcerns as Array<{ name: string }>).map((concern) => concern.name));
+        setSkinConcerns(payload.skinConcerns as CatalogSkinConcern[]);
       })
       .catch((reason) => { if (reason.name !== "AbortError") setError("Live inventory is temporarily unavailable."); })
       .finally(() => setLoading(false));

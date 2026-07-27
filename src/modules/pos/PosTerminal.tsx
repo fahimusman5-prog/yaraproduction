@@ -24,6 +24,7 @@ import {
 } from "react";
 import type { Product } from "@/lib/supabase/types";
 import type { StaffContext } from "@/lib/supabase/auth";
+import { PriceDisplay } from "@/components/PriceDisplay";
 import { initialPosActionState } from "./action-state";
 import { completePosSaleAction } from "./actions";
 
@@ -69,6 +70,11 @@ export function PosTerminal({
   );
   const productPrice = (product: Product) =>
     Number(currency === "LKR" ? product.price_lkr : product.price_aed);
+  const productOriginalPrice = (product: Product) => {
+    const originalPrice = currency === "LKR" ? product.original_price_lkr : product.original_price_aed;
+    return originalPrice === null ? null : Number(originalPrice);
+  };
+  const formatProductMoney = (value: number) => money(value, currency);
   const subtotal = cart.reduce(
     (sum, line) => sum + productPrice(line.product) * line.quantity,
     0,
@@ -317,11 +323,16 @@ export function PosTerminal({
                     <p className="mt-4 font-semibold leading-5">
                       {product.name}
                     </p>
-                    <div className="mt-2 flex justify-between text-xs text-slate-500">
+                    <div className="mt-2 flex items-start justify-between gap-2 text-xs text-slate-500">
                       <span>{product.sku}</span>
-                      <strong className="staff-metric text-yara-wine">
-                        {money(productPrice(product), currency)}
-                      </strong>
+                      <PriceDisplay
+                        sellingPrice={productPrice(product)}
+                        originalPrice={productOriginalPrice(product)}
+                        format={formatProductMoney}
+                        className="flex flex-col items-end"
+                        sellingClassName="staff-metric font-bold leading-tight text-yara-wine"
+                        originalClassName="mt-0.5 text-[0.68rem] leading-tight text-slate-400"
+                      />
                     </div>
                   </button>
                 );
