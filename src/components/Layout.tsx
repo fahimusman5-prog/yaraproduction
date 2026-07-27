@@ -222,7 +222,9 @@ function Header() {
                 {item.label}
               </Link>
             ))}
-            <Link to="/refund-policy" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Refund Policy</Link>
+            <Link to="/terms-and-conditions" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Terms and Conditions</Link>
+            <Link to="/refund-policy" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Returns &amp; Refund Policy</Link>
+            <Link to="/privacy-policy" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Privacy Policy</Link>
             <div className="mt-4 flex flex-wrap gap-2" aria-label={t("nav.language")}>
               {locales.map((option) => (
                 <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} className={`glass-control px-3 py-2 text-xs font-bold ${option === locale ? "bg-yara-wine text-white" : "text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
@@ -266,7 +268,7 @@ function Footer() {
         <div>
           <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.17em]">{t("layout.care")}</h3>
           <div className="mt-5 grid gap-3 text-sm font-light text-yara-taupe">
-            <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/contact">{t("layout.shippingPolicy")}</Link><Link to="/contact">{t("layout.terms")}</Link><Link to="/refund-policy">Refund Policy</Link><Link to="/privacy-policy">Privacy Policy</Link>
+            <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/contact">{t("layout.shippingPolicy")}</Link><Link to="/refund-policy">Returns &amp; Refund Policy</Link><Link to="/terms-and-conditions">Terms and Conditions</Link><Link to="/privacy-policy">Privacy Policy</Link>
           </div>
         </div>
         <div id="newsletter-signup" className="scroll-mt-28">
