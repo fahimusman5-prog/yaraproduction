@@ -8,7 +8,7 @@ import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, mobileCompact = false }: { product: Product; mobileCompact?: boolean }) {
   const { addItem } = useCart();
   const { country } = useCountry();
   const { locale, t } = useI18n();
@@ -16,6 +16,7 @@ export function ProductCard({ product }: { product: Product }) {
   const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const addingTimerRef = useRef<number | null>(null);
   const successTimerRef = useRef<number | null>(null);
   const productPath = `/product/${product.slug || product.id}`;
@@ -27,7 +28,7 @@ export function ProductCard({ product }: { product: Product }) {
   }, []);
 
   const handleAdd = () => {
-    if (adding || outOfStock) return;
+    if (adding || added || outOfStock) return;
     setAdding(true);
     addItem(product);
     setAdded(true);
@@ -44,10 +45,10 @@ export function ProductCard({ product }: { product: Product }) {
         : t("product.addNamedToCart", { name: displayProduct.name });
 
   return (
-    <article className="group overflow-hidden rounded-[1.8rem] border border-white/80 bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-soft">
+    <article className={`group flex h-full flex-col overflow-hidden rounded-[1.8rem] border border-white/80 bg-white shadow-card transition duration-300 hover:-translate-y-1 hover:shadow-soft ${mobileCompact ? "shop-product-card" : ""}`}>
       <div className="relative aspect-[1/1.02] overflow-hidden bg-yara-rose">
         <Link to={productPath} aria-label={t("common.viewProduct", { name: displayProduct.name })}>
-          <img src={product.image} alt={t("product.imageAlt", { name: displayProduct.name })} className="h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" />
+          <img src={imageFailed ? "/images/yara-product-placeholder.svg" : product.image} alt={t("product.imageAlt", { name: displayProduct.name })} className="product-card-image h-full w-full object-cover transition duration-700 group-hover:scale-105" loading="lazy" onError={() => setImageFailed(true)} />
         </Link>
         {displayProduct.badge && <span className="glass-panel absolute left-4 top-4 rounded-full px-3 py-1 text-[0.58rem] uppercase tracking-[0.12em] text-yara-wine">{displayProduct.badge}</span>}
         <button
@@ -75,8 +76,9 @@ export function ProductCard({ product }: { product: Product }) {
             sellingClassName="font-serif text-lg font-semibold leading-tight text-yara-wine"
             originalClassName="mt-0.5 text-xs leading-tight text-yara-taupe"
           />
-          <button onClick={handleAdd} disabled={adding || outOfStock} className="glass-icon-primary h-11 w-11 shrink-0" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
+          <button onClick={handleAdd} disabled={adding || added || outOfStock} className="product-card-add glass-icon-primary h-11 w-11 shrink-0" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
             {outOfStock ? <PackageX className="h-4 w-4" aria-hidden="true" /> : adding ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : added ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
+            <span className="product-card-add-label">{outOfStock ? "Sold out" : adding ? "Adding" : added ? "Added" : "Add to cart"}</span>
           </button>
         </div>
       </div>

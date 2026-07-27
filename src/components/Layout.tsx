@@ -339,6 +339,7 @@ function StorefrontSeo() {
 export function Layout({ children }: { children: ReactNode }) {
   const { country } = useCountry();
   const { t } = useI18n();
+  const { pathname } = useLocation();
   if (!country) return null;
   return (
     <>
@@ -351,7 +352,7 @@ export function Layout({ children }: { children: ReactNode }) {
         href={createWhatsAppLink(`${t("layout.chatHelp")}\n\n${t("whatsapp.country")}: ${countryDetails[country].name}\n${t("whatsapp.currency")}: ${countryDetails[country].currency}`, country)}
         target="_blank"
         rel="noreferrer"
-        className="glass-icon fixed bottom-5 right-5 z-40 h-14 w-14 bg-[#20bd5a] text-white shadow-[0_14px_30px_rgba(25,130,75,0.28)]"
+        className={`glass-icon whatsapp-float fixed bottom-5 right-5 z-40 h-14 w-14 bg-[#20bd5a] text-white shadow-[0_14px_30px_rgba(25,130,75,0.28)] ${pathname === "/shop" ? "whatsapp-float-shop" : ""}`}
         aria-label={t("layout.chatLabel")}
       >
         <MessageCircle className="h-6 w-6" />
