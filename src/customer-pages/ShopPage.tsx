@@ -19,6 +19,7 @@ export function ShopPage() {
   const [concern, setConcern] = useState(requestedConcern ?? "All");
   const [sort, setSort] = useState("recommended");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilterCount = Number(category !== "All") + Number(concern !== "All");
 
   useEffect(() => setCategory(requestedCategory ?? "All"), [requestedCategory]);
   useEffect(() => setConcern(requestedConcern ?? "All"), [requestedConcern]);
@@ -89,7 +90,7 @@ export function ShopPage() {
 
   return (
     <div className="shop-page page-shell py-12 sm:py-16 lg:py-20">
-      <div className="mx-auto max-w-3xl text-center">
+      <div className="shop-intro mx-auto max-w-3xl text-center">
         <p className="eyebrow">The YARA collection</p><h1 className="mt-4 text-4xl sm:text-5xl">Shop YARA</h1><p className="mt-5 text-sm font-light leading-7 text-yara-taupe">Browse our complete collection and find the products that suit your skincare and beauty needs.</p>
       </div>
 
@@ -97,11 +98,11 @@ export function ShopPage() {
 
       <div className="mt-12 grid gap-10 lg:grid-cols-[220px_1fr] xl:grid-cols-[250px_1fr]">
         <aside className="hidden lg:block">{filters}</aside>
-        <div className="min-w-0">
+        <div className="shop-content min-w-0">
           <div className="shop-toolbar glass-panel mb-7 flex flex-col gap-3 rounded-[1.5rem] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:rounded-full sm:px-6 sm:py-3.5">
             <p className="text-xs italic text-yara-taupe">Showing {visibleProducts.length} product{visibleProducts.length === 1 ? "" : "s"}</p>
             <div className="shop-toolbar-controls grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:flex">
-              <button onClick={() => setFiltersOpen(true)} className="shop-filter-button glass-control flex min-h-11 items-center gap-2 px-3 py-1.5 text-xs lg:hidden"><SlidersHorizontal className="h-4 w-4" /> Filters</button>
+              <button onClick={() => setFiltersOpen(true)} className="shop-filter-button glass-control flex min-h-11 items-center gap-2 px-3 py-1.5 text-xs lg:hidden"><SlidersHorizontal className="h-4 w-4" /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}</button>
               <select value={sort} onChange={(event) => setSort(event.target.value)} className="shop-sort glass-control min-h-11 min-w-0 w-full px-3 py-2 text-xs sm:w-auto sm:text-sm" aria-label="Sort products">
                 <option value="recommended">Recommended</option><option value="price-low">Price: Low to high</option><option value="price-high">Price: High to low</option><option value="rating">Top rated</option>
               </select>
@@ -123,7 +124,7 @@ export function ShopPage() {
 
       {filtersOpen && (
         <div className="fixed inset-0 z-[60] bg-yara-ink/25 backdrop-blur-sm lg:hidden" onClick={() => setFiltersOpen(false)}>
-          <aside className="glass-panel ml-auto h-full w-[88%] max-w-sm overflow-y-auto rounded-none p-7" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Product filters">
+          <aside className="shop-filter-drawer glass-panel ml-auto h-full w-[88%] max-w-sm overflow-y-auto rounded-none p-7" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Product filters">
             <div className="mb-8 flex items-center justify-between"><h2 className="text-2xl">Refine products</h2><button onClick={() => setFiltersOpen(false)} className="glass-icon h-11 w-11" aria-label="Close filters"><X className="h-5 w-5" /></button></div>
             {filters}
             <button className="btn-primary mt-8 w-full" onClick={() => setFiltersOpen(false)}>View {visibleProducts.length} products</button>

@@ -54,7 +54,7 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
 
   return (
     <article className={`product-card group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.8rem] border border-white/80 bg-white shadow-card transition duration-300 md:hover:-translate-y-1 md:hover:shadow-soft ${mobileCompact ? "shop-product-card" : ""}`}>
-      <div className="product-card-media relative aspect-square overflow-hidden bg-yara-blush" aria-busy={!imageLoaded}>
+      <div className="product-card-media shop-product-media relative aspect-square overflow-hidden bg-yara-blush" aria-busy={!imageLoaded}>
         {!imageLoaded && <span className="product-card-skeleton absolute inset-0 animate-pulse bg-yara-rose/60" aria-hidden="true" />}
         <Link to={productPath} aria-label={t("common.viewProduct", { name: displayProduct.name })} className="block h-full w-full">
           <img
@@ -80,33 +80,33 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
           </button>
         </div>
       </div>
-      <div className="product-card-body flex flex-1 flex-col p-4 sm:p-6">
-        <div className="mb-3 flex items-center gap-2">
+      <div className="product-card-body shop-product-body flex flex-1 flex-col p-4 sm:p-6">
+        <div className="shop-product-meta mb-3 flex items-center gap-2">
           <span className="max-w-full truncate rounded-full border border-yara-gold/70 px-2.5 py-1 text-[0.55rem] font-semibold uppercase tracking-[0.09em] text-yara-taupe" title={displayProduct.concern}>{displayProduct.concern}</span>
-          <span className="ml-auto flex shrink-0 items-center gap-1 text-[0.63rem] text-yara-taupe"><Star className="h-3 w-3 fill-yara-gold text-yara-gold" /> {product.rating}</span>
+          <span className="mobile-card-rating ml-auto flex shrink-0 items-center gap-1 text-[0.63rem] text-yara-taupe"><Star className="h-3 w-3 fill-yara-gold text-yara-gold" /> {product.rating}</span>
         </div>
         <Link to={productPath} className="block" title={displayProduct.name}>
           <h3 className="product-card-title text-lg leading-tight transition group-hover:text-yara-wine sm:text-xl">{displayProduct.name}</h3>
           <p className="mt-1 line-clamp-1 text-xs font-light leading-5 text-yara-taupe">{displayProduct.subtitle}</p>
         </Link>
         <div className="mt-auto pt-5">
-          <div className="flex items-baseline justify-between gap-2">
+          <div className="shop-product-price flex items-baseline justify-between gap-2">
             <RegionalProductPrice
               product={product}
               country={country}
               sellingClassName="font-serif text-lg font-semibold leading-tight text-yara-wine sm:text-xl"
               originalClassName="mt-0.5 text-xs leading-tight text-yara-taupe"
             />
-            <span className="truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
+            <span className="mobile-card-size truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
           </div>
-          <div className="mt-3 grid gap-2">
-            <button type="button" onClick={handleBuyNow} disabled={outOfStock || adding || added} className="product-card-buy btn-primary w-full" aria-label={`Buy ${displayProduct.name} now`}>
+          <div className="shop-product-actions mt-3 grid gap-2">
+            <button type="button" onClick={handleBuyNow} disabled={outOfStock || adding || added} className="product-card-buy btn-primary w-full" aria-label={`${t("common.buyNow")}: ${displayProduct.name}`}>
               {outOfStock ? <PackageX className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-              {outOfStock ? "Sold out" : "Buy now"}
+              {outOfStock ? "Sold out" : t("common.buyNow")}
             </button>
             <button type="button" onClick={handleAdd} disabled={adding || added || outOfStock} className="product-card-cart btn-secondary w-full" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
               {outOfStock ? <PackageX className="h-4 w-4" aria-hidden="true" /> : adding ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : added ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
-              {outOfStock ? "Unavailable" : adding ? "Adding" : added ? "Added to cart" : "Add to cart"}
+              {outOfStock ? "Unavailable" : adding ? "Adding" : added ? t("common.addedToBag") : t("common.addToCart")}
             </button>
           </div>
           <span className="sr-only" aria-live="polite">{added ? `${displayProduct.name} added to cart.` : ""}</span>
