@@ -265,7 +265,7 @@ function Footer() {
         <div>
           <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.17em]">{t("layout.care")}</h3>
           <div className="mt-5 grid gap-3 text-sm font-light text-yara-taupe">
-            <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/contact">{t("layout.shippingPolicy")}</Link><Link to="/contact">{t("layout.terms")}</Link><Link to="/contact">{t("layout.privacy")}</Link>
+            <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/contact">{t("layout.shippingPolicy")}</Link><Link to="/contact">{t("layout.terms")}</Link><Link to="/contact">Refund Policy</Link><Link to="/privacy-policy">Privacy Policy</Link>
           </div>
         </div>
         <div id="newsletter-signup" className="scroll-mt-28">

@@ -9,7 +9,7 @@ const baseUrl = "https://www.yaraproduct.com";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticPaths = ["", "/shop", "/ingredients", "/about", "/contact"];
+  const staticPaths = ["", "/shop", "/ingredients", "/about", "/contact", "/privacy-policy"];
   const entries: MetadataRoute.Sitemap = locales.flatMap((locale) => staticPaths.map((path) => ({ url: `${baseUrl}/${locale}${path}`, changeFrequency: path === "" ? "weekly" : "daily", priority: path === "" ? 1 : 0.8 })));
   const supabase = await getSupabaseServerClient();
   if (!supabase) return entries;
