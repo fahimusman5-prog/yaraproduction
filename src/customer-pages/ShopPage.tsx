@@ -90,7 +90,7 @@ export function ShopPage() {
 
   return (
     <div className="shop-page page-shell py-12 sm:py-16 lg:py-20">
-      <div className="mx-auto max-w-3xl text-center">
+      <div className="shop-intro mx-auto max-w-3xl text-center">
         <p className="eyebrow">The YARA collection</p><h1 className="mt-4 text-4xl sm:text-5xl">Shop YARA</h1><p className="mt-5 text-sm font-light leading-7 text-yara-taupe">Browse our complete collection and find the products that suit your skincare and beauty needs.</p>
       </div>
 
@@ -98,7 +98,7 @@ export function ShopPage() {
 
       <div className="mt-12 grid gap-10 lg:grid-cols-[220px_1fr] xl:grid-cols-[250px_1fr]">
         <aside className="hidden lg:block">{filters}</aside>
-        <div className="min-w-0">
+        <div className="shop-content min-w-0">
           <div className="shop-toolbar glass-panel mb-7 flex flex-col gap-3 rounded-[1.5rem] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:rounded-full sm:px-6 sm:py-3.5">
             <p className="text-xs italic text-yara-taupe">Showing {visibleProducts.length} product{visibleProducts.length === 1 ? "" : "s"}</p>
             <div className="shop-toolbar-controls grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:flex">
