@@ -12,6 +12,7 @@ export async function generateMetadata({ params }: StorefrontPageProps): Promise
   const isAboutPage = storefront.at(-1) === "about";
   const isIngredientsPage = storefront.at(-1) === "ingredients";
   const isPrivacyPolicyPage = storefront.at(-1) === "privacy-policy";
+  const isRefundPolicyPage = storefront.at(-1) === "refund-policy";
 
   if (isAboutPage) {
     return {
@@ -33,6 +34,15 @@ export async function generateMetadata({ params }: StorefrontPageProps): Promise
       title: "Privacy Policy | YARA Luxury Skincare",
       description: "Read YARA’s Privacy Policy to understand how personal information, orders, payments, accounts, cookies, and marketing preferences are handled.",
       alternates: { canonical: `/${locale}/privacy-policy` },
+    };
+  }
+
+  if (isRefundPolicyPage) {
+    const locale = storefront[0] || "en";
+    return {
+      title: "Returns & Refund Policy | YARA Luxury Skincare",
+      description: "Read YARA's Returns & Refund Policy, including return eligibility, cosmetic hygiene restrictions, damaged products, and refund processing timelines.",
+      alternates: { canonical: `/${locale}/refund-policy` },
     };
   }
 

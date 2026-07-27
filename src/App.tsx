@@ -17,6 +17,7 @@ import { CountryLanding } from "./components/CountryLanding";
 import { IngredientsPage } from "./customer-pages/IngredientsPage";
 import { CatalogProvider } from "./context/CatalogContext";
 import { PrivacyPolicyPage } from "./customer-pages/PrivacyPolicyPage";
+import { RefundPolicyPage } from "./customer-pages/RefundPolicyPage";
 import { defaultLocale, isLocale, LocaleProvider, type Locale } from "./i18n";
 import { useEffect, useState } from "react";
 
@@ -38,6 +39,7 @@ function CountryGatedSite() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            <Route path="/refund-policy" element={<RefundPolicyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
