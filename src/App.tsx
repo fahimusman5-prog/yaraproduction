@@ -9,6 +9,8 @@ import { CheckoutPage } from "./customer-pages/CheckoutPage";
 import { ContactPage } from "./customer-pages/ContactPage";
 import { HomePage } from "./customer-pages/HomePage";
 import { LoginPage } from "./customer-pages/LoginPage";
+import { AccountPage } from "./customer-pages/AccountPage";
+import { ResetPasswordPage } from "./customer-pages/ResetPasswordPage";
 import { ProductPage } from "./customer-pages/ProductPage";
 import { ShopPage } from "./customer-pages/ShopPage";
 import { SkinConcernPage } from "./customer-pages/SkinConcernPage";
@@ -19,8 +21,10 @@ import { CatalogProvider } from "./context/CatalogContext";
 import { PrivacyPolicyPage } from "./customer-pages/PrivacyPolicyPage";
 import { RefundPolicyPage } from "./customer-pages/RefundPolicyPage";
 import { TermsAndConditionsPage } from "./customer-pages/TermsAndConditionsPage";
+import { CancellationPolicyPage, CookiePolicyPage, PaymentPolicyPage, ShippingPolicyPage } from "./customer-pages/OperationalPolicyPages";
 import { defaultLocale, isLocale, LocaleProvider, type Locale } from "./i18n";
 import { useEffect, useState } from "react";
+import { AnalyticsTracker } from "./components/AnalyticsTracker";
 
 function CountryGatedSite() {
   const { country } = useCountry();
@@ -37,6 +41,8 @@ function CountryGatedSite() {
             <Route path="/cart" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/account" element={<AccountPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -44,6 +50,10 @@ function CountryGatedSite() {
             <Route path="/return-policy" element={<RefundPolicyPage />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditionsPage />} />
             <Route path="/terms-of-service" element={<TermsAndConditionsPage />} />
+            <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
+            <Route path="/cancellation-policy" element={<CancellationPolicyPage />} />
+            <Route path="/payment-policy" element={<PaymentPolicyPage />} />
+            <Route path="/cookie-policy" element={<CookiePolicyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
@@ -86,6 +96,7 @@ export default function App() {
     <LocaleProvider locale={locale}>
       <CountryProvider>
         <Router {...routerProps}>
+          <AnalyticsTracker />
           <CountryGatedSite />
         </Router>
       </CountryProvider>

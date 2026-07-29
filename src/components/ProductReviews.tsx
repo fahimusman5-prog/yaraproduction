@@ -13,6 +13,8 @@ export function ProductReviews({ productId }: { productId: string }) {
   const [failed, setFailed] = useState(false);
   const [lightbox, setLightbox] = useState<{ images: ReviewImage[]; index: number } | null>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [reviewMessage, setReviewMessage] = useState<{ error: boolean; text: string } | null>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/storefront/reviews/${productId}`, { signal: controller.signal })
@@ -39,6 +41,26 @@ export function ProductReviews({ productId }: { productId: string }) {
   if (!reviews) return <section className="mt-16 border-t border-yara-rose py-14" aria-busy="true"><p className="eyebrow">Customer stories</p><h2 className="mt-3 text-3xl">Customer Reviews</h2></section>;
   return <section className="mt-16 border-t border-yara-rose py-14 sm:mt-20" aria-labelledby="customer-reviews">
     <p className="eyebrow">Customer stories</p><h2 id="customer-reviews" className="mt-3 text-3xl sm:text-4xl">Customer Reviews</h2>
+    <form className="mt-8 rounded-[2rem] bg-white p-6 shadow-card sm:p-8" onSubmit={async (event) => {
+      event.preventDefault();
+      if (submittingReview) return;
+      const data = new FormData(event.currentTarget);
+      setSubmittingReview(true); setReviewMessage(null);
+      try {
+        const response = await fetch(`/api/storefront/reviews/${productId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rating: Number(data.get("rating")), description: String(data.get("description") ?? "") }) });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Unable to submit review.");
+        setReviewMessage({ error: false, text: payload.message });
+        event.currentTarget.reset();
+      } catch (error) {
+        setReviewMessage({ error: true, text: error instanceof Error ? error.message : "Unable to submit review." });
+      } finally { setSubmittingReview(false); }
+    }}>
+      <h3 className="text-2xl">Share your experience</h3><p className="mt-2 text-sm leading-6 text-yara-taupe">Sign in to submit one review per product. Reviews are checked before publication.</p>
+      <div className="mt-5 grid gap-4 sm:grid-cols-[150px_1fr]"><label><span className="field-label">Rating</span><select name="rating" required defaultValue="5" className="field">{[5,4,3,2,1].map((rating) => <option key={rating} value={rating}>{rating} star{rating === 1 ? "" : "s"}</option>)}</select></label><label><span className="field-label">Review</span><textarea name="description" required minLength={10} maxLength={800} className="field min-h-28 resize-y" /></label></div>
+      {reviewMessage && <p role="status" className={`mt-4 rounded-2xl p-3 text-sm ${reviewMessage.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>{reviewMessage.text}</p>}
+      <button type="submit" disabled={submittingReview} className="btn-secondary mt-5 disabled:opacity-70">{submittingReview ? "Submitting…" : "Submit for moderation"}</button>
+    </form>
     {!summary ? <p className="mt-6 text-sm text-yara-taupe">No customer reviews have been added yet.</p> : <>
       <div className="mt-8 grid gap-6 rounded-[2rem] bg-white p-6 shadow-card sm:grid-cols-[190px_1fr] sm:p-8">
         <div><p className="font-serif text-5xl text-yara-wine">{summary.average.toFixed(1)}</p><p className="mt-1 text-sm text-yara-taupe">out of 5</p><div className="mt-3"><Stars value={Math.round(summary.average)} label={`${summary.average.toFixed(1)} out of 5 stars`} /></div><p className="mt-3 text-sm text-yara-taupe">Based on {reviews.length} review{reviews.length === 1 ? "" : "s"}</p></div>

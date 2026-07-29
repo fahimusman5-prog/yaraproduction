@@ -7,6 +7,8 @@ import { useCart } from "../context/CartContext";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
+import { getProductShipping, shippingLabel } from "../lib/shipping";
+import { formatPrice } from "../lib/format";
 
 export function ProductCard({ product, mobileCompact = false }: { product: Product; mobileCompact?: boolean }) {
   const { addItem } = useCart();
@@ -23,6 +25,8 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
   const successTimerRef = useRef<number | null>(null);
   const productPath = `/product/${product.slug || product.id}`;
   const outOfStock = product.stockQuantity === 0;
+  const shipping = country ? getProductShipping(product, country) : null;
+  const unavailable = Boolean(shipping && (!shipping.available || !shipping.configured));
 
   useEffect(() => () => {
     if (addingTimerRef.current) window.clearTimeout(addingTimerRef.current);
@@ -30,7 +34,7 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
   }, []);
 
   const handleAdd = () => {
-    if (adding || added || outOfStock) return;
+    if (adding || added || outOfStock || unavailable) return;
     setAdding(true);
     addItem(product);
     setAdded(true);
@@ -39,12 +43,12 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
   };
 
   const handleBuyNow = () => {
-    if (adding || added || outOfStock) return;
+    if (adding || added || outOfStock || unavailable) return;
     addItem(product);
     navigate("/checkout");
   };
 
-  const cartButtonLabel = outOfStock
+  const cartButtonLabel = outOfStock || unavailable
     ? `${displayProduct.name} is out of stock`
     : adding
       ? `Adding ${displayProduct.name} to cart`
@@ -99,14 +103,15 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
             />
             <span className="mobile-card-size truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
           </div>
+          {country && <p className={`mt-2 text-[0.68rem] ${unavailable ? "text-red-700" : "text-yara-taupe"}`}>{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}
           <div className="shop-product-actions mt-3 grid gap-2">
-            <button type="button" onClick={handleBuyNow} disabled={outOfStock || adding || added} className="product-card-buy btn-primary w-full" aria-label={`${t("common.buyNow")}: ${displayProduct.name}`}>
-              {outOfStock ? <PackageX className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-              {outOfStock ? "Sold out" : t("common.buyNow")}
+            <button type="button" onClick={handleBuyNow} disabled={outOfStock || unavailable || adding || added} className="product-card-buy btn-primary w-full" aria-label={`${t("common.buyNow")}: ${displayProduct.name}`}>
+              {outOfStock || unavailable ? <PackageX className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+              {outOfStock ? "Sold out" : unavailable ? "Unavailable" : t("common.buyNow")}
             </button>
-            <button type="button" onClick={handleAdd} disabled={adding || added || outOfStock} className="product-card-cart btn-secondary w-full" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
+            <button type="button" onClick={handleAdd} disabled={adding || added || outOfStock || unavailable} className="product-card-cart btn-secondary w-full" aria-label={cartButtonLabel} aria-busy={adding} aria-live="polite">
               {outOfStock ? <PackageX className="h-4 w-4" aria-hidden="true" /> : adding ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : added ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
-              {outOfStock ? "Unavailable" : adding ? "Adding" : added ? t("common.addedToBag") : t("common.addToCart")}
+              {outOfStock || unavailable ? "Unavailable" : adding ? "Adding" : added ? t("common.addedToBag") : t("common.addToCart")}
             </button>
           </div>
           <span className="sr-only" aria-live="polite">{added ? `${displayProduct.name} added to cart.` : ""}</span>

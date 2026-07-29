@@ -4,6 +4,10 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseError } from "@/lib/supabase/log";
 
 const productIdSchema = z.string().uuid();
+const reviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  description: z.string().trim().min(10).max(800),
+});
 
 export async function GET(_: Request, { params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params;
@@ -34,5 +38,38 @@ export async function GET(_: Request, { params }: { params: Promise<{ productId:
   } catch (error) {
     logSupabaseError("storefront-product-reviews", "load-product-reviews", error, { route: `/api/storefront/reviews/${productId}`, table: "product_reviews", productId });
     return NextResponse.json({ error: "Reviews are temporarily unavailable." }, { status: 503 });
+  }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ productId: string }> }) {
+  const { productId } = await params;
+  if (!productIdSchema.safeParse(productId).success) return NextResponse.json({ error: "Product not found." }, { status: 404 });
+  if (!request.headers.get("content-type")?.includes("application/json")) return NextResponse.json({ error: "JSON request required." }, { status: 415 });
+  const parsed = reviewSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Check your review." }, { status: 400 });
+  try {
+    const supabase = await getSupabaseServerClient();
+    if (!supabase) return NextResponse.json({ error: "Reviews are temporarily unavailable." }, { status: 503 });
+    const { data: claims } = await supabase.auth.getClaims();
+    const userId = claims?.claims?.sub;
+    if (!userId) return NextResponse.json({ error: "Sign in to submit a review." }, { status: 401 });
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
+    const customerName = String(profile?.full_name ?? claims.claims.email ?? "YARA customer").trim().slice(0, 100);
+    const { error } = await supabase.from("product_reviews").insert({
+      product_id: productId,
+      customer_user_id: userId,
+      customer_name: customerName,
+      rating: parsed.data.rating,
+      description: parsed.data.description,
+      status: "hidden",
+    });
+    if (error) {
+      if (error.code === "23505") return NextResponse.json({ error: "You have already submitted a review for this product." }, { status: 409 });
+      throw error;
+    }
+    return NextResponse.json({ message: "Thank you. Your review was submitted for moderation." }, { status: 201 });
+  } catch (error) {
+    logSupabaseError("storefront-product-reviews", "submit-review", error, { route: `/api/storefront/reviews/${productId}`, table: "product_reviews", productId });
+    return NextResponse.json({ error: "We could not submit your review. Please try again." }, { status: 500 });
   }
 }
