@@ -6,6 +6,7 @@ import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
 import { createOrderTrackingToken } from "@/lib/order-tracking";
+import { sendTransactionalEmail } from "@/lib/email";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -107,6 +108,19 @@ export async function POST(request: Request) {
         table: "orders",
       });
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
+    }
+    if (order.created) {
+      const details: Array<[string, string]> = [
+        ["Order", order.order_number],
+        ["Total", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],
+        ["Payment", parsed.data.paymentMethod === "cod" ? "Cash on delivery" : "Awaiting provider confirmation"],
+      ];
+      const deliveries = [
+        sendTransactionalEmail({ template: "new_order_customer", recipient: parsed.data.customer.email, orderId: order.order_id, subject: `We received order ${order.order_number}`, customerName: parsed.data.customer.name, intro: "Your order has been recorded. We will contact you if delivery details need confirmation.", details, nextSteps: "You will receive another update when the order moves through fulfilment." }),
+      ];
+      const adminEmail = process.env.ADMIN_ORDER_EMAIL?.trim();
+      if (adminEmail) deliveries.push(sendTransactionalEmail({ template: "new_order_admin", recipient: adminEmail, orderId: order.order_id, subject: `New YARA order ${order.order_number}`, intro: "A new storefront order requires review.", details, nextSteps: "Open the admin workspace to verify fulfilment and delivery details." }));
+      await Promise.all(deliveries);
     }
     let trackingToken: string;
     try {

@@ -9,6 +9,7 @@ import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 import { calculateCartShipping, shippingLabel } from "../lib/shipping";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
+import { trackEvent } from "../lib/analytics";
 
 type PaymentMethod = "payhere" | "cod";
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -83,8 +84,8 @@ export function CheckoutPage() {
     setCheckingCoupon(true); setCouponMessage("");
     const response = await fetch("/api/coupons/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: couponInput, country, items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })) }) });
     const payload = await response.json();
-    if (response.ok) { setCoupon({ code: payload.code, discount: Number(payload.discount) }); setCouponMessage(`${payload.code} applied.`); }
-    else { setCoupon(null); setCouponMessage(payload.error || "Coupon could not be applied."); }
+    if (response.ok) { setCoupon({ code: payload.code, discount: Number(payload.discount) }); setCouponMessage(`${payload.code} applied.`); trackEvent("coupon_applied", { code: payload.code, discount: Number(payload.discount), country }); }
+    else { setCoupon(null); setCouponMessage(payload.error || "Coupon could not be applied."); trackEvent("coupon_rejected", { code: couponInput.toUpperCase(), country }); }
     setCheckingCoupon(false);
   };
 
@@ -102,6 +103,7 @@ export function CheckoutPage() {
       return;
     }
     setSubmitting(true); setError("");
+    trackEvent("begin_checkout", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total });
     try {
       const data = new FormData(event.currentTarget);
       const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
@@ -111,6 +113,7 @@ export function CheckoutPage() {
       }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || t("checkout.error"));
+      trackEvent(result.fields ? "order_awaiting_payment" : "order_created", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total });
       clearCart();
       if (result.redirectUrl) { window.location.assign(result.redirectUrl); return; }
       const form = document.createElement("form"); form.method = "POST"; form.action = result.action;

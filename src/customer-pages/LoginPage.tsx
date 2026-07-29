@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
 import { useI18n } from "../i18n";
+import { trackEvent } from "../lib/analytics";
 
 type Mode = "login" | "register" | "forgot";
 
@@ -38,12 +39,14 @@ export function LoginPage() {
       if (mode === "register") {
         const { data: result, error } = await client.auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/${locale}/account` } });
         if (error) throw error;
+        trackEvent("account_registration", { locale });
         if (result.session) navigate("/account", { replace: true });
         else setMessage({ kind: "success", text: "Check your email to verify your YARA account." });
         return;
       }
       const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      trackEvent("login", { locale });
       navigate("/account", { replace: true });
     } catch {
       setMessage({ kind: "error", text: mode === "login" ? "We could not sign you in. Check your email and password." : mode === "register" ? "We could not create the account. The email may already be registered or the password may not meet security requirements." : "We could not send reset instructions. Please try again shortly." });
