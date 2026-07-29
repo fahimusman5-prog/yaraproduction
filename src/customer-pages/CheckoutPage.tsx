@@ -203,7 +203,8 @@ export function CheckoutPage() {
       }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || t("checkout.error"));
-      trackEvent(result.fields ? "order_awaiting_payment" : "order_created", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total });
+      trackEvent("order_created", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total), order_id: result.orderId });
+      if (payment === "cod") trackEvent("cod_order_completed", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total), order_id: result.orderId });
       clearCart();
       if (result.redirectUrl) { window.location.assign(result.redirectUrl); return; }
       const form = document.createElement("form"); form.method = "POST"; form.action = result.action;
@@ -225,6 +226,7 @@ export function CheckoutPage() {
       phone: String(data.get("phone") ?? ""),
       address: [data.get("address"), data.get("city"), data.get("postalCode")].filter(Boolean).join(", ")
     };
+    trackEvent("whatsapp_click", { source: "checkout", country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total });
     window.open(createWhatsAppLink(cartOrderMessage(items, total, country, { ...customer, paymentMethod: t(payment === "payhere" ? "checkout.payhere" : "checkout.cod") }, locale), country), "_blank", "noopener,noreferrer");
   };
 

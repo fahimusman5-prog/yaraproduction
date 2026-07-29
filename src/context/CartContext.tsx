@@ -57,12 +57,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...current, { product, quantity }];
     });
-    trackEvent("add_to_cart", { product_id: product.id, quantity, country: country ?? undefined });
+    trackEvent("add_to_cart", {
+      product_id: product.id,
+      category: product.category,
+      quantity,
+      country: country ?? undefined,
+      currency: country === "sri-lanka" ? "LKR" : country === "uae" ? "AED" : undefined,
+      value: country ? getProductPrice(product, country) * quantity : undefined,
+    });
   };
 
   const removeItem = (productId: string) => {
+    const removed = items.find((item) => item.product.id === productId);
     setItems((current) => current.filter((item) => item.product.id !== productId));
-    trackEvent("remove_from_cart", { product_id: productId, country: country ?? undefined });
+    trackEvent("remove_from_cart", {
+      product_id: productId,
+      quantity: removed?.quantity,
+      country: country ?? undefined,
+      currency: country === "sri-lanka" ? "LKR" : country === "uae" ? "AED" : undefined,
+      value: country && removed ? getProductPrice(removed.product, country) * removed.quantity : undefined,
+    });
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -70,6 +84,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((current) =>
       current.map((item) => (item.product.id === productId ? { ...item, quantity: Math.min(quantity, item.product.stockQuantity ?? Infinity) } : item))
     );
+    const product = items.find((item) => item.product.id === productId)?.product;
+    trackEvent("update_quantity", {
+      product_id: productId,
+      quantity,
+      country: country ?? undefined,
+      currency: country === "sri-lanka" ? "LKR" : country === "uae" ? "AED" : undefined,
+      value: country && product ? getProductPrice(product, country) * quantity : undefined,
+    });
   };
 
   const value = useMemo(

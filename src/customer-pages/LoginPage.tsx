@@ -39,7 +39,7 @@ export function LoginPage() {
       if (mode === "register") {
         const { data: result, error } = await client.auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/${locale}/account` } });
         if (error) throw error;
-        trackEvent("account_registration", { locale });
+        trackEvent("registration", { locale });
         if (result.session) navigate("/account", { replace: true });
         else setMessage({ kind: "success", text: "Check your email to verify your YARA account." });
         return;

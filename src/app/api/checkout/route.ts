@@ -190,13 +190,15 @@ export async function POST(request: Request) {
     }
 
     if (parsed.data.paymentMethod === "cod") {
-      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
+      return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
     }
 
     const amount = Number(order.total_amount).toFixed(2);
     const { merchantId, hash } = createPayHereHash(String(order.order_number), amount, String(order.currency));
     const [firstName, ...rest] = parsed.data.customer.name.split(/\s+/);
     return NextResponse.json({
+      orderId: order.order_id,
+      totalAmount: Number(order.total_amount),
       action: getPayHereCheckoutUrl(),
       fields: {
         merchant_id: merchantId,

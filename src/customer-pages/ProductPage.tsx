@@ -11,6 +11,7 @@ import { findProductByRouteKey } from "../lib/product-routing";
 import { ProductReviews } from "../components/ProductReviews";
 import { getProductShipping, shippingLabel } from "../lib/shipping";
 import { formatPrice } from "../lib/format";
+import { trackEvent } from "../lib/analytics";
 
 export function ProductPage() {
   const { id: productKey } = useParams();
@@ -29,6 +30,16 @@ export function ProductPage() {
   useEffect(() => () => {
     if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
   }, []);
+  useEffect(() => {
+    if (!product || !country) return;
+    trackEvent("product_view", {
+      product_id: product.id,
+      category: product.category,
+      country,
+      currency: country === "sri-lanka" ? "LKR" : "AED",
+      value: country === "sri-lanka" ? product.priceLKR : product.priceAED,
+    });
+  }, [country, product?.id]);
 
   if (!product && loading) {
     return <div className="page-shell py-28 text-center"><p className="eyebrow">Loading product</p><h1 className="mt-4 text-5xl">Preparing your product details.</h1></div>;
@@ -113,7 +124,7 @@ export function ProductPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button onClick={handleAdd} className="btn-primary w-full" disabled={outOfStock || unavailable} aria-live="polite">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {outOfStock ? "Out of stock" : unavailable ? "Unavailable" : added ? "Added to bag" : "Add to cart"}</button>
             <button onClick={() => { if (!outOfStock && !unavailable) { addItem(product, quantity); navigate("/checkout"); } }} className="btn-primary w-full" disabled={outOfStock || unavailable}>Buy now</button>
-            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/55 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#117a3a] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
+            {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} onClick={() => trackEvent("whatsapp_click", { source: "product", product_id: product.id, quantity, country, currency: country === "sri-lanka" ? "LKR" : "AED", value: (country === "sri-lanka" ? product.priceLKR : product.priceAED) * quantity })} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/55 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#117a3a] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
           </div>
 
           <div className="mt-8 grid grid-cols-2 gap-3 text-[0.62rem] uppercase tracking-[0.09em] text-yara-taupe">

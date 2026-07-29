@@ -123,6 +123,8 @@ export function getServerEnvIssues() {
       "Transactional email configuration is incomplete. Set RESEND_API_KEY, EMAIL_FROM, EMAIL_REPLY_TO, and ADMIN_NOTIFICATION_EMAIL together.",
     );
   if (process.env.NEXT_PUBLIC_ANALYTICS_ENABLED && !["true", "false"].includes(process.env.NEXT_PUBLIC_ANALYTICS_ENABLED)) issues.push("NEXT_PUBLIC_ANALYTICS_ENABLED must be true or false.");
+  if (process.env.NEXT_PUBLIC_ANALYTICS_DEBUG && !["true", "false"].includes(process.env.NEXT_PUBLIC_ANALYTICS_DEBUG)) issues.push("NEXT_PUBLIC_ANALYTICS_DEBUG must be true or false.");
+  if (process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && !/^G-[A-Z0-9]+$/i.test(process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID)) issues.push("NEXT_PUBLIC_GOOGLE_ANALYTICS_ID must be a Google Analytics measurement ID.");
 
   return issues;
 }

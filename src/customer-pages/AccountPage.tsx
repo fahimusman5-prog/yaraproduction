@@ -360,6 +360,7 @@ export function AccountPage() {
         ? payload.message
         : payload.error || "Deletion request failed.",
     );
+    if (response.ok) trackEvent("account_deletion_requested");
     await load();
     setBusy(false);
     event.currentTarget.reset();
