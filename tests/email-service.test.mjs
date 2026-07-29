@@ -171,7 +171,6 @@ test("all required templates exist and order HTML is responsive and complete", (
       total: 190,
       currency: "LKR",
       deliveryAddress: "Colombo, Sri Lanka",
-      shippingMethod: "Standard",
       orderStatus: "processing",
     },
   });
@@ -179,6 +178,6 @@ test("all required templates exist and order HTML is responsive and complete", (
   assert.match(html, /Saffron Serum/);
   assert.match(html, /Coupon discount/);
   assert.match(html, /Delivery address/);
-  assert.match(html, /Shipping method/);
+  assert.doesNotMatch(html, /Shipping method/);
   assert.match(html, /Next steps/);
 });

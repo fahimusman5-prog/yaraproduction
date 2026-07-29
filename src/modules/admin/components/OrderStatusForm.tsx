@@ -24,6 +24,9 @@ export function OrderStatusForm({ order }: { order: Order }) {
           defaultValue={order.order_status}
         >
           {[
+            "pending_payment",
+            "awaiting_bank_transfer",
+            "confirmed",
             "pending",
             "paid",
             "processing",
@@ -37,10 +40,7 @@ export function OrderStatusForm({ order }: { order: Order }) {
           ))}
         </select>
       </label>
-      <label>
-        <span className="staff-label">Shipping method</span>
-        <input className="staff-input" name="shipping_method_name" maxLength={160} defaultValue={order.shipping_method_name} />
-      </label>
+      <input type="hidden" name="shipping_method_name" value={order.shipping_method_name} />
       <label>
         <span className="staff-label">Courier</span>
         <input className="staff-input" name="courier_name" maxLength={160} defaultValue={order.courier_name ?? ""} />
@@ -64,7 +64,17 @@ export function OrderStatusForm({ order }: { order: Order }) {
           name="payment_status"
           defaultValue={order.payment_status}
         >
-          {["pending", "paid", "failed", "refunded"].map((v) => (
+          {[
+            "unpaid",
+            "pending",
+            "processing",
+            "awaiting_bank_verification",
+            "payment_due_on_delivery",
+            "paid",
+            "failed",
+            "cancelled",
+            "refunded",
+          ].map((v) => (
             <option key={v}>{v}</option>
           ))}
         </select>

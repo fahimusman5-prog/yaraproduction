@@ -57,9 +57,8 @@ const deliverySettingSchema = z
   .object({
     region_code: z.enum(["LK", "AE"]),
     currency: z.enum(["LKR", "AED"]),
-    delivery_fee: optionalNumber,
+    delivery_fee: z.coerce.number().min(0).max(999_999_999),
     is_enabled: z.enum(["true"]).optional(),
-    is_configured: z.enum(["true"]).optional(),
   })
   .superRefine((value, context) => {
     const expectedCurrency = value.region_code === "LK" ? "LKR" : "AED";
@@ -69,20 +68,48 @@ const deliverySettingSchema = z
         path: ["currency"],
         message: "Currency must match the selected region.",
       });
+  });
+
+const paymentSettingSchema = z
+  .object({
+    region_code: z.enum(["LK", "AE"]),
+    payment_method: z.enum([
+      "card",
+      "koko",
+      "mintpay",
+      "bank_transfer",
+      "cash_on_delivery",
+    ]),
+    processing_fee_percent: z.coerce.number().min(0).max(100),
+    minimum_order_amount: optionalNumber,
+    maximum_order_amount: optionalNumber,
+    is_enabled: z.enum(["true"]).optional(),
+    account_holder_name: z.string().trim().max(200).default(""),
+    bank_name: z.string().trim().max(200).default(""),
+    branch_name: z.string().trim().max(200).default(""),
+    account_number: z.string().trim().max(200).default(""),
+    swift_code: z.string().trim().max(100).default(""),
+    instructions: z.string().trim().max(2000).default(""),
+  })
+  .refine(
+    (value) =>
+      value.maximum_order_amount === null ||
+      value.minimum_order_amount === null ||
+      value.maximum_order_amount >= value.minimum_order_amount,
+    { message: "Maximum order must be at least the minimum." },
+  )
+  .superRefine((value, context) => {
     if (
-      (value.is_configured === "true" || value.is_enabled === "true") &&
-      value.delivery_fee === null
+      value.payment_method === "bank_transfer" &&
+      value.is_enabled === "true" &&
+      (!value.account_holder_name ||
+        !value.bank_name ||
+        !value.account_number)
     )
       context.addIssue({
         code: "custom",
-        path: ["delivery_fee"],
-        message: "Enter a delivery fee before configuring or enabling it.",
-      });
-    if (value.is_enabled === "true" && value.is_configured !== "true")
-      context.addIssue({
-        code: "custom",
-        path: ["is_enabled"],
-        message: "A delivery fee must be configured before it can be enabled.",
+        message:
+          "Account holder, bank name, and account number are required before enabling bank transfer.",
       });
   });
 
@@ -168,16 +195,15 @@ export async function updateDeliverySettingAction(
       status: "error",
       message: "Unable to load the current delivery setting.",
     };
-  const configured = parsed.data.is_configured === "true";
-  const enabled = parsed.data.is_enabled === "true" && configured;
+  const enabled = parsed.data.is_enabled === "true";
   const saved = await supabase
     .from("delivery_settings")
     .upsert(
       {
         region_code: parsed.data.region_code,
         currency: parsed.data.currency,
-        delivery_fee: configured ? parsed.data.delivery_fee : null,
-        is_configured: configured,
+        delivery_fee: parsed.data.delivery_fee,
+        is_configured: true,
         is_enabled: enabled,
         updated_at: new Date().toISOString(),
       },
@@ -227,6 +253,58 @@ export async function updateDeliverySettingAction(
     status: "success",
     message: `${parsed.data.region_code === "LK" ? "Sri Lanka" : "UAE"} delivery setting saved.`,
   };
+}
+
+export async function updatePaymentMethodSettingAction(
+  settingId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const admin = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(settingId).success)
+    return { status: "error", message: "Payment setting not found." };
+  const parsed = paymentSettingSchema.safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message:
+        parsed.error.issues[0]?.message ?? "Check the payment setting.",
+    };
+  const value = parsed.data;
+  const expectedCurrency = value.region_code === "LK" ? "LKR" : "AED";
+  const fields = {
+    processing_fee_percent: value.processing_fee_percent,
+    minimum_order_amount: value.minimum_order_amount,
+    maximum_order_amount: value.maximum_order_amount,
+    is_enabled: value.is_enabled === "true",
+    account_holder_name: value.account_holder_name || null,
+    bank_name: value.bank_name || null,
+    branch_name: value.branch_name || null,
+    account_number: value.account_number || null,
+    swift_code: value.swift_code || null,
+    instructions: value.instructions || null,
+    currency: expectedCurrency,
+    updated_at: new Date().toISOString(),
+  };
+  const saved = await getSupabaseAdminClient()
+    .from("payment_method_settings")
+    .update(fields)
+    .eq("id", settingId)
+    .eq("region_code", value.region_code)
+    .eq("payment_method", value.payment_method)
+    .select("id")
+    .maybeSingle();
+  if (saved.error || !saved.data) {
+    logSupabaseError("admin-commerce", "update-payment-setting", saved.error, {
+      route: "/admin/commerce",
+      table: "payment_method_settings",
+      userId: admin.userId,
+    });
+    return { status: "error", message: "Unable to save payment method." };
+  }
+  revalidatePath("/admin/commerce");
+  revalidatePath("/checkout");
+  return { status: "success", message: "Payment method saved." };
 }
 
 export async function createShippingZoneAction(

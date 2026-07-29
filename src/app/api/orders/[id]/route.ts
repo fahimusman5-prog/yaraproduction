@@ -9,7 +9,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (!z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const token = new URL(request.url).searchParams.get("token")?.trim();
   if (!token) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const { data, error } = await getSupabaseAdminClient().from("orders").select("order_number,payment_status,order_status,currency,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,shipping_method_name,region_code").eq("id", id).single();
+  const { data, error } = await getSupabaseAdminClient().from("orders").select("order_number,payment_status,order_status,currency,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,region_code").eq("id", id).single();
   if (error) {
     if (error.code === "PGRST116") return NextResponse.json({ error: "Not found" }, { status: 404 });
     logSupabaseError("storefront-order-status", "select-order", error, {

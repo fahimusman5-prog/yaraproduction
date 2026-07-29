@@ -208,7 +208,7 @@ async function loadOrderEmailData(
     supabase
       .from("orders")
       .select(
-        "order_number,customer_name,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,currency,shipping_address,shipping_city,shipping_postal_code,shipping_method_name,order_status",
+        "order_number,customer_name,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,currency,shipping_address,shipping_city,shipping_postal_code,payment_method,order_status",
       )
       .eq("id", orderId)
       .maybeSingle(),
@@ -252,7 +252,7 @@ async function loadOrderEmailData(
     ]
       .filter(Boolean)
       .join(", "),
-    shippingMethod: String(order.shipping_method_name ?? ""),
+    paymentMethod: String(order.payment_method ?? ""),
     orderStatus: String(order.order_status),
   };
 }

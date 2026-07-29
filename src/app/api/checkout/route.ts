@@ -11,11 +11,11 @@ import {
   sendOrderTransactionalEmail,
 } from "@/lib/email";
 import { consumeRequestRateLimit } from "@/lib/rate-limit";
+import { PAYMENT_METHODS } from "@/lib/payment-methods";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
-  paymentMethod: z.enum(["payhere", "cod"]),
-  shippingMethodId: z.string().uuid(),
+  paymentMethod: z.enum(PAYMENT_METHODS),
   customer: z.object({
     name: z.string().trim().min(2).max(200),
     email: z.string().trim().email().max(320),
@@ -28,6 +28,7 @@ const schema = z.object({
   termsAccepted: z.literal(true),
   idempotencyKey: z.string().uuid(),
   couponCode: z.string().trim().max(40).optional(),
+  bankTransactionReference: z.string().trim().max(200).optional(),
 });
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
@@ -86,12 +87,22 @@ export async function POST(request: Request) {
       );
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
-    if (parsed.data.paymentMethod === "payhere" && process.env.PAYMENTS_ENABLED !== "true") {
+    if (parsed.data.paymentMethod === "card" && process.env.PAYMENTS_ENABLED !== "true") {
       return NextResponse.json({ error: "Online payments are temporarily unavailable. Please choose another available ordering method." }, { status: 503 });
     }
-    if (parsed.data.paymentMethod === "payhere" && (!process.env.PAYHERE_MERCHANT_ID?.trim() || !process.env.PAYHERE_MERCHANT_SECRET?.trim())) {
+    if (parsed.data.paymentMethod === "card" && (!process.env.PAYHERE_MERCHANT_ID?.trim() || !process.env.PAYHERE_MERCHANT_SECRET?.trim())) {
       return NextResponse.json({ error: "Online payments are not configured yet." }, { status: 503 });
     }
+    if (parsed.data.paymentMethod === "koko")
+      return NextResponse.json(
+        { error: "Koko payment is being activated." },
+        { status: 503 },
+      );
+    if (parsed.data.paymentMethod === "mintpay")
+      return NextResponse.json(
+        { error: "MintPay payment is being activated." },
+        { status: 503 },
+      );
     const origin = getAppOrigin(request.url);
     if (!origin) {
       console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());
@@ -110,81 +121,28 @@ export async function POST(request: Request) {
       name: string,
       args: Record<string, unknown>,
     ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
-    const shippingQuote = await rpc("get_configured_shipping_options", {
-      p_country: parsed.data.country,
-      p_city: parsed.data.customer.city,
-      p_subtotal: parsed.data.items.reduce((sum, item) => sum + item.quantity, 0),
-      p_items: parsed.data.items,
-    });
-    if (shippingQuote.error)
-      return NextResponse.json(
-        { error: "Delivery options are temporarily unavailable." },
-        { status: 503 },
-      );
-    const shippingPayload = shippingQuote.data as {
-      deliveryConfigured?: boolean;
-      deliveryEnabled?: boolean;
-      deliveryFee?: number | null;
-      currency?: "LKR" | "AED";
-      reason?: string | null;
-      options?: Array<{
-        zoneId: string;
-        methodId: string;
-        codAvailable: boolean;
-      }>;
-    } | null;
-    if (
-      shippingPayload?.deliveryConfigured !== true ||
-      shippingPayload.deliveryEnabled !== true ||
-      typeof shippingPayload.deliveryFee !== "number"
-    )
-      return NextResponse.json(
-        {
-          error:
-            shippingPayload?.reason ||
-            "Delivery is temporarily unavailable. Please contact YARA for assistance.",
-        },
-        { status: 409 },
-      );
-    const expectedCurrency =
-      parsed.data.country === "sri-lanka" ? "LKR" : "AED";
-    if (shippingPayload.currency !== expectedCurrency)
-      return NextResponse.json(
-        {
-          error:
-            "Delivery is temporarily unavailable because the regional currency does not match.",
-        },
-        { status: 409 },
-      );
-    const shippingOption = shippingPayload?.options?.find(
-      (option) => option.methodId === parsed.data.shippingMethodId,
-    );
-    if (!shippingOption)
-      return NextResponse.json(
-        {
-          error:
-            "The selected delivery method is no longer available for this address.",
-        },
-        { status: 409 },
-      );
-    if (parsed.data.paymentMethod === "cod" && !shippingOption.codAvailable)
-      return NextResponse.json(
-        { error: "Cash on delivery is not available for this delivery zone." },
-        { status: 409 },
-      );
-    const customerForOrder = {
-      ...parsed.data.customer,
-      shippingMethodId: shippingOption.methodId,
-      shippingZoneId: shippingOption.zoneId,
-    };
-    const { data, error } = await rpc("create_storefront_order_with_coupon", {
-      p_customer: customerForOrder,
+    // Supersedes create_storefront_order_with_coupon while preserving its
+    // atomic coupon calculation inside the payment-aware database RPC.
+    const { data, error } = await rpc("create_payment_order_with_coupon", {
+      p_customer: parsed.data.customer,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
       p_idempotency_key: parsed.data.idempotencyKey,
       p_customer_user_id: customerUserId ?? null,
       p_coupon_code: parsed.data.couponCode || null,
+      p_bank_transaction_reference:
+        parsed.data.bankTransactionReference || null,
+      p_policy_acceptance: {
+        accepted: true,
+        acceptedAt: new Date().toISOString(),
+        versions: {
+          terms: "2026-07-27",
+          privacy: "2026-07-27",
+          refunds: "2026-07-27",
+          shipping: "2026-07-29",
+        },
+      },
     });
     if (error) {
       logSupabaseError("storefront-checkout", "create-order", error, {
@@ -203,16 +161,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
     }
     if (order.created) {
+      if (
+        parsed.data.paymentMethod === "cash_on_delivery" ||
+        parsed.data.paymentMethod === "bank_transfer")
+      {
+      const isBank = parsed.data.paymentMethod === "bank_transfer";
       const deliveries = [
         sendOrderTransactionalEmail({
-          template: "new_order_customer",
+          template: isBank ? "new_order_customer" : "new_order_customer",
           recipient: parsed.data.customer.email,
           orderId: order.order_id,
-          subject: `We received order ${order.order_number}`,
+          subject: isBank
+            ? `Bank transfer order ${order.order_number} received`
+            : `Cash on delivery order ${order.order_number} confirmed`,
           intro:
-            "Your YARA order has been recorded. Our team will review the delivery details and begin fulfilment.",
+            isBank
+              ? "Your YARA order has been received and is awaiting bank payment verification."
+              : "Your YARA order is confirmed. Payment is due when your order is delivered.",
           nextSteps:
-            "Keep this confirmation for your records. We will email you as the order moves through fulfilment.",
+            isBank
+              ? "Transfer the final payable amount using your order number as the payment reference. YARA will confirm the order after reviewing the payment."
+              : "Keep the final amount ready for collection on delivery.",
         }),
       ];
       const adminEmail = getAdminNotificationEmail();
@@ -223,13 +192,16 @@ export async function POST(request: Request) {
             recipient: adminEmail,
             orderId: order.order_id,
             customerName: "YARA team",
-            subject: `New YARA order ${order.order_number}`,
-            intro: "A new storefront order requires fulfilment review.",
+            subject: `${isBank ? "New bank transfer" : "New COD"} order ${order.order_number}`,
+            intro: isBank
+              ? "A bank-transfer order is awaiting payment verification."
+              : "A cash-on-delivery order is confirmed and requires fulfilment.",
             nextSteps:
               "Open the YARA admin workspace to verify the order, stock, payment method, and delivery details.",
           }),
         );
-      await Promise.all(deliveries);
+        await Promise.all(deliveries);
+      }
     }
     let trackingToken: string;
     try {
@@ -239,8 +211,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
     }
 
-    if (parsed.data.paymentMethod === "cod") {
-      return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
+    if (
+      parsed.data.paymentMethod === "cash_on_delivery" ||
+      parsed.data.paymentMethod === "bank_transfer"
+    ) {
+      const mode =
+        parsed.data.paymentMethod === "cash_on_delivery" ? "cod" : "bank";
+      return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&${mode}=1` });
     }
 
     const amount = Number(order.total_amount).toFixed(2);

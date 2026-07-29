@@ -2,8 +2,6 @@
 
 import { useActionState } from "react";
 import {
-  archiveShippingMethodAction,
-  archiveShippingZoneAction,
   completeAccountDeletionAction,
   createCouponAction,
   createItemRefundAction,
@@ -11,9 +9,8 @@ import {
   createShippingZoneAction,
   setCouponActiveAction,
   updateDeliverySettingAction,
+  updatePaymentMethodSettingAction,
   reviewReturnItemsAction,
-  updateShippingMethodAction,
-  updateShippingZoneAction,
   updateReturnAction,
 } from "../commerce-actions";
 import { initialActionState } from "../action-state";
@@ -22,9 +19,8 @@ import { ConfirmActionButton } from "./ConfirmActionButton";
 import { SubmitButton } from "./SubmitButton";
 
 type Props = {
-  zones: any[];
   deliverySettings: any[];
-  methods: any[];
+  paymentSettings: any[];
   shippingAudit: any[];
   products: any[];
   categories: any[];
@@ -35,9 +31,8 @@ type Props = {
 };
 
 export function CommerceManager({
-  zones,
   deliverySettings,
-  methods,
+  paymentSettings,
   shippingAudit,
   products,
   categories,
@@ -46,14 +41,6 @@ export function CommerceManager({
   refunds,
   deletionRequests,
 }: Props) {
-  const [zoneState, zoneAction] = useActionState(
-    createShippingZoneAction,
-    initialActionState,
-  );
-  const [methodState, methodAction] = useActionState(
-    createShippingMethodAction,
-    initialActionState,
-  );
   const [couponState, couponAction] = useActionState(
     createCouponAction,
     initialActionState,
@@ -70,8 +57,8 @@ export function CommerceManager({
               Regional delivery settings
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              This fee is charged once per order, not per product. Product
-              quantities and cart lines never multiply it.
+              This delivery fee is charged once per order and applies to the
+              entire selected country.
             </p>
           </div>
           <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -84,6 +71,30 @@ export function CommerceManager({
           </div>
         </section>
       )}
+      {paymentSettings.length > 0 && (
+        <section className="staff-panel p-5 sm:p-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
+              Checkout payments
+            </p>
+            <h2 className="mt-2 text-xl font-bold">Payment method settings</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Configure each region separately. Provider credentials remain
+              server-only environment variables.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-5 xl:grid-cols-2">
+            {paymentSettings.map((setting) => (
+              <PaymentSettingEditor key={setting.id} setting={setting} />
+            ))}
+          </div>
+        </section>
+      )}
+      {/* Legacy zone and method controls were removed from the active admin
+          interface. The preserved source below documents the historical UI
+          while legacy database records remain available to old orders.
+      {false && (
+        <>
       <section className="grid gap-6 xl:grid-cols-2">
         <form action={zoneAction} className="staff-panel space-y-4 p-5">
           <h2 className="text-lg font-bold">Add shipping zone</h2>
@@ -308,8 +319,10 @@ export function CommerceManager({
           </div>
         </div>
       </section>
+        </>
+      )} */}
       <section className="staff-panel p-5">
-        <h2 className="text-lg font-bold">Shipping audit history</h2>
+        <h2 className="text-lg font-bold">Delivery settings audit history</h2>
         {shippingAudit.length ? (
           <div className="staff-table-wrap mt-4">
             <table className="staff-table">
@@ -558,6 +571,109 @@ export function CommerceManager({
   );
 }
 
+function PaymentSettingEditor({ setting }: { setting: any }) {
+  const [state, action] = useActionState(
+    updatePaymentMethodSettingAction.bind(null, setting.id),
+    initialActionState,
+  );
+  const isBank = setting.payment_method === "bank_transfer";
+  return (
+    <form action={action} className="rounded-xl border border-[var(--staff-line)] p-4">
+      <ActionMessage state={state} />
+      <input type="hidden" name="region_code" value={setting.region_code} />
+      <input type="hidden" name="payment_method" value={setting.payment_method} />
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="font-semibold capitalize">
+            {setting.payment_method.replaceAll("_", " ")}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {setting.region_code} · {setting.currency}
+            {setting.provider_name ? ` · ${setting.provider_name}` : ""}
+          </p>
+        </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="is_enabled"
+            value="true"
+            defaultChecked={setting.is_enabled}
+          />
+          Enabled
+        </label>
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <label>
+          <span className="staff-label">Processing fee %</span>
+          <input
+            name="processing_fee_percent"
+            type="number"
+            min="0"
+            max="100"
+            step="0.001"
+            defaultValue={setting.processing_fee_percent}
+            required
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Minimum order</span>
+          <input
+            name="minimum_order_amount"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={setting.minimum_order_amount ?? ""}
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Maximum order</span>
+          <input
+            name="maximum_order_amount"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={setting.maximum_order_amount ?? ""}
+            className="staff-input"
+          />
+        </label>
+      </div>
+      {isBank && (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {[
+            ["account_holder_name", "Account holder"],
+            ["bank_name", "Bank name"],
+            ["branch_name", "Branch"],
+            ["account_number", "Account number"],
+            ["swift_code", "SWIFT code"],
+          ].map(([name, label]) => (
+            <label key={name}>
+              <span className="staff-label">{label}</span>
+              <input
+                name={name}
+                defaultValue={setting[name] ?? ""}
+                className="staff-input"
+              />
+            </label>
+          ))}
+          <label className="sm:col-span-2">
+            <span className="staff-label">Customer instructions</span>
+            <textarea
+              name="instructions"
+              defaultValue={setting.instructions ?? ""}
+              className="staff-input"
+            />
+          </label>
+        </div>
+      )}
+      <SubmitButton pendingLabel="Saving payment method…">
+        Save payment method
+      </SubmitButton>
+    </form>
+  );
+}
+
 function DeliverySettingEditor({ setting }: { setting: any }) {
   const [state, action] = useActionState(
     updateDeliverySettingAction,
@@ -607,12 +723,6 @@ function DeliverySettingEditor({ setting }: { setting: any }) {
       <div className="mt-5">
         <ActionMessage state={state} />
       </div>
-      {isUae && !setting.is_configured && (
-        <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-          UAE delivery is not configured. UAE online checkout will not collect
-          a final payment until a valid delivery fee is added.
-        </p>
-      )}
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <label>
           <span className="staff-label">Currency</span>
@@ -634,21 +744,13 @@ function DeliverySettingEditor({ setting }: { setting: any }) {
             max="999999999"
             step="0.01"
             defaultValue={setting.delivery_fee ?? ""}
-            placeholder={isUae ? "Enter confirmed UAE fee" : "500"}
+            placeholder={isUae ? "25" : "500"}
+            required
             className="staff-input"
           />
         </label>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="is_configured"
-            value="true"
-            defaultChecked={setting.is_configured}
-          />
-          Configured
-        </label>
+      <div className="mt-4">
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -660,7 +762,8 @@ function DeliverySettingEditor({ setting }: { setting: any }) {
         </label>
       </div>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        This fee is charged once per order, not per product.
+        This delivery fee is charged once per order and applies to the entire
+        selected country.
       </p>
       <SubmitButton pendingLabel="Saving delivery setting…">
         Save delivery setting
@@ -669,6 +772,8 @@ function DeliverySettingEditor({ setting }: { setting: any }) {
   );
 }
 
+/* Legacy zone and method editor source retained temporarily for historical
+   reference only; it is not compiled or reachable from the admin interface.
 function ShippingZoneEditor({ zone }: { zone: any }) {
   const [state, action] = useActionState(
     updateShippingZoneAction.bind(null, zone.id),
@@ -916,7 +1021,7 @@ function ShippingMethodEditor({
       </form>
     </details>
   );
-}
+} */
 
 function ReturnCard({ request }: { request: any }) {
   const [state, action] = useActionState(

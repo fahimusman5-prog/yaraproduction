@@ -39,7 +39,7 @@ export type OrderEmailData = {
   total: number;
   currency: string;
   deliveryAddress: string;
-  shippingMethod: string;
+  paymentMethod?: string;
   orderStatus: string;
 };
 
@@ -242,7 +242,7 @@ export function renderEmail(input: EmailInput) {
       .join("") ?? "";
   const orderSummary = order
     ? `<div style="overflow-x:auto"><table role="presentation" style="width:100%;border-collapse:collapse;margin:22px 0;font-size:14px"><thead><tr><th style="padding:10px 8px;text-align:left;color:#7f2346">Product</th><th style="padding:10px 8px;text-align:center;color:#7f2346">Qty</th><th style="padding:10px 8px;text-align:right;color:#7f2346">Amount</th></tr></thead><tbody>${products}</tbody></table></div>
-      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">${summaryRow("Subtotal", money(order.subtotal, order.currency))}${summaryRow("Coupon discount", `−${money(order.discount, order.currency)}`)}${summaryRow("Delivery", money(order.shipping, order.currency))}${order.paymentFee > 0 ? summaryRow("Payment fee", money(order.paymentFee, order.currency)) : ""}${summaryRow("Final total", money(order.total, order.currency), true)}${summaryRow("Delivery address", order.deliveryAddress)}${summaryRow("Shipping method", order.shippingMethod || "To be confirmed")}${summaryRow("Order status", titleCase(order.orderStatus))}</table>`
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">${summaryRow("Subtotal", money(order.subtotal, order.currency))}${summaryRow("Coupon discount", `−${money(order.discount, order.currency)}`)}${summaryRow("Delivery", money(order.shipping, order.currency))}${order.paymentFee > 0 ? summaryRow("Payment fee", money(order.paymentFee, order.currency)) : ""}${summaryRow("Final total", money(order.total, order.currency), true)}${summaryRow("Delivery address", order.deliveryAddress)}${order.paymentMethod ? summaryRow("Payment method", titleCase(order.paymentMethod)) : ""}${summaryRow("Order status", titleCase(order.orderStatus))}</table>`
     : "";
   const rows = (input.details ?? [])
     .map(([label, value]) => summaryRow(label, value))
@@ -275,7 +275,6 @@ export function renderEmailText(input: EmailInput) {
         : []),
       `Final total: ${money(order.total, order.currency)}`,
       `Delivery address: ${order.deliveryAddress}`,
-      `Shipping method: ${order.shippingMethod || "To be confirmed"}`,
       `Order status: ${titleCase(order.orderStatus)}`,
     );
   }

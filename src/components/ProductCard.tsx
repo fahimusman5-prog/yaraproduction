@@ -103,7 +103,7 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
             />
             <span className="mobile-card-size truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
           </div>
-          {country && <p className={`mt-2 text-[0.68rem] ${unavailable ? "text-red-700" : "text-yara-taupe"}`}>{unavailable ? "Unavailable in this region" : "Delivery is charged once per order at checkout."}</p>}
+          {country && <p className={`mt-2 text-[0.68rem] ${unavailable ? "text-red-700" : "text-yara-taupe"}`}>{unavailable ? "Unavailable in this region" : "Fixed delivery fee for the entire country."}</p>}
           <div className="shop-product-actions mt-3 grid gap-2">
             <button type="button" onClick={handleBuyNow} disabled={outOfStock || unavailable || adding || added} className="product-card-buy btn-primary w-full" aria-label={`${t("common.buyNow")}: ${displayProduct.name}`}>
               {outOfStock || unavailable ? <PackageX className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
