@@ -40,7 +40,12 @@ function checkoutErrorResponse(error: CheckoutDatabaseError) {
   if (message.startsWith("Insufficient stock for ")) {
     return { message, status: 409 };
   }
-  if (message.includes("not available in your region") || message.startsWith("A delivery rate is not configured")) {
+  if (
+    message.includes("not available in your region") ||
+    message.startsWith("Delivery fee will be confirmed") ||
+    message.startsWith("Delivery is temporarily unavailable") ||
+    message.startsWith("Delivery currency does not match")
+  ) {
     return { message, status: 409 };
   }
   if (message === "Idempotency key is already in use.") {
@@ -117,12 +122,40 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     const shippingPayload = shippingQuote.data as {
+      deliveryConfigured?: boolean;
+      deliveryEnabled?: boolean;
+      deliveryFee?: number | null;
+      currency?: "LKR" | "AED";
+      reason?: string | null;
       options?: Array<{
         zoneId: string;
         methodId: string;
         codAvailable: boolean;
       }>;
     } | null;
+    if (
+      shippingPayload?.deliveryConfigured !== true ||
+      shippingPayload.deliveryEnabled !== true ||
+      typeof shippingPayload.deliveryFee !== "number"
+    )
+      return NextResponse.json(
+        {
+          error:
+            shippingPayload?.reason ||
+            "Delivery is temporarily unavailable. Please contact YARA for assistance.",
+        },
+        { status: 409 },
+      );
+    const expectedCurrency =
+      parsed.data.country === "sri-lanka" ? "LKR" : "AED";
+    if (shippingPayload.currency !== expectedCurrency)
+      return NextResponse.json(
+        {
+          error:
+            "Delivery is temporarily unavailable because the regional currency does not match.",
+        },
+        { status: 409 },
+      );
     const shippingOption = shippingPayload?.options?.find(
       (option) => option.methodId === parsed.data.shippingMethodId,
     );

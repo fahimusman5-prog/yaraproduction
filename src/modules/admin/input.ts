@@ -31,14 +31,8 @@ export const productSchema = z.object({
   low_stock_alert: z.coerce.number().int().min(0).max(1000000),
   status: z.enum(["active", "inactive", "archived"]),
   featured: z.enum(["true"]).optional(),
-  shipping_fee_lkr: optionalPriceSchema,
-  shipping_fee_aed: optionalPriceSchema,
-  free_shipping_lkr: z.enum(["true"]).optional(),
-  free_shipping_aed: z.enum(["true"]).optional(),
   shipping_available_lkr: z.enum(["true"]).optional(),
   shipping_available_aed: z.enum(["true"]).optional(),
-  shipping_calculation_lkr: z.enum(["per_line", "per_unit"]),
-  shipping_calculation_aed: z.enum(["per_line", "per_unit"]),
 }).superRefine((input, context) => {
   if (input.original_price_lkr !== null && input.original_price_lkr < input.price_lkr) {
     context.addIssue({
@@ -112,13 +106,7 @@ export function buildProductPayload(input: ProductInput, imageUrl: string | null
     seo_title: input.seo_title,
     seo_description: input.seo_description,
     featured: input.featured === "true",
-    shipping_fee_lkr: input.shipping_fee_lkr,
-    shipping_fee_aed: input.shipping_fee_aed,
-    free_shipping_lkr: input.free_shipping_lkr === "true",
-    free_shipping_aed: input.free_shipping_aed === "true",
     shipping_available_lkr: input.shipping_available_lkr === "true",
     shipping_available_aed: input.shipping_available_aed === "true",
-    shipping_calculation_lkr: input.shipping_calculation_lkr,
-    shipping_calculation_aed: input.shipping_calculation_aed,
   };
 }

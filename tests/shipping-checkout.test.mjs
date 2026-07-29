@@ -1,127 +1,195 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { calculateCartShipping, getProductShipping } from "../src/lib/shipping.ts";
+import {
+  calculateOrderTotal,
+  getUnavailableProductIds,
+} from "../src/lib/shipping.ts";
+
+const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 function product(overrides = {}) {
   return {
     id: crypto.randomUUID(),
-    name: "Test product",
-    shippingLKR: 300,
-    shippingAED: 15,
-    freeShippingLKR: false,
-    freeShippingAED: false,
     shippingAvailableLKR: true,
     shippingAvailableAED: true,
-    shippingCalculationLKR: "per_line",
-    shippingCalculationAED: "per_line",
     ...overrides,
   };
 }
 
-test("shipping is calculated once per product line by default", () => {
-  const quote = calculateCartShipping([{ product: product(), quantity: 3 }], "sri-lanka");
-  assert.equal(quote.valid, true);
-  assert.equal(quote.total, 300);
+test("one Sri Lankan order receives one LKR 500 delivery fee", () => {
+  assert.equal(
+    calculateOrderTotal({
+      productSubtotal: 3_000,
+      discountTotal: 0,
+      deliveryFee: 500,
+      paymentFee: 0,
+    }),
+    3_500,
+  );
 });
 
-test("per-unit, free, unavailable, and unconfigured shipping are explicit", () => {
-  assert.equal(calculateCartShipping([{ product: product({ shippingCalculationLKR: "per_unit" }), quantity: 3 }], "sri-lanka").total, 900);
-  assert.equal(calculateCartShipping([{ product: product({ freeShippingAED: true }), quantity: 2 }], "uae").total, 0);
-  assert.equal(getProductShipping(product({ shippingAvailableLKR: false }), "sri-lanka").available, false);
-  assert.equal(getProductShipping(product({ shippingLKR: null }), "sri-lanka").configured, false);
+test("four products and multiple quantities still receive one LKR 500 fee", () => {
+  assert.equal(
+    calculateOrderTotal({
+      productSubtotal: 12_000,
+      discountTotal: 0,
+      deliveryFee: 500,
+      paymentFee: 0,
+    }),
+    12_500,
+  );
+  assert.equal(
+    calculateOrderTotal({
+      productSubtotal: 3_000 * 4,
+      discountTotal: 0,
+      deliveryFee: 500,
+      paymentFee: 0,
+    }),
+    12_500,
+  );
 });
 
-test("mixed carts sum unique line shipping and reject any invalid line", () => {
-  const valid = calculateCartShipping([
-    { product: product({ shippingLKR: 300 }), quantity: 4 },
-    { product: product({ shippingLKR: 450 }), quantity: 1 },
-  ], "sri-lanka");
-  assert.equal(valid.total, 750);
-  assert.equal(valid.valid, true);
-  const invalid = calculateCartShipping([
-    { product: product(), quantity: 1 },
-    { product: product({ shippingAvailableLKR: false }), quantity: 1 },
-  ], "sri-lanka");
-  assert.equal(invalid.valid, false);
-  assert.equal(invalid.unavailable.length, 1);
+test("discounts and payment fees combine in the required order", () => {
+  assert.equal(
+    calculateOrderTotal({
+      productSubtotal: 12_000,
+      discountTotal: 1_200,
+      deliveryFee: 500,
+      paymentFee: 100,
+    }),
+    11_400,
+  );
+  assert.throws(
+    () =>
+      calculateOrderTotal({
+        productSubtotal: 100,
+        discountTotal: 0,
+        deliveryFee: -1,
+        paymentFee: 0,
+      }),
+    /non-negative/,
+  );
+});
+
+test("regional product availability is independent from monetary delivery settings", () => {
+  const unavailable = getUnavailableProductIds(
+    [
+      { product: product(), quantity: 5 },
+      {
+        product: product({ shippingAvailableAED: false }),
+        quantity: 1,
+      },
+    ],
+    "uae",
+  );
+  assert.equal(unavailable.length, 1);
 });
 
 test("checkout idempotency is enforced in the API and database transaction", async () => {
   const [route, migration] = await Promise.all([
-    readFile(new URL("../src/app/api/checkout/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/migrations/20260729003438_reconcile_launch_commerce_foundation.sql", import.meta.url), "utf8"),
+    read("../src/app/api/checkout/route.ts"),
+    read("../supabase/migrations/20260729150000_regional_order_delivery_fee.sql"),
   ]);
   assert.match(route, /idempotencyKey: z\.string\(\)\.uuid\(\)/);
   assert.match(route, /p_idempotency_key: parsed\.data\.idempotencyKey/);
   assert.match(migration, /pg_advisory_xact_lock/);
   assert.match(migration, /where idempotency_key = p_idempotency_key/);
-  assert.match(migration, /return query select v_existing\.id/);
+  assert.match(
+    migration,
+    /select v_existing\.id, v_existing\.order_number,\s+v_existing\.total_amount, v_existing\.currency, false/,
+  );
 });
 
-test("configured regional shipping is server-calculated and rejects unconfigured checkout", async () => {
-  const [migration, quoteRoute, checkoutRoute] = await Promise.all([
-    readFile(
-      new URL(
-        "../supabase/migrations/20260729062740_complete_regional_shipping_configuration.sql",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-    readFile(new URL("../src/app/api/shipping/options/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../src/app/api/checkout/route.ts", import.meta.url), "utf8"),
+test("delivery settings seed LK at 500 and leave UAE unconfigured without a guessed fee", async () => {
+  const migration = await read(
+    "../supabase/migrations/20260729150000_regional_order_delivery_fee.sql",
+  );
+  assert.match(migration, /\('LK', 'LKR', 500, true, true\)/);
+  assert.match(migration, /\('AE', 'AED', null, false, false\)/);
+  assert.match(
+    migration,
+    /Delivery fee will be confirmed\. Please use WhatsApp ordering/,
+  );
+  assert.doesNotMatch(migration, /\('AE', 'AED', [0-9]/);
+});
+
+test("server takes delivery from delivery_settings once and stores historical order snapshot", async () => {
+  const migration = await read(
+    "../supabase/migrations/20260729150000_regional_order_delivery_fee.sql",
+  );
+  assert.match(migration, /v_shipping := v_setting\.delivery_fee/);
+  assert.match(
+    migration,
+    /v_subtotal \+ v_shipping \+ v_payment_fee/,
+  );
+  assert.match(
+    migration,
+    /shipping_fee,\s+shipping_currency,\s+discount_amount,\s+payment_fee/,
+  );
+  assert.match(
+    migration,
+    /shipping_fee,\s+shipping_calculation_type,\s+free_shipping,\s+product_shipping_fee[\s\S]*?v_product\.id,[\s\S]*?v_quantity,[\s\S]*?v_unit_price,[\s\S]*?v_unit_price \* v_quantity,\s+0,\s+'per_line',\s+false,\s+0/,
+  );
+  assert.doesNotMatch(migration, /v_shipping\s*:=\s*v_shipping\s*\+/);
+});
+
+test("client delivery values are not accepted and stale delivery is revalidated server-side", async () => {
+  const [route, migration] = await Promise.all([
+    read("../src/app/api/checkout/route.ts"),
+    read("../supabase/migrations/20260729150000_regional_order_delivery_fee.sql"),
   ]);
-
-  assert.match(migration, /create or replace function public\.get_configured_shipping_options/);
-  assert.match(migration, /case when p_country = 'sri-lanka'\s+then v_product\.price_lkr else v_product\.price_aed end/);
-  assert.doesNotMatch(migration, /v_subtotal\s*:=\s*p_subtotal/);
-  assert.match(migration, /raise exception using errcode = '23514',\s+message = 'The selected delivery method is unavailable\.'/);
-  assert.match(quoteRoute, /get_configured_shipping_options/);
-  assert.match(checkoutRoute, /shippingMethodId: z\.string\(\)\.uuid\(\)/);
-  assert.match(checkoutRoute, /option\.methodId === parsed\.data\.shippingMethodId/);
+  assert.doesNotMatch(route, /deliveryFee:\s*z\./);
+  assert.doesNotMatch(route, /shippingFee:\s*z\./);
+  assert.match(route, /get_configured_shipping_options/);
+  assert.match(migration, /from public\.delivery_settings[\s\S]*?for share/);
+  assert.match(
+    migration,
+    /Delivery currency does not match the selected region/,
+  );
 });
 
-test("shipping configuration preserves explicit calculation priority and inactive placeholders", async () => {
-  const migration = await readFile(
-    new URL(
-      "../supabase/migrations/20260729062740_complete_regional_shipping_configuration.sql",
-      import.meta.url,
-    ),
-    "utf8",
+test("admin updates are admin-only, validated, confirmed, and audited", async () => {
+  const [actions, manager, migration] = await Promise.all([
+    read("../src/modules/admin/commerce-actions.ts"),
+    read("../src/modules/admin/components/CommerceManager.tsx"),
+    read("../supabase/migrations/20260729150000_regional_order_delivery_fee.sql"),
+  ]);
+  assert.match(
+    actions,
+    /export async function updateDeliverySettingAction[\s\S]*?await requireAdmin\("\/admin\/commerce"\)/,
   );
-
-  const freeProduct = migration.indexOf("v_product.free_shipping_lkr");
-  const productFee = migration.indexOf("v_product.shipping_fee_lkr is not null");
-  const methodProductRate = migration.indexOf("v_product_rate.free_shipping");
-  const methodFallback = migration.indexOf("v_needs_method_fee := true");
-  assert.ok(freeProduct > -1 && freeProduct < productFee);
-  assert.ok(productFee < methodProductRate);
-  assert.ok(methodProductRate < methodFallback);
-  assert.match(migration, /Sri Lanka regional fallback — business rate required/);
-  assert.match(migration, /Dubai — business rate required/);
-  assert.match(migration, /UAE regional fallback — business rate required/);
-  assert.match(migration, /false,\s+0,\s+(?:true|false),\s+false,/);
+  assert.match(actions, /delivery_fee: optionalNumber/);
+  assert.match(actions, /entityType: "delivery_setting"/);
+  assert.match(manager, /window\.confirm/);
+  assert.match(migration, /check \(delivery_fee is null or delivery_fee >= 0\)/);
+  assert.match(migration, /delivery_settings_admin_update/);
+  assert.match(migration, /with check \(\(select private\.is_admin\(\)\)\)/);
 });
 
-test("shipping administration is authorized, audited, and uses archive semantics", async () => {
-  const actions = await readFile(
-    new URL("../src/modules/admin/commerce-actions.ts", import.meta.url),
-    "utf8",
+test("PayHere amount is the exact server order total and webhook verifies it", async () => {
+  const [checkout, webhook] = await Promise.all([
+    read("../src/app/api/checkout/route.ts"),
+    read("../src/app/api/payhere/notify/route.ts"),
+  ]);
+  assert.match(checkout, /const amount = Number\(order\.total_amount\)\.toFixed\(2\)/);
+  assert.match(checkout, /fields:[\s\S]*?currency: order\.currency,\s+amount,/);
+  assert.match(webhook, /update_payhere_payment/);
+});
+
+test("region switching uses the correct configured currency and unavailable checkout is friendly", async () => {
+  const [migration, page] = await Promise.all([
+    read("../supabase/migrations/20260729150000_regional_order_delivery_fee.sql"),
+    read("../src/customer-pages/CheckoutPage.tsx"),
+  ]);
+  assert.match(
+    migration,
+    /case when p_country = 'sri-lanka' then 'LKR' else 'AED' end/,
   );
-  for (const action of [
-    "createShippingZoneAction",
-    "updateShippingZoneAction",
-    "archiveShippingZoneAction",
-    "createShippingMethodAction",
-    "updateShippingMethodAction",
-    "archiveShippingMethodAction",
-    "saveShippingProductRateAction",
-    "archiveShippingProductRateAction",
-  ]) {
-    assert.match(actions, new RegExp(`export async function ${action}`));
-  }
-  assert.match(actions, /await requireAdmin\("\/admin\/commerce"\)/);
-  assert.match(actions, /shipping_audit_history/);
-  assert.match(actions, /const timestamp = new Date\(\)\.toISOString\(\)/);
-  assert.match(actions, /archived_at: timestamp/);
+  assert.match(page, /Delivery: To be confirmed|To be confirmed/);
+  assert.match(page, /Delivery is charged once per order/);
+  assert.match(
+    page,
+    /disabled=\{submitting \|\| !hasLiveCatalogItems \|\| !delivery\.configured/,
+  );
 });

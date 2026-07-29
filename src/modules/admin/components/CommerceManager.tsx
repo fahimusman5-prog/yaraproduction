@@ -3,15 +3,14 @@
 import { useActionState } from "react";
 import {
   archiveShippingMethodAction,
-  archiveShippingProductRateAction,
   archiveShippingZoneAction,
   completeAccountDeletionAction,
   createCouponAction,
   createItemRefundAction,
   createShippingMethodAction,
   createShippingZoneAction,
-  saveShippingProductRateAction,
   setCouponActiveAction,
+  updateDeliverySettingAction,
   reviewReturnItemsAction,
   updateShippingMethodAction,
   updateShippingZoneAction,
@@ -24,8 +23,8 @@ import { SubmitButton } from "./SubmitButton";
 
 type Props = {
   zones: any[];
+  deliverySettings: any[];
   methods: any[];
-  productRates: any[];
   shippingAudit: any[];
   products: any[];
   categories: any[];
@@ -37,8 +36,8 @@ type Props = {
 
 export function CommerceManager({
   zones,
+  deliverySettings,
   methods,
-  productRates,
   shippingAudit,
   products,
   categories,
@@ -59,12 +58,32 @@ export function CommerceManager({
     createCouponAction,
     initialActionState,
   );
-  const [productRateState, productRateAction] = useActionState(
-    saveShippingProductRateAction,
-    initialActionState,
-  );
   return (
     <div className="space-y-8">
+      {deliverySettings.length > 0 && (
+        <section className="staff-panel p-5 sm:p-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
+              Order-level delivery
+            </p>
+            <h2 className="mt-2 text-xl font-bold">
+              Regional delivery settings
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              This fee is charged once per order, not per product. Product
+              quantities and cart lines never multiply it.
+            </p>
+          </div>
+          <div className="mt-6 grid gap-5 xl:grid-cols-2">
+            {deliverySettings.map((setting) => (
+              <DeliverySettingEditor
+                key={setting.region_code}
+                setting={setting}
+              />
+            ))}
+          </div>
+        </section>
+      )}
       <section className="grid gap-6 xl:grid-cols-2">
         <form action={zoneAction} className="staff-panel space-y-4 p-5">
           <h2 className="text-lg font-bold">Add shipping zone</h2>
@@ -141,9 +160,7 @@ export function CommerceManager({
           <SubmitButton>Add zone</SubmitButton>
         </form>
         <form action={methodAction} className="staff-panel space-y-4 p-5">
-          <h2 className="text-lg font-bold">
-            Add shipping method / fallback rate
-          </h2>
+          <h2 className="text-lg font-bold">Add shipping method</h2>
           <ActionMessage state={methodState} />
           <label>
             <span className="staff-label">Zone</span>
@@ -168,26 +185,8 @@ export function CommerceManager({
                 <option>AED</option>
               </select>
             </label>
-            <label>
-              <span className="staff-label">Fallback fee</span>
-              <input
-                name="fee"
-                type="number"
-                min="0"
-                step="0.01"
-                className="staff-input"
-              />
-            </label>
-            <label>
-              <span className="staff-label">Free threshold</span>
-              <input
-                name="free_shipping_threshold"
-                type="number"
-                min="0"
-                step="0.01"
-                className="staff-input"
-              />
-            </label>
+            <input type="hidden" name="fee" value="" />
+            <input type="hidden" name="free_shipping_threshold" value="" />
             <label>
               <span className="staff-label">Minimum order</span>
               <input
@@ -247,7 +246,6 @@ export function CommerceManager({
                 <tr>
                   <th>Zone</th>
                   <th>Method</th>
-                  <th>Rate</th>
                   <th>Estimate</th>
                   <th>State</th>
                 </tr>
@@ -257,11 +255,6 @@ export function CommerceManager({
                   <tr key={method.id}>
                     <td>{method.shipping_zones?.name}</td>
                     <td>{method.name}</td>
-                    <td>
-                      {method.fee === null
-                        ? "Business value required"
-                        : `${method.currency} ${Number(method.fee).toFixed(2)}`}
-                    </td>
                     <td>
                       {method.estimated_min_days}–{method.estimated_max_days}{" "}
                       days
@@ -274,8 +267,8 @@ export function CommerceManager({
           </div>
         ) : (
           <p className="mt-4 text-sm text-amber-800">
-            No delivery method is configured. Product-level fees may still
-            calculate, but no selectable method or estimate is available.
+            No delivery method is configured, so checkout cannot offer a
+            delivery method or estimate.
           </p>
         )}
       </section>
@@ -313,120 +306,6 @@ export function CommerceManager({
               </p>
             )}
           </div>
-        </div>
-      </section>
-      <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
-        <form
-          action={productRateAction}
-          className="staff-panel space-y-4 p-5"
-        >
-          <h2 className="text-lg font-bold">Product-level method rate</h2>
-          <ActionMessage state={productRateState} />
-          <label>
-            <span className="staff-label">Delivery method</span>
-            <select
-              name="shipping_method_id"
-              required
-              className="staff-input"
-            >
-              <option value="">Choose method</option>
-              {methods.map((method) => (
-                <option key={method.id} value={method.id}>
-                  {method.shipping_zones?.name} · {method.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span className="staff-label">Product</span>
-            <select name="product_id" required className="staff-input">
-              <option value="">Choose product</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name} · {product.sku}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label>
-              <span className="staff-label">Fee</span>
-              <input
-                name="fee"
-                type="number"
-                min="0"
-                step="0.01"
-                className="staff-input"
-              />
-            </label>
-            <label>
-              <span className="staff-label">Calculation</span>
-              <select name="calculation_type" className="staff-input">
-                <option value="per_line">Once per product line</option>
-                <option value="per_unit">Per unit</option>
-              </select>
-            </label>
-          </div>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" name="free_shipping" value="true" />
-            Free delivery for this method
-          </label>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" name="active" value="true" />
-            Active
-          </label>
-          <SubmitButton>Save product rate</SubmitButton>
-        </form>
-        <div className="staff-panel p-5">
-          <h2 className="text-lg font-bold">Product delivery overrides</h2>
-          {productRates.length ? (
-            <div className="staff-table-wrap mt-4">
-              <table className="staff-table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Method</th>
-                    <th>Rate</th>
-                    <th>State</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productRates.map((rate) => (
-                    <tr key={rate.id}>
-                      <td>{rate.products?.name}</td>
-                      <td>{rate.shipping_methods?.name}</td>
-                      <td>
-                        {rate.free_shipping
-                          ? "Free"
-                          : `${rate.shipping_methods?.currency} ${Number(rate.fee).toFixed(2)} ${
-                              rate.calculation_type === "per_unit"
-                                ? "per unit"
-                                : "per line"
-                            }`}
-                      </td>
-                      <td>{rate.active ? "Active" : "Inactive"}</td>
-                      <td>
-                        <ConfirmActionButton
-                          action={archiveShippingProductRateAction.bind(
-                            null,
-                            rate.id,
-                          )}
-                          label="Archive"
-                          title="Archive this product delivery rate?"
-                          detail="Checkout will immediately stop using this override. The audit record is retained."
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-slate-500">
-              No product-level method overrides.
-            </p>
-          )}
         </div>
       </section>
       <section className="staff-panel p-5">
@@ -679,6 +558,117 @@ export function CommerceManager({
   );
 }
 
+function DeliverySettingEditor({ setting }: { setting: any }) {
+  const [state, action] = useActionState(
+    updateDeliverySettingAction,
+    initialActionState,
+  );
+  const isUae = setting.region_code === "AE";
+  return (
+    <form
+      action={action}
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            `Save the ${isUae ? "UAE" : "Sri Lanka"} order-level delivery setting? This affects new checkouts immediately.`,
+          )
+        )
+          event.preventDefault();
+      }}
+      className="rounded-2xl border border-[var(--staff-line)] bg-white p-5"
+    >
+      <input type="hidden" name="region_code" value={setting.region_code} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold">
+            {isUae ? "UAE Delivery Fee" : "Sri Lanka Delivery Fee"}
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Last updated{" "}
+            {setting.updated_at
+              ? new Date(setting.updated_at).toLocaleString()
+              : "not recorded"}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-bold ${
+            setting.is_enabled && setting.is_configured
+              ? "bg-emerald-50 text-emerald-800"
+              : "bg-amber-50 text-amber-900"
+          }`}
+        >
+          {setting.is_enabled && setting.is_configured
+            ? "Active"
+            : setting.is_configured
+              ? "Disabled"
+              : "Unconfigured"}
+        </span>
+      </div>
+      <div className="mt-5">
+        <ActionMessage state={state} />
+      </div>
+      {isUae && !setting.is_configured && (
+        <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+          UAE delivery is not configured. UAE online checkout will not collect
+          a final payment until a valid delivery fee is added.
+        </p>
+      )}
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <label>
+          <span className="staff-label">Currency</span>
+          <input
+            name="currency"
+            readOnly
+            value={setting.currency}
+            className="staff-input bg-slate-50"
+          />
+        </label>
+        <label>
+          <span className="staff-label">
+            Delivery fee ({setting.currency})
+          </span>
+          <input
+            name="delivery_fee"
+            type="number"
+            min="0"
+            max="999999999"
+            step="0.01"
+            defaultValue={setting.delivery_fee ?? ""}
+            placeholder={isUae ? "Enter confirmed UAE fee" : "500"}
+            className="staff-input"
+          />
+        </label>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="is_configured"
+            value="true"
+            defaultChecked={setting.is_configured}
+          />
+          Configured
+        </label>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="is_enabled"
+            value="true"
+            defaultChecked={setting.is_enabled}
+          />
+          Enabled
+        </label>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        This fee is charged once per order, not per product.
+      </p>
+      <SubmitButton pendingLabel="Saving delivery setting…">
+        Save delivery setting
+      </SubmitButton>
+    </form>
+  );
+}
+
 function ShippingZoneEditor({ zone }: { zone: any }) {
   const [state, action] = useActionState(
     updateShippingZoneAction.bind(null, zone.id),
@@ -849,28 +839,8 @@ function ShippingMethodEditor({
             <option>AED</option>
           </select>
         </label>
-        <label>
-          <span className="staff-label">Fallback fee</span>
-          <input
-            name="fee"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={method.fee ?? ""}
-            className="staff-input"
-          />
-        </label>
-        <label>
-          <span className="staff-label">Free threshold</span>
-          <input
-            name="free_shipping_threshold"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={method.free_shipping_threshold ?? ""}
-            className="staff-input"
-          />
-        </label>
+        <input type="hidden" name="fee" value="" />
+        <input type="hidden" name="free_shipping_threshold" value="" />
         <label>
           <span className="staff-label">Minimum order</span>
           <input

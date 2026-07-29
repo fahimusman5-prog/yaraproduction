@@ -7,7 +7,10 @@ import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
-import { calculateCartShipping, shippingLabel } from "../lib/shipping";
+import {
+  calculateOrderTotal,
+  getUnavailableProductIds,
+} from "../lib/shipping";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
 import { trackEvent } from "../lib/analytics";
 
@@ -25,6 +28,13 @@ type ShippingOption = {
   estimatedMinDays: number;
   estimatedMaxDays: number;
   codAvailable: boolean;
+  feeChargedOnce: boolean;
+};
+type DeliveryState = {
+  configured: boolean;
+  enabled: boolean;
+  fee: number | null;
+  currency: "LKR" | "AED" | null;
 };
 
 export function CheckoutPage() {
@@ -42,18 +52,38 @@ export function CheckoutPage() {
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [couponMessage, setCouponMessage] = useState("");
   const [checkingCoupon, setCheckingCoupon] = useState(false);
-  const productShipping = country ? calculateCartShipping(items, country) : null;
+  const unavailableProductIds = country
+    ? getUnavailableProductIds(items, country)
+    : [];
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [shippingMethodId, setShippingMethodId] = useState("");
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingMessage, setShippingMessage] = useState(
     "Enter your district, emirate, or city to load delivery options.",
   );
+  const [delivery, setDelivery] = useState<DeliveryState>({
+    configured: false,
+    enabled: false,
+    fee: null,
+    currency: null,
+  });
   const selectedShipping = shippingOptions.find(
     (option) => option.methodId === shippingMethodId,
   );
+  const paymentFee = 0;
+  const deliveryFee =
+    delivery.configured && delivery.enabled
+      ? delivery.fee
+      : null;
   const total =
-    subtotal - (coupon?.discount ?? 0) + (selectedShipping?.fee ?? 0);
+    deliveryFee === null
+      ? null
+      : calculateOrderTotal({
+          productSubtotal: subtotal,
+          discountTotal: coupon?.discount ?? 0,
+          deliveryFee,
+          paymentFee,
+        });
   const hasLiveCatalogItems = items.every(({ product }) => uuidPattern.test(product.id));
   const cartFingerprint = items
     .map(({ product, quantity }) => `${product.id}:${quantity}`)
@@ -85,6 +115,47 @@ export function CheckoutPage() {
     );
   }, [country, cartFingerprint, subtotal]);
 
+  useEffect(() => {
+    if (!country) return;
+    let active = true;
+    void fetch(
+      `/api/shipping/options?country=${encodeURIComponent(country)}`,
+      { cache: "no-store" },
+    )
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          deliveryConfigured?: boolean;
+          deliveryEnabled?: boolean;
+          deliveryFee?: number | null;
+          currency?: "LKR" | "AED" | null;
+        };
+        if (!response.ok)
+          throw new Error("Delivery settings are temporarily unavailable.");
+        if (!active) return;
+        setDelivery({
+          configured: payload.deliveryConfigured === true,
+          enabled: payload.deliveryEnabled === true,
+          fee:
+            typeof payload.deliveryFee === "number"
+              ? payload.deliveryFee
+              : null,
+          currency: payload.currency ?? null,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setDelivery({
+          configured: false,
+          enabled: false,
+          fee: null,
+          currency: null,
+        });
+      });
+    return () => {
+      active = false;
+    };
+  }, [country]);
+
   const loadShippingOptions = async (city: string) => {
     if (!country || city.trim().length < 2 || !hasLiveCatalogItems) return;
     setShippingLoading(true);
@@ -108,11 +179,24 @@ export function CheckoutPage() {
         options?: ShippingOption[];
         reason?: string | null;
         error?: string;
+        deliveryConfigured?: boolean;
+        deliveryEnabled?: boolean;
+        deliveryFee?: number | null;
+        currency?: "LKR" | "AED" | null;
       };
       if (!response.ok)
         throw new Error(payload.error || "Delivery options are unavailable.");
       const options = Array.isArray(payload.options) ? payload.options : [];
       setShippingOptions(options);
+      setDelivery({
+        configured: payload.deliveryConfigured === true,
+        enabled: payload.deliveryEnabled === true,
+        fee:
+          typeof payload.deliveryFee === "number"
+            ? payload.deliveryFee
+            : null,
+        currency: payload.currency ?? null,
+      });
       setShippingMessage(
         options.length
           ? "Choose a delivery method."
@@ -129,6 +213,12 @@ export function CheckoutPage() {
       }
     } catch (reason) {
       setShippingOptions([]);
+      setDelivery({
+        configured: false,
+        enabled: false,
+        fee: null,
+        currency: null,
+      });
       setShippingMessage(
         reason instanceof Error
           ? reason.message
@@ -193,7 +283,11 @@ export function CheckoutPage() {
       return;
     }
     setSubmitting(true); setError("");
-    trackEvent("begin_checkout", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total });
+    trackEvent("begin_checkout", {
+      country,
+      currency: country === "sri-lanka" ? "LKR" : "AED",
+      value: total ?? Math.max(0, subtotal - (coupon?.discount ?? 0)),
+    });
     try {
       const data = new FormData(event.currentTarget);
       const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
@@ -203,8 +297,8 @@ export function CheckoutPage() {
       }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || t("checkout.error"));
-      trackEvent("order_created", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total), order_id: result.orderId });
-      if (payment === "cod") trackEvent("cod_order_completed", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total), order_id: result.orderId });
+      trackEvent("order_created", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total ?? 0), order_id: result.orderId });
+      if (payment === "cod") trackEvent("cod_order_completed", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total ?? 0), order_id: result.orderId });
       clearCart();
       if (result.redirectUrl) { window.location.assign(result.redirectUrl); return; }
       const form = document.createElement("form"); form.method = "POST"; form.action = result.action;
@@ -226,8 +320,15 @@ export function CheckoutPage() {
       phone: String(data.get("phone") ?? ""),
       address: [data.get("address"), data.get("city"), data.get("postalCode")].filter(Boolean).join(", ")
     };
-    trackEvent("whatsapp_click", { source: "checkout", country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total });
-    window.open(createWhatsAppLink(cartOrderMessage(items, total, country, { ...customer, paymentMethod: t(payment === "payhere" ? "checkout.payhere" : "checkout.cod") }, locale), country), "_blank", "noopener,noreferrer");
+    const confirmedTotal = deliveryFee === null ? null : total;
+    trackEvent("whatsapp_click", { source: "checkout", country, currency: country === "sri-lanka" ? "LKR" : "AED", value: confirmedTotal ?? Math.max(0, subtotal - (coupon?.discount ?? 0)) });
+    window.open(createWhatsAppLink(cartOrderMessage(items, confirmedTotal, country, { ...customer, paymentMethod: t(payment === "payhere" ? "checkout.payhere" : "checkout.cod") }, locale, {
+      subtotal,
+      discount: coupon?.discount ?? 0,
+      deliveryFee,
+      deliveryLabel: "To be confirmed",
+      paymentFee,
+    }), country), "_blank", "noopener,noreferrer");
   };
 
   if (!items.length) {
@@ -335,11 +436,11 @@ export function CheckoutPage() {
           <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><CreditCard className="h-4 w-4" /></span> {t("checkout.payment")}</h2>
             <div className="mt-7 space-y-3">
-              <label className={`block rounded-[1.7rem] border p-5 transition ${paymentsEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"} ${payment === "payhere" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}>
-                <span className="flex items-center gap-3 text-sm"><input type="radio" name="payment" checked={payment === "payhere"} onChange={() => setPayment("payhere")} disabled={!paymentsEnabled} className="accent-yara-wine" /><CreditCard className="h-4 w-4 text-yara-wine" /> {t("checkout.payhere")}</span>
-                <span className="mt-3 block text-xs leading-5 text-yara-taupe">{paymentsEnabled ? t("checkout.payhereCopy") : "Online payments are temporarily unavailable while the payment provider is being activated."}</span>
+              <label className={`block rounded-[1.7rem] border p-5 transition ${paymentsEnabled && delivery.configured && delivery.enabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"} ${payment === "payhere" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}>
+                <span className="flex items-center gap-3 text-sm"><input type="radio" name="payment" checked={payment === "payhere"} onChange={() => setPayment("payhere")} disabled={!paymentsEnabled || !delivery.configured || !delivery.enabled} className="accent-yara-wine" /><CreditCard className="h-4 w-4 text-yara-wine" /> {t("checkout.payhere")}</span>
+                <span className="mt-3 block text-xs leading-5 text-yara-taupe">{!delivery.configured || !delivery.enabled ? "Online payment is unavailable until the regional delivery fee is configured." : paymentsEnabled ? t("checkout.payhereCopy") : "Online payments are temporarily unavailable while the payment provider is being activated."}</span>
               </label>
-              <label className={`flex items-center gap-3 rounded-full border p-5 text-sm transition ${selectedShipping?.codAvailable === false ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${payment === "cod" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}><input type="radio" name="payment" checked={payment === "cod"} onChange={() => setPayment("cod")} disabled={selectedShipping?.codAvailable === false} className="accent-yara-wine" /><Banknote className="h-4 w-4 text-yara-wine" /> {t("checkout.cod")}</label>
+              <label className={`flex items-center gap-3 rounded-full border p-5 text-sm transition ${!delivery.configured || !delivery.enabled || selectedShipping?.codAvailable === false ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${payment === "cod" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}><input type="radio" name="payment" checked={payment === "cod"} onChange={() => setPayment("cod")} disabled={!delivery.configured || !delivery.enabled || selectedShipping?.codAvailable === false} className="accent-yara-wine" /><Banknote className="h-4 w-4 text-yara-wine" /> {t("checkout.cod")}</label>
             </div>
           </section>
         </div>
@@ -350,20 +451,21 @@ export function CheckoutPage() {
             {items.map(({ product, quantity }) => {
               const displayProduct = localizeProduct(product, locale);
               return (
-              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p>{country && <p className="mt-1 text-[0.68rem] text-yara-taupe">{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}</div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
+              <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
             );})}
           </div>
           <div className="mt-6 rounded-2xl bg-yara-blush p-4"><label><span className="field-label">Coupon</span><span className="flex gap-2"><input value={couponInput} onChange={(event) => setCouponInput(event.target.value.toUpperCase())} maxLength={40} className="field min-w-0 uppercase" placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={checkingCoupon || !couponInput.trim()} className="btn-secondary shrink-0">{checkingCoupon ? "Checking…" : "Apply"}</button></span></label>{couponMessage && <p role="status" className="mt-2 text-xs text-yara-taupe">{couponMessage}</p>}{coupon && <button type="button" onClick={() => { setCoupon(null); setCouponInput(""); setCouponMessage("Coupon removed."); }} className="mt-2 min-h-11 text-xs font-semibold text-yara-wine underline">Remove coupon</button>}</div>
-          <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div>{coupon && <div className="flex justify-between py-1.5 text-emerald-800"><span>Discount ({coupon.code})</span><span>−{country && formatPrice(coupon.discount, country)}</span></div>}<div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{country && selectedShipping ? (selectedShipping.fee === 0 ? "Free Delivery" : formatPrice(selectedShipping.fee, country)) : "Choose method"}</span></div></div>
-          {productShipping && productShipping.unavailable.length > 0 && <p role="alert" className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">One or more products are not available for delivery in this region.</p>}
-          <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
+          <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div>{coupon && <div className="flex justify-between py-1.5 text-emerald-800"><span>Discount ({coupon.code})</span><span>−{country && formatPrice(coupon.discount, country)}</span></div>}<div className="flex justify-between gap-4 py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span className="text-right">{country && deliveryFee !== null ? formatPrice(deliveryFee, country) : "To be confirmed"}</span></div>{paymentFee > 0 && <div className="flex justify-between py-1.5"><span className="text-yara-taupe">Payment fee</span><span>{country && formatPrice(paymentFee, country)}</span></div>}<p className="pt-2 text-xs leading-5 text-yara-taupe">Delivery is charged once per order, regardless of the number of products.</p></div>
+          {unavailableProductIds.length > 0 && <p role="alert" className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">One or more products are not available for delivery in this region.</p>}
+          {country === "uae" && (!delivery.configured || !delivery.enabled) && <p role="status" className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">UAE delivery is not configured. Your delivery fee will be confirmed through WhatsApp before payment.</p>}
+          <div className="mt-5 flex items-end justify-between gap-4"><span className="font-serif text-2xl">Grand total</span><span className="text-right font-serif text-3xl text-yara-wine">{country && total !== null ? formatPrice(total, country) : "To be confirmed"}</span></div>
           <label className="mt-6 flex items-start gap-3 text-sm leading-6 text-yara-taupe">
             <input type="checkbox" name="termsAccepted" required className="mt-1 h-5 w-5 shrink-0 accent-yara-wine" />
             <span>I agree to the <Link to="/terms-and-conditions" className="font-semibold text-yara-wine underline underline-offset-2">Terms and Conditions</Link>, <Link to="/refund-policy" className="font-semibold text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>, and <Link to="/shipping-policy" className="font-semibold text-yara-wine underline underline-offset-2">Shipping Policy</Link>.</span>
           </label>
           {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <p className="mt-5 text-center text-xs leading-5 text-yara-taupe">By placing your order, you agree to YARA’s <Link to="/terms-and-conditions" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Terms and Conditions</Link> and acknowledge the <Link to="/privacy-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Privacy Policy</Link> and <Link to="/refund-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>.</p>
-          <button type="submit" disabled={submitting || !hasLiveCatalogItems || !selectedShipping || (payment === "cod" && !selectedShipping.codAvailable) || Boolean(productShipping?.unavailable.length)} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? t("checkout.preparing") : t("checkout.confirm")}</button>
+          <button type="submit" disabled={submitting || !hasLiveCatalogItems || !delivery.configured || !delivery.enabled || total === null || !selectedShipping || (payment === "cod" && !selectedShipping.codAvailable) || unavailableProductIds.length > 0} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? t("checkout.preparing") : t("checkout.confirm")}</button>
           <button type="button" onClick={handleWhatsAppOrder} className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
           <div className="mt-6 flex justify-center gap-6 text-yara-taupe"><ShieldCheck className="h-5 w-5" /><LockKeyhole className="h-5 w-5" /><MessageCircle className="h-5 w-5" /></div>
           <p className="mt-3 text-center text-[0.58rem] uppercase tracking-[0.1em] text-yara-taupe">{t("checkout.encrypted")}</p>
