@@ -1,5 +1,6 @@
 import { ArrowRight, MessageCircle, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { cartOrderMessage, createWhatsAppLink, formatPrice } from "../lib/format";
 import { RegionalProductPrice } from "../components/RegionalProductPrice";
@@ -7,6 +8,7 @@ import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 import { calculateCartShipping, shippingLabel } from "../lib/shipping";
+import { trackEvent } from "../lib/analytics";
 
 export function CartPage() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
@@ -14,6 +16,15 @@ export function CartPage() {
   const { locale, t } = useI18n();
   const shipping = country ? calculateCartShipping(items, country) : null;
   const total = subtotal + (shipping?.total ?? 0);
+  useEffect(() => {
+    if (!country || !items.length) return;
+    trackEvent("view_cart", {
+      country,
+      currency: country === "sri-lanka" ? "LKR" : "AED",
+      value: total,
+      item_count: items.reduce((sum, item) => sum + item.quantity, 0),
+    });
+  }, [country, items.length, total]);
 
   if (!items.length) {
     return (
@@ -62,7 +73,7 @@ export function CartPage() {
           {shipping && !shipping.valid && <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">Delivery is unavailable until every product has a valid rate for this region.</p>}
           <div className="mt-6 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
           {shipping?.valid ? <Link to="/checkout" className="btn-primary mt-7 w-full">{t("common.secureCheckout")} <ArrowRight className="h-4 w-4" /></Link> : <button type="button" disabled className="btn-primary mt-7 w-full opacity-60">{t("common.secureCheckout")} <ArrowRight className="h-4 w-4" /></button>}
-          {country && <a href={createWhatsAppLink(cartOrderMessage(items, total, country, {}, locale), country)} target="_blank" rel="noreferrer" className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</a>}
+          {country && <a href={createWhatsAppLink(cartOrderMessage(items, total, country, {}, locale), country)} onClick={() => trackEvent("whatsapp_click", { source: "cart", country, currency: country === "sri-lanka" ? "LKR" : "AED", value: total })} target="_blank" rel="noreferrer" className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</a>}
           <p className="mt-5 text-center text-[0.6rem] uppercase tracking-[0.1em] text-yara-taupe">{t("common.securePayments")}</p>
         </aside>
       </div>

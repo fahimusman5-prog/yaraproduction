@@ -9,18 +9,32 @@ function trackingSecret() {
 }
 
 export function createOrderTrackingToken(orderId: string, orderNumber: string) {
-  return createHmac("sha256", trackingSecret())
-    .update(`${orderId}:${orderNumber}`, "utf8")
+  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+  const signature = createHmac("sha256", trackingSecret())
+    .update(`${orderId}:${orderNumber}:${expiresAt}`, "utf8")
     .digest("base64url");
+  return `${expiresAt}.${signature}`;
 }
 
 export function isValidOrderTrackingToken(token: string, orderId: string, orderNumber: string) {
+  const [rawExpiresAt, rawSignature, extra] = token.split(".");
+  const expiresAt = Number(rawExpiresAt);
+  if (
+    extra !== undefined ||
+    !Number.isSafeInteger(expiresAt) ||
+    expiresAt <= Math.floor(Date.now() / 1000)
+  )
+    return false;
   let expected: Buffer;
   try {
-    expected = Buffer.from(createOrderTrackingToken(orderId, orderNumber));
+    expected = Buffer.from(
+      createHmac("sha256", trackingSecret())
+        .update(`${orderId}:${orderNumber}:${expiresAt}`, "utf8")
+        .digest("base64url"),
+    );
   } catch {
     return false;
   }
-  const received = Buffer.from(token);
+  const received = Buffer.from(rawSignature ?? "");
   return received.length === expected.length && timingSafeEqual(received, expected);
 }

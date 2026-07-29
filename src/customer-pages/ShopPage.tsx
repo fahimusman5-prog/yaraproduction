@@ -6,6 +6,7 @@ import type { Category } from "../types";
 import { useCountry } from "../context/CountryContext";
 import { getProductPrice } from "../lib/format";
 import { useCatalog } from "../context/CatalogContext";
+import { trackEvent } from "../lib/analytics";
 
 export function ShopPage() {
   const { products, categories: catalogCategories, skinConcerns: catalogSkinConcerns } = useCatalog();
@@ -23,7 +24,6 @@ export function ShopPage() {
 
   useEffect(() => setCategory(requestedCategory ?? "All"), [requestedCategory]);
   useEffect(() => setConcern(requestedConcern ?? "All"), [requestedConcern]);
-
   const concerns = [{ id: "all", name: "All", slug: "All", description: null, sort_order: -1 }, ...catalogSkinConcerns];
   const visibleProducts = useMemo(() => {
     const normalizedQuery = query.toLowerCase();
@@ -39,12 +39,37 @@ export function ShopPage() {
       return Number(Boolean(b.badge)) - Number(Boolean(a.badge));
     });
   }, [products, category, concern, country, query, sort]);
+  useEffect(() => {
+    if (query.trim())
+      trackEvent("search", {
+        query_length: query.trim().length,
+        result_count: visibleProducts.length,
+        country: country ?? undefined,
+      });
+  }, [query, country, visibleProducts.length]);
+  useEffect(() => {
+    if (category !== "All")
+      trackEvent("category_view", {
+        category,
+        country: country ?? undefined,
+      });
+  }, [category, country]);
 
   const updateCategory = (nextCategory: "All" | Category) => {
     setCategory(nextCategory);
     const next = new URLSearchParams(searchParams);
     if (nextCategory === "All") next.delete("category"); else next.set("category", nextCategory);
     setSearchParams(next);
+    if (nextCategory !== "All")
+      trackEvent("category_view", {
+        category: nextCategory,
+        country: country ?? undefined,
+      });
+    trackEvent("filter_usage", {
+      filter_type: "category",
+      filter_value: nextCategory,
+      country: country ?? undefined,
+    });
   };
 
   const updateConcern = (nextConcern: string) => {
@@ -52,6 +77,11 @@ export function ShopPage() {
     const next = new URLSearchParams(searchParams);
     if (nextConcern === "All") next.delete("concern"); else next.set("concern", nextConcern);
     setSearchParams(next);
+    trackEvent("filter_usage", {
+      filter_type: "skin_concern",
+      filter_value: nextConcern,
+      country: country ?? undefined,
+    });
   };
 
   const clearSearch = () => {
@@ -103,7 +133,7 @@ export function ShopPage() {
             <p className="text-xs italic text-yara-taupe">Showing {visibleProducts.length} product{visibleProducts.length === 1 ? "" : "s"}</p>
             <div className="shop-toolbar-controls grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 sm:flex">
               <button onClick={() => setFiltersOpen(true)} className="shop-filter-button glass-control flex min-h-11 items-center gap-2 px-3 py-1.5 text-xs lg:hidden"><SlidersHorizontal className="h-4 w-4" /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}</button>
-              <select value={sort} onChange={(event) => setSort(event.target.value)} className="shop-sort glass-control min-h-11 min-w-0 w-full px-3 py-2 text-xs sm:w-auto sm:text-sm" aria-label="Sort products">
+              <select value={sort} onChange={(event) => { setSort(event.target.value); trackEvent("filter_usage", { filter_type: "sort", filter_value: event.target.value, country: country ?? undefined }); }} className="shop-sort glass-control min-h-11 min-w-0 w-full px-3 py-2 text-xs sm:w-auto sm:text-sm" aria-label="Sort products">
                 <option value="recommended">Recommended</option><option value="price-low">Price: Low to high</option><option value="price-high">Price: High to low</option><option value="rating">Top rated</option>
               </select>
             </div>

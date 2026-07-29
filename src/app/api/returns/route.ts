@@ -5,58 +5,197 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
 import { sendOrderTransactionalEmail } from "@/lib/email";
 
-const schema = z.object({
+const itemSchema = z.object({
+  orderItemId: z.string().uuid(),
+  quantity: z.number().int().positive().max(1000),
+  reason: z.enum([
+    "damaged",
+    "defective",
+    "incorrect_item",
+    "unopened_return",
+    "other",
+  ]),
+  note: z.string().trim().max(1000).default(""),
+});
+const metadataSchema = z.object({
   orderId: z.string().uuid(),
-  reason: z.enum(["damaged", "defective", "incorrect_item", "unopened_return", "other"]),
-  note: z.string().trim().max(2000),
-  items: z.array(z.object({ orderItemId: z.string().uuid(), quantity: z.number().int().positive().max(1000) })).min(1).max(100),
+  note: z.string().trim().max(2000).default(""),
+  items: z.array(itemSchema).min(1).max(100),
 });
 
+const allowedTypes = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+const maxFileBytes = 5 * 1024 * 1024;
+const maxFiles = 5;
+
+function databaseMessage(error: { message?: string }) {
+  const message = error.message ?? "";
+  if (
+    message.includes("return window") ||
+    message.includes("after delivery") ||
+    message.includes("remaining eligible") ||
+    message.includes("return item")
+  )
+    return message;
+  return "The return request could not be submitted.";
+}
+
 export async function POST(request: Request) {
-  if (!request.headers.get("content-type")?.includes("application/json")) return NextResponse.json({ error: "JSON request required." }, { status: 415 });
-  const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Check the return request." }, { status: 400 });
+  if (!request.headers.get("content-type")?.includes("multipart/form-data"))
+    return NextResponse.json(
+      { error: "Multipart form data is required." },
+      { status: 415 },
+    );
   try {
     const session = await getSupabaseServerClient();
-    const { data: claims } = session ? await session.auth.getClaims() : { data: null };
+    const { data: claims } = session
+      ? await session.auth.getClaims()
+      : { data: null };
     const userId = claims?.claims?.sub;
     const email = claims?.claims?.email;
-    if (!userId || typeof email !== "string") return NextResponse.json({ error: "Sign in to request a return." }, { status: 401 });
-    const supabase = getSupabaseAdminClient();
-    const [orderResult, existingResult] = await Promise.all([
-      supabase.from("orders").select("id,customer_user_id,order_status,delivered_at,order_items(id,quantity)").eq("id", parsed.data.orderId).maybeSingle(),
-      supabase.from("return_requests").select("id").eq("order_id", parsed.data.orderId).eq("customer_user_id", userId).not("status", "in", '("rejected","cancelled")').maybeSingle(),
-    ]);
-    const order = orderResult.data as unknown as { id: string; customer_user_id: string | null; order_status: string; delivered_at: string | null; order_items: Array<{ id: string; quantity: number }> } | null;
-    if (orderResult.error || !order || order.customer_user_id !== userId) return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    if (existingResult.data) return NextResponse.json({ error: "An active return request already exists for this order." }, { status: 409 });
-    if (order.order_status !== "delivered" || !order.delivered_at) return NextResponse.json({ error: "Returns are available after delivery is recorded." }, { status: 409 });
-    const deliveredAt = new Date(order.delivered_at).getTime();
-    if (!Number.isFinite(deliveredAt) || Date.now() - deliveredAt > 14 * 24 * 60 * 60 * 1000) return NextResponse.json({ error: "The 14-day return window has ended." }, { status: 409 });
-    const quantities = new Map((order.order_items ?? []).map((item: { id: string; quantity: number }) => [item.id, item.quantity]));
-    if (parsed.data.items.some((item) => !quantities.has(item.orderItemId) || item.quantity > Number(quantities.get(item.orderItemId)))) return NextResponse.json({ error: "One or more return quantities are invalid." }, { status: 400 });
-    const created = await supabase.from("return_requests").insert({ order_id: order.id, customer_email: email.toLowerCase(), customer_user_id: userId, reason: parsed.data.reason, customer_note: parsed.data.note, status: "requested" }).select("id").single();
-    if (created.error) throw created.error;
-    const returnId = (created.data as unknown as { id: string }).id;
-    const items = await supabase.from("return_items").insert(parsed.data.items.map((item) => ({ return_request_id: returnId, order_item_id: item.orderItemId, quantity: item.quantity })));
-    if (items.error) {
-      await supabase.from("return_requests").delete().eq("id", returnId);
-      throw items.error;
+    if (!session || !userId || typeof email !== "string")
+      return NextResponse.json(
+        { error: "Sign in to request a return." },
+        { status: 401 },
+      );
+
+    const formData = await request.formData();
+    let rawMetadata: unknown = null;
+    try {
+      rawMetadata = JSON.parse(String(formData.get("metadata") ?? "null"));
+    } catch {
+      return NextResponse.json(
+        { error: "Check the return request." },
+        { status: 400 },
+      );
     }
-    await supabase.from("return_status_history").insert({ return_request_id: returnId, from_status: null, to_status: "requested", note: "Customer submitted return request.", actor_id: userId });
+    const metadata = metadataSchema.safeParse(rawMetadata);
+    if (!metadata.success)
+      return NextResponse.json(
+        {
+          error:
+            metadata.error.issues[0]?.message ?? "Check the return request.",
+        },
+        { status: 400 },
+      );
+    const files = formData
+      .getAll("evidence")
+      .filter((value): value is File => value instanceof File && value.size > 0);
+    if (files.length > maxFiles)
+      return NextResponse.json(
+        { error: `Upload no more than ${maxFiles} evidence images.` },
+        { status: 400 },
+      );
+    for (const file of files) {
+      if (!allowedTypes.has(file.type) || file.size > maxFileBytes)
+        return NextResponse.json(
+          {
+            error:
+              "Evidence must be a JPG, PNG, or WebP image no larger than 5 MB.",
+          },
+          { status: 400 },
+        );
+    }
+
+    const admin = getSupabaseAdminClient();
+    const rpc = admin.rpc.bind(admin) as unknown as (
+      name: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+    const created = await rpc("create_item_return_request", {
+      p_order_id: metadata.data.orderId,
+      p_customer_user_id: userId,
+      p_customer_email: email,
+      p_customer_note: metadata.data.note,
+      p_items: metadata.data.items,
+    });
+    if (created.error) {
+      logSupabaseError("customer-returns", "create-return", created.error, {
+        route: "/api/returns",
+        table: "return_requests",
+        userId,
+      });
+      return NextResponse.json(
+        { error: databaseMessage(created.error) },
+        { status: 409 },
+      );
+    }
+    const returnId = String(created.data);
+    const uploaded: string[] = [];
+    try {
+      for (const file of files) {
+        const extension = allowedTypes.get(file.type);
+        const path = `${userId}/${returnId}/${crypto.randomUUID()}.${extension}`;
+        const upload = await admin.storage
+          .from("return-evidence")
+          .upload(path, file, {
+            contentType: file.type,
+            cacheControl: "3600",
+            upsert: false,
+          });
+        if (upload.error) throw upload.error;
+        uploaded.push(path);
+      }
+      if (uploaded.length) {
+        const evidence = await admin.from("return_images").insert(
+          uploaded.map((storagePath, index) => ({
+            return_request_id: returnId,
+            storage_path: storagePath,
+            original_filename: files[index].name.slice(0, 255),
+            content_type: files[index].type,
+            size_bytes: files[index].size,
+            uploaded_by: userId,
+          })),
+        );
+        if (evidence.error) throw evidence.error;
+      }
+    } catch (uploadError) {
+      if (uploaded.length)
+        await admin.storage.from("return-evidence").remove(uploaded);
+      await admin.from("return_requests").delete().eq("id", returnId);
+      logSupabaseError("customer-returns", "save-evidence", uploadError, {
+        route: "/api/returns",
+        table: "return_images",
+        userId,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "Evidence could not be uploaded. No return request was retained.",
+        },
+        { status: 503 },
+      );
+    }
+
     await sendOrderTransactionalEmail({
       template: "return_requested",
       recipient: email,
-      orderId: order.id,
+      orderId: metadata.data.orderId,
       dedupeKey: `return_requested:${returnId}`,
       subject: "Your YARA return request was received",
-      intro: `We received your ${parsed.data.reason.replaceAll("_", " ")} return request for review. It has not been automatically approved.`,
+      intro:
+        "We received your item-level return request for review. It has not been automatically approved.",
       nextSteps:
-        "YARA will review eligibility and contact you with the next step.",
+        "YARA will review each requested item and contact you with the next step.",
     });
-    return NextResponse.json({ message: "Return request submitted for review." }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: returnId,
+        message: "Return request submitted for review.",
+      },
+      { status: 201 },
+    );
   } catch (error) {
-    logSupabaseError("customer-returns", "create-return", error, { route: "/api/returns", table: "return_requests" });
-    return NextResponse.json({ error: "The return request could not be submitted." }, { status: 500 });
+    logSupabaseError("customer-returns", "submit", error, {
+      route: "/api/returns",
+      table: "return_requests",
+    });
+    return NextResponse.json(
+      { error: "The return request could not be submitted." },
+      { status: 500 },
+    );
   }
 }

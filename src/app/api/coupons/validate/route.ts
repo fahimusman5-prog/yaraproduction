@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseError } from "@/lib/supabase/log";
+import { consumeRequestRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   code: z.string().trim().min(2).max(40),
@@ -11,6 +12,22 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rateLimit = await consumeRequestRateLimit(
+    request,
+    "coupon-validation",
+    30,
+    600,
+  );
+  if (!rateLimit.allowed)
+    return NextResponse.json(
+      {
+        error:
+          rateLimit.reason === "limited"
+            ? "Too many coupon checks. Please wait and try again."
+            : "Coupon validation is temporarily unavailable.",
+      },
+      { status: rateLimit.reason === "limited" ? 429 : 503 },
+    );
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Enter a valid coupon code." }, { status: 400 });
   try {
