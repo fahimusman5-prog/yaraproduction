@@ -34,7 +34,8 @@ test("analytics is consent aware and strips personal property names", async () =
   assert.match(route, /z\.enum\(analyticsEvents\)/);
   assert.match(route, /eventId: z\.string\(\)\.uuid\(\)/);
   assert.match(route, /ignoreDuplicates: true/);
-  assert.match(route, /properties: parsed\.data\.properties/);
+  assert.match(route, /sanitizeAnalyticsProperties\(parsed\.data\.properties\)/);
+  assert.match(route, /properties \}/);
   assert.match(tracker, /analyticsConsent\(\)/);
   assert.match(tracker, /send_page_view: false/);
   assert.match(migration, /unique index if not exists analytics_events_event_id_key/);

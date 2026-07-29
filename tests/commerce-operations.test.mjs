@@ -31,9 +31,14 @@ test("customer returns enforce ownership, delivered state, 14 days, and ordered 
 });
 
 test("refund administration cannot exceed a verified paid order", async () => {
-  const actions = await read("../src/modules/admin/commerce-actions.ts");
+  const [actions, migration] = await Promise.all([
+    read("../src/modules/admin/commerce-actions.ts"),
+    read("../supabase/migrations/20260729081200_security_scan_remediation.sql"),
+  ]);
   assert.match(actions, /payment_status !== "paid"/);
-  assert.match(actions, /alreadyRefunded \+ parsed\.data\.amount > Number\(orderRow\.total_amount\)/);
+  assert.match(actions, /record_general_refund/);
+  assert.match(migration, /pg_advisory_xact_lock/);
+  assert.match(migration, /v_already_refunded \+ p_amount > v_order\.total_amount/);
   assert.match(actions, /No provider refund has been issued/);
 });
 

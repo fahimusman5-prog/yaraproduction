@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
+import { consumeRequestRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -21,6 +22,22 @@ const schema = z.object({
 export async function POST(request: Request) {
   if (!request.headers.get("content-type")?.includes("application/json"))
     return NextResponse.json({ error: "JSON request required." }, { status: 415 });
+  const rateLimit = await consumeRequestRateLimit(
+    request,
+    "shipping-options",
+    60,
+    600,
+  );
+  if (!rateLimit.allowed)
+    return NextResponse.json(
+      {
+        error:
+          rateLimit.reason === "limited"
+            ? "Too many delivery checks. Please wait and try again."
+            : "Delivery options are temporarily unavailable.",
+      },
+      { status: rateLimit.reason === "limited" ? 429 : 503 },
+    );
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json(

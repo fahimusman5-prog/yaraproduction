@@ -10,6 +10,7 @@ import {
   getAdminNotificationEmail,
   sendOrderTransactionalEmail,
 } from "@/lib/email";
+import { consumeRequestRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -62,6 +63,22 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.includes("application/json")) {
       return NextResponse.json({ error: "JSON request required." }, { status: 415 });
     }
+    const rateLimit = await consumeRequestRateLimit(
+      request,
+      "checkout",
+      5,
+      600,
+    );
+    if (!rateLimit.allowed)
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.reason === "limited"
+              ? "Too many checkout attempts. Please wait before trying again."
+              : "Checkout is temporarily unavailable.",
+        },
+        { status: rateLimit.reason === "limited" ? 429 : 503 },
+      );
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
     if (parsed.data.paymentMethod === "payhere" && process.env.PAYMENTS_ENABLED !== "true") {

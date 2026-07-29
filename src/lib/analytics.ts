@@ -44,6 +44,8 @@ const anonymousKey = "yara-analytics-anonymous-id";
 const sessionKey = "yara-analytics-session-id";
 const dedupeKey = "yara-analytics-recent-events";
 const blockedProperty = /(email|phone|name|address|password|token|secret)/i;
+const sensitiveStringValue =
+  /(?:[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+)|(?:\+?\d[\d\s().-]{7,}\d)/i;
 
 export function analyticsConsent() {
   return (
@@ -62,7 +64,8 @@ export function sanitizeAnalyticsProperties(properties: AnalyticsProperties) {
     Object.entries(properties).filter(
       ([key, value]) =>
         !blockedProperty.test(key) &&
-        ["string", "number", "boolean"].includes(typeof value),
+        ["string", "number", "boolean"].includes(typeof value) &&
+        !(typeof value === "string" && sensitiveStringValue.test(value)),
     ),
   ) as Record<string, string | number | boolean>;
 }

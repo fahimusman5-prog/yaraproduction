@@ -895,20 +895,11 @@ export async function createRefundAction(
         : (parsed.error.issues[0]?.message ?? "Check the refund."),
     };
   const supabase = getSupabaseAdminClient();
-  const [orderResult, refundsResult] = await Promise.all([
-    supabase
-      .from("orders")
-      .select(
-        "order_number,customer_email,total_amount,currency,payment_status",
-      )
-      .eq("id", orderId)
-      .maybeSingle(),
-    supabase
-      .from("refunds")
-      .select("amount,status")
-      .eq("order_id", orderId)
-      .not("status", "in", '("rejected","failed")'),
-  ]);
+  const orderResult = await supabase
+    .from("orders")
+    .select("order_number,customer_email,total_amount,currency,payment_status")
+    .eq("id", orderId)
+    .maybeSingle();
   if (orderResult.error || !orderResult.data)
     return { status: "error", message: "Order not found." };
   const orderRow = orderResult.data as unknown as {
@@ -923,37 +914,32 @@ export async function createRefundAction(
       status: "error",
       message: "Refunds can only be recorded against a paid order.",
     };
-  const alreadyRefunded = (refundsResult.data ?? []).reduce(
-    (sum, refund) => sum + Number(refund.amount),
-    0,
-  );
-  if (alreadyRefunded + parsed.data.amount > Number(orderRow.total_amount))
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+  const refund = await rpc("record_general_refund", {
+    p_order_id: orderId,
+    p_return_request_id: parsed.data.return_request_id || null,
+    p_amount: parsed.data.amount,
+    p_refund_type: parsed.data.refund_type,
+    p_reason: parsed.data.reason,
+    p_internal_note: parsed.data.internal_note,
+    p_actor_id: staff.userId,
+  });
+  if (refund.error || typeof refund.data !== "string")
     return {
       status: "error",
-      message: "Refunds cannot exceed the paid order total.",
+      message:
+        refund.error?.message === "Refunds cannot exceed the paid order total."
+          ? refund.error.message
+          : "Unable to record refund.",
     };
-  const refund = await supabase
-    .from("refunds")
-    .insert({
-      order_id: orderId,
-      return_request_id: parsed.data.return_request_id || null,
-      amount: parsed.data.amount,
-      currency: orderRow.currency,
-      refund_type: parsed.data.refund_type,
-      status: "requested",
-      reason: parsed.data.reason,
-      internal_note: parsed.data.internal_note,
-      actor_id: staff.userId,
-    })
-    .select("id")
-    .single();
-  if (refund.error)
-    return { status: "error", message: "Unable to record refund." };
   await sendOrderTransactionalEmail({
     template: "refund_recorded",
     recipient: orderRow.customer_email,
     orderId,
-    dedupeKey: `refund_recorded:${refund.data.id}`,
+    dedupeKey: `refund_recorded:${refund.data}`,
     subject: `Refund recorded for order ${orderRow.order_number}`,
     intro: `YARA recorded a ${orderRow.currency} ${parsed.data.amount.toFixed(2)} refund request against your order. This record does not claim that a payment provider has completed the transfer.`,
     nextSteps:
