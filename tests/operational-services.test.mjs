@@ -5,13 +5,14 @@ import test from "node:test";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("transactional email is environment driven, deduplicated, and failure isolated", async () => {
-  const [email, migration, checkout] = await Promise.all([
+  const [email, core, migration, checkout] = await Promise.all([
     read("../src/lib/email.ts"),
+    read("../src/lib/email-core.ts"),
     read("../supabase/migrations/20260729005809_operational_notifications_analytics_deletion.sql"),
     read("../src/app/api/checkout/route.ts"),
   ]);
-  assert.match(email, /process\.env\.EMAIL_PROVIDER/);
-  assert.match(email, /process\.env\.RESEND_API_KEY/);
+  assert.match(email, /new Resend\(apiKey\)/);
+  assert.match(core, /environment\.RESEND_API_KEY/);
   assert.match(email, /status: "skipped"/);
   assert.match(email, /next_attempt_at/);
   assert.doesNotMatch(email, /console\.log\(.*apiKey/);

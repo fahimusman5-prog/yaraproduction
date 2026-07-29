@@ -106,10 +106,22 @@ export function getServerEnvIssues() {
   if (process.env.PAYMENTS_ENABLED && !["true", "false"].includes(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true or false.");
   if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED && !["true", "false"].includes(process.env.NEXT_PUBLIC_PAYMENTS_ENABLED)) issues.push("NEXT_PUBLIC_PAYMENTS_ENABLED must be true or false.");
   if (process.env.PAYMENTS_ENABLED !== process.env.NEXT_PUBLIC_PAYMENTS_ENABLED) issues.push("PAYMENTS_ENABLED and NEXT_PUBLIC_PAYMENTS_ENABLED must match.");
-  const emailProvider = process.env.EMAIL_PROVIDER?.trim().toLowerCase();
-  if (emailProvider && emailProvider !== "resend") issues.push("EMAIL_PROVIDER must be resend or blank.");
-  if (emailProvider === "resend" && !process.env.RESEND_API_KEY?.trim()) issues.push("RESEND_API_KEY is required when EMAIL_PROVIDER=resend.");
-  if (emailProvider === "resend" && !process.env.EMAIL_FROM?.trim()) issues.push("EMAIL_FROM is required when EMAIL_PROVIDER=resend.");
+  const emailVariables = [
+    "RESEND_API_KEY",
+    "EMAIL_FROM",
+    "EMAIL_REPLY_TO",
+    "ADMIN_NOTIFICATION_EMAIL",
+  ] as const;
+  const configuredEmailVariables = emailVariables.filter((name) =>
+    process.env[name]?.trim(),
+  );
+  if (
+    configuredEmailVariables.length > 0 &&
+    configuredEmailVariables.length < emailVariables.length
+  )
+    issues.push(
+      "Transactional email configuration is incomplete. Set RESEND_API_KEY, EMAIL_FROM, EMAIL_REPLY_TO, and ADMIN_NOTIFICATION_EMAIL together.",
+    );
   if (process.env.NEXT_PUBLIC_ANALYTICS_ENABLED && !["true", "false"].includes(process.env.NEXT_PUBLIC_ANALYTICS_ENABLED)) issues.push("NEXT_PUBLIC_ANALYTICS_ENABLED must be true or false.");
 
   return issues;

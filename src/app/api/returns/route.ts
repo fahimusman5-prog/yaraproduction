@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
-import { sendTransactionalEmail } from "@/lib/email";
+import { sendOrderTransactionalEmail } from "@/lib/email";
 
 const schema = z.object({
   orderId: z.string().uuid(),
@@ -44,7 +44,16 @@ export async function POST(request: Request) {
       throw items.error;
     }
     await supabase.from("return_status_history").insert({ return_request_id: returnId, from_status: null, to_status: "requested", note: "Customer submitted return request.", actor_id: userId });
-    await sendTransactionalEmail({ template: "return_requested", recipient: email, orderId: order.id, subject: "Your YARA return request was received", intro: "We received your return request for review. It has not been automatically approved.", details: [["Reason", parsed.data.reason.replaceAll("_", " ")]], nextSteps: "YARA will review eligibility and contact you with the next step." });
+    await sendOrderTransactionalEmail({
+      template: "return_requested",
+      recipient: email,
+      orderId: order.id,
+      dedupeKey: `return_requested:${returnId}`,
+      subject: "Your YARA return request was received",
+      intro: `We received your ${parsed.data.reason.replaceAll("_", " ")} return request for review. It has not been automatically approved.`,
+      nextSteps:
+        "YARA will review eligibility and contact you with the next step.",
+    });
     return NextResponse.json({ message: "Return request submitted for review." }, { status: 201 });
   } catch (error) {
     logSupabaseError("customer-returns", "create-return", error, { route: "/api/returns", table: "return_requests" });

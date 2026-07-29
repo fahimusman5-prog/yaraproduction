@@ -16,10 +16,28 @@ export async function POST(request: Request) {
     const issuedAt = Number(data?.claims?.iat ?? 0) * 1000;
     if (!userId || typeof email !== "string") return NextResponse.json({ error: "Sign in again to continue." }, { status: 401 });
     if (!issuedAt || Date.now() - issuedAt > 10 * 60 * 1000) return NextResponse.json({ error: "Re-authentication is required before requesting deletion." }, { status: 401 });
-    const created = await getSupabaseAdminClient().from("account_deletion_requests").insert({ user_id: userId, requested_email: email.toLowerCase(), reason: parsed.data.reason, status: "pending" });
+    const created = await getSupabaseAdminClient()
+      .from("account_deletion_requests")
+      .insert({
+        user_id: userId,
+        requested_email: email.toLowerCase(),
+        reason: parsed.data.reason,
+        status: "pending",
+      })
+      .select("id")
+      .single();
     if (created.error?.code === "23505") return NextResponse.json({ error: "An active deletion request already exists." }, { status: 409 });
     if (created.error) throw created.error;
-    await sendTransactionalEmail({ template: "account_deletion_requested", recipient: email, subject: "YARA account deletion requested", intro: "Your account deletion request was recorded with a seven-day cancellation window.", nextSteps: "Orders and accounting records required by law will be retained in anonymised form. Saved addresses and profile data will be removed during processing." });
+    await sendTransactionalEmail({
+      template: "account_deletion_requested",
+      recipient: email,
+      dedupeKey: `account_deletion_requested:${created.data.id}`,
+      subject: "YARA account deletion requested",
+      intro:
+        "Your account deletion request was recorded with a seven-day cancellation window.",
+      nextSteps:
+        "Orders and accounting records required by law will be retained in anonymised form. Saved addresses and profile data will be removed during processing.",
+    });
     return NextResponse.json({ message: "Deletion requested. You can cancel it from your account during the cancellation window." }, { status: 201 });
   } catch (error) {
     logSupabaseError("account-deletion", "request", error, { route: "/api/account/deletion", table: "account_deletion_requests" });

@@ -31,6 +31,20 @@ must not be marked complete until the security advisor clears.
 Leaked-password protection requires an eligible Supabase plan. If the toggle is
 unavailable, upgrade or obtain the required plan before production launch.
 
+## Transactional email
+
+- [x] Official Resend Node.js SDK is pinned and used only by server code.
+- [x] `.env.local` is ignored and no Resend secret is tracked.
+- [x] Notification events, bounded retries, provider IDs, safe error categories,
+      and delivery attempts are persisted with RLS.
+- [x] Admin-only test endpoint is restricted to authorized configured addresses.
+- [ ] Confirm customer order confirmation arrives at an authorized test inbox.
+- [ ] Confirm admin new-order notification arrives.
+- [ ] Confirm sender name/domain and reply-to behavior.
+- [ ] Confirm mobile inbox rendering.
+- [ ] Confirm a repeated checkout request creates no duplicate email.
+- [ ] Confirm successful delivery in the Resend dashboard.
+
 ## Release decision
 
 Do not deploy until every unchecked non-payment gate is verified and the final

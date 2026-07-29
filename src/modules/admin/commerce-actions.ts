@@ -7,7 +7,10 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import type { ActionState } from "./action-state";
 import { formObject } from "./input";
-import { sendTransactionalEmail } from "@/lib/email";
+import {
+  sendOrderTransactionalEmail,
+  sendTransactionalEmail,
+} from "@/lib/email";
 
 const optionalNumber = z.preprocess(
   (value) => (value === "" ? null : value),
@@ -240,11 +243,19 @@ export async function updateReturnAction(
   const supabase = getSupabaseAdminClient();
   const current = await supabase
     .from("return_requests")
-    .select("status")
+    .select("status,order_id,orders(order_number,customer_email)")
     .eq("id", returnId)
     .maybeSingle();
   if (current.error || !current.data)
     return { status: "error", message: "Return request not found." };
+  const currentRow = current.data as unknown as {
+    status: string;
+    order_id: string;
+    orders:
+      | { order_number: string; customer_email: string }
+      | Array<{ order_number: string; customer_email: string }>
+      | null;
+  };
   const timestamps =
     parsed.data.status === "approved"
       ? { approved_at: new Date().toISOString() }
@@ -269,7 +280,7 @@ export async function updateReturnAction(
     .from("return_status_history")
     .insert({
       return_request_id: returnId,
-      from_status: current.data.status,
+      from_status: currentRow.status,
       to_status: parsed.data.status,
       note: parsed.data.admin_note,
       actor_id: staff.userId,
@@ -279,6 +290,34 @@ export async function updateReturnAction(
       status: "error",
       message: "Return updated, but its audit history could not be recorded.",
     };
+  const orderRelation = currentRow.orders;
+  const returnOrder = Array.isArray(orderRelation)
+    ? orderRelation[0]
+    : orderRelation;
+  if (
+    returnOrder &&
+    ["approved", "rejected"].includes(parsed.data.status)
+  ) {
+    await sendOrderTransactionalEmail({
+      template:
+        parsed.data.status === "approved"
+          ? "return_approved"
+          : "return_rejected",
+      recipient: returnOrder.customer_email,
+      orderId: currentRow.order_id,
+      dedupeKey: `return_${parsed.data.status}:${returnId}`,
+      subject: `Return ${parsed.data.status} for order ${returnOrder.order_number}`,
+      intro:
+        parsed.data.status === "approved"
+          ? "Your return request has been approved."
+          : "After reviewing the request, it was not approved.",
+      nextSteps:
+        parsed.data.admin_note ||
+        (parsed.data.status === "approved"
+          ? "Follow the return instructions provided by YARA before sending any item."
+          : "Reply to this email if you need clarification about the decision."),
+    });
+  }
   revalidatePath("/admin/commerce");
   return { status: "success", message: "Return updated." };
 }
@@ -309,7 +348,9 @@ export async function createRefundAction(
   const [orderResult, refundsResult] = await Promise.all([
     supabase
       .from("orders")
-      .select("total_amount,currency,payment_status")
+      .select(
+        "order_number,customer_email,total_amount,currency,payment_status",
+      )
       .eq("id", orderId)
       .maybeSingle(),
     supabase
@@ -320,7 +361,14 @@ export async function createRefundAction(
   ]);
   if (orderResult.error || !orderResult.data)
     return { status: "error", message: "Order not found." };
-  if (orderResult.data.payment_status !== "paid")
+  const orderRow = orderResult.data as unknown as {
+    order_number: string;
+    customer_email: string;
+    total_amount: number;
+    currency: string;
+    payment_status: string;
+  };
+  if (orderRow.payment_status !== "paid")
     return {
       status: "error",
       message: "Refunds can only be recorded against a paid order.",
@@ -329,25 +377,38 @@ export async function createRefundAction(
     (sum, refund) => sum + Number(refund.amount),
     0,
   );
-  if (alreadyRefunded + parsed.data.amount > Number(orderResult.data.total_amount))
+  if (alreadyRefunded + parsed.data.amount > Number(orderRow.total_amount))
     return {
       status: "error",
       message: "Refunds cannot exceed the paid order total.",
     };
-  const { error } = await supabase
+  const refund = await supabase
     .from("refunds")
     .insert({
       order_id: orderId,
       return_request_id: parsed.data.return_request_id || null,
       amount: parsed.data.amount,
-      currency: orderResult.data.currency,
+      currency: orderRow.currency,
       refund_type: parsed.data.refund_type,
       status: "requested",
       reason: parsed.data.reason,
       internal_note: parsed.data.internal_note,
       actor_id: staff.userId,
-    });
-  if (error) return { status: "error", message: "Unable to record refund." };
+    })
+    .select("id")
+    .single();
+  if (refund.error)
+    return { status: "error", message: "Unable to record refund." };
+  await sendOrderTransactionalEmail({
+    template: "refund_recorded",
+    recipient: orderRow.customer_email,
+    orderId,
+    dedupeKey: `refund_recorded:${refund.data.id}`,
+    subject: `Refund recorded for order ${orderRow.order_number}`,
+    intro: `YARA recorded a ${orderRow.currency} ${parsed.data.amount.toFixed(2)} refund request against your order. This record does not claim that a payment provider has completed the transfer.`,
+    nextSteps:
+      "We will send a separate refund-completed email only after a verified payment-provider event is available.",
+  });
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/commerce");
   return {
@@ -417,6 +478,7 @@ export async function completeAccountDeletionAction(requestId: string) {
   await sendTransactionalEmail({
     template: "account_deletion_completed",
     recipient: row.requested_email,
+    dedupeKey: `account_deletion_completed:${row.id}`,
     subject: "Your YARA account deletion is complete",
     intro:
       "Your profile and saved addresses have been removed and active sessions revoked.",

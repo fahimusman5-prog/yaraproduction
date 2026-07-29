@@ -28,7 +28,7 @@ test("customer returns enforce ownership, delivered state, 14 days, and ordered 
 test("refund administration cannot exceed a verified paid order", async () => {
   const actions = await read("../src/modules/admin/commerce-actions.ts");
   assert.match(actions, /payment_status !== "paid"/);
-  assert.match(actions, /alreadyRefunded \+ parsed\.data\.amount > Number\(orderResult\.data\.total_amount\)/);
+  assert.match(actions, /alreadyRefunded \+ parsed\.data\.amount > Number\(orderRow\.total_amount\)/);
   assert.match(actions, /No provider refund has been issued/);
 });
 

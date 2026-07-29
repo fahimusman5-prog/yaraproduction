@@ -6,7 +6,10 @@ import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
 import { createOrderTrackingToken } from "@/lib/order-tracking";
-import { sendTransactionalEmail } from "@/lib/email";
+import {
+  getAdminNotificationEmail,
+  sendOrderTransactionalEmail,
+} from "@/lib/email";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -110,16 +113,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
     }
     if (order.created) {
-      const details: Array<[string, string]> = [
-        ["Order", order.order_number],
-        ["Total", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],
-        ["Payment", parsed.data.paymentMethod === "cod" ? "Cash on delivery" : "Awaiting provider confirmation"],
-      ];
       const deliveries = [
-        sendTransactionalEmail({ template: "new_order_customer", recipient: parsed.data.customer.email, orderId: order.order_id, subject: `We received order ${order.order_number}`, customerName: parsed.data.customer.name, intro: "Your order has been recorded. We will contact you if delivery details need confirmation.", details, nextSteps: "You will receive another update when the order moves through fulfilment." }),
+        sendOrderTransactionalEmail({
+          template: "new_order_customer",
+          recipient: parsed.data.customer.email,
+          orderId: order.order_id,
+          subject: `We received order ${order.order_number}`,
+          intro:
+            "Your YARA order has been recorded. Our team will review the delivery details and begin fulfilment.",
+          nextSteps:
+            "Keep this confirmation for your records. We will email you as the order moves through fulfilment.",
+        }),
       ];
-      const adminEmail = process.env.ADMIN_ORDER_EMAIL?.trim();
-      if (adminEmail) deliveries.push(sendTransactionalEmail({ template: "new_order_admin", recipient: adminEmail, orderId: order.order_id, subject: `New YARA order ${order.order_number}`, intro: "A new storefront order requires review.", details, nextSteps: "Open the admin workspace to verify fulfilment and delivery details." }));
+      const adminEmail = getAdminNotificationEmail();
+      if (adminEmail)
+        deliveries.push(
+          sendOrderTransactionalEmail({
+            template: "new_order_admin",
+            recipient: adminEmail,
+            orderId: order.order_id,
+            customerName: "YARA team",
+            subject: `New YARA order ${order.order_number}`,
+            intro: "A new storefront order requires fulfilment review.",
+            nextSteps:
+              "Open the YARA admin workspace to verify the order, stock, payment method, and delivery details.",
+          }),
+        );
       await Promise.all(deliveries);
     }
     let trackingToken: string;
