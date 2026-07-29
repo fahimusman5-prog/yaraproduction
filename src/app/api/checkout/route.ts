@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
@@ -18,6 +19,7 @@ const schema = z.object({
     postalCode: z.string().trim().max(40),
   }),
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().positive().max(1000) })).min(1).max(100),
+  termsAccepted: z.literal(true),
 });
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
@@ -46,6 +48,9 @@ export async function POST(request: Request) {
     }
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
+    if (parsed.data.paymentMethod === "payhere" && process.env.PAYMENTS_ENABLED !== "true") {
+      return NextResponse.json({ error: "Online payments are temporarily unavailable. Please choose another available ordering method." }, { status: 503 });
+    }
     if (parsed.data.paymentMethod === "payhere" && (!process.env.PAYHERE_MERCHANT_ID?.trim() || !process.env.PAYHERE_MERCHANT_SECRET?.trim())) {
       return NextResponse.json({ error: "Online payments are not configured yet." }, { status: 503 });
     }
@@ -85,6 +90,13 @@ export async function POST(request: Request) {
         table: "orders",
       });
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
+    }
+    const sessionClient = await getSupabaseServerClient();
+    const { data: claimsData } = sessionClient ? await sessionClient.auth.getClaims() : { data: null };
+    const customerUserId = claimsData?.claims?.sub;
+    if (customerUserId) {
+      const { error: linkError } = await supabase.from("orders").update({ customer_user_id: customerUserId }).eq("id", order.order_id).is("customer_user_id", null);
+      if (linkError) logSupabaseError("storefront-checkout", "link-customer-order", linkError, { route: "/api/checkout", table: "orders", orderNumber: order.order_number, userId: customerUserId });
     }
     let trackingToken: string;
     try {

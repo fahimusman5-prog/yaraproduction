@@ -16,7 +16,8 @@ export function CheckoutPage() {
   const { country } = useCountry();
   const { locale, t } = useI18n();
   const formRef = useRef<HTMLFormElement>(null);
-  const [payment, setPayment] = useState<PaymentMethod>("payhere");
+  const paymentsEnabled = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true";
+  const [payment, setPayment] = useState<PaymentMethod>(paymentsEnabled ? "payhere" : "cod");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const total = subtotal;
@@ -56,7 +57,7 @@ export function CheckoutPage() {
     try {
       const data = new FormData(event.currentTarget);
       const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        country, paymentMethod: payment,
+        country, paymentMethod: payment, termsAccepted: data.get("termsAccepted") === "on",
         customer: { name: `${data.get("firstName") ?? ""} ${data.get("lastName") ?? ""}`.trim(), email: data.get("email"), phone: data.get("phone"), address: data.get("address"), city: data.get("city"), postalCode: data.get("postalCode") },
         items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
       }) });
@@ -116,9 +117,9 @@ export function CheckoutPage() {
           <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><CreditCard className="h-4 w-4" /></span> {t("checkout.payment")}</h2>
             <div className="mt-7 space-y-3">
-              <label className={`block cursor-pointer rounded-[1.7rem] border p-5 transition ${payment === "payhere" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}>
-                <span className="flex items-center gap-3 text-sm"><input type="radio" name="payment" checked={payment === "payhere"} onChange={() => setPayment("payhere")} className="accent-yara-wine" /><CreditCard className="h-4 w-4 text-yara-wine" /> {t("checkout.payhere")}</span>
-                {payment === "payhere" && <span className="mt-3 block text-xs leading-5 text-yara-taupe">{t("checkout.payhereCopy")}</span>}
+              <label className={`block rounded-[1.7rem] border p-5 transition ${paymentsEnabled ? "cursor-pointer" : "cursor-not-allowed opacity-70"} ${payment === "payhere" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}>
+                <span className="flex items-center gap-3 text-sm"><input type="radio" name="payment" checked={payment === "payhere"} onChange={() => setPayment("payhere")} disabled={!paymentsEnabled} className="accent-yara-wine" /><CreditCard className="h-4 w-4 text-yara-wine" /> {t("checkout.payhere")}</span>
+                <span className="mt-3 block text-xs leading-5 text-yara-taupe">{paymentsEnabled ? t("checkout.payhereCopy") : "Online payments are temporarily unavailable while the payment provider is being activated."}</span>
               </label>
               <label className={`flex cursor-pointer items-center gap-3 rounded-full border p-5 text-sm transition ${payment === "cod" ? "border-yara-wine bg-yara-blush" : "border-yara-rose"}`}><input type="radio" name="payment" checked={payment === "cod"} onChange={() => setPayment("cod")} className="accent-yara-wine" /><Banknote className="h-4 w-4 text-yara-wine" /> {t("checkout.cod")}</label>
             </div>
@@ -136,6 +137,10 @@ export function CheckoutPage() {
           </div>
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>
           <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
+          <label className="mt-6 flex items-start gap-3 text-sm leading-6 text-yara-taupe">
+            <input type="checkbox" name="termsAccepted" required className="mt-1 h-5 w-5 shrink-0 accent-yara-wine" />
+            <span>I agree to the <Link to="/terms-and-conditions" className="font-semibold text-yara-wine underline underline-offset-2">Terms and Conditions</Link>, <Link to="/refund-policy" className="font-semibold text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>, and <Link to="/shipping-policy" className="font-semibold text-yara-wine underline underline-offset-2">Shipping Policy</Link>.</span>
+          </label>
           {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <p className="mt-5 text-center text-xs leading-5 text-yara-taupe">By placing your order, you agree to YARA’s <Link to="/terms-and-conditions" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Terms and Conditions</Link> and acknowledge the <Link to="/privacy-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Privacy Policy</Link> and <Link to="/refund-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>.</p>
           <button type="submit" disabled={submitting || !hasLiveCatalogItems} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? t("checkout.preparing") : t("checkout.confirm")}</button>
