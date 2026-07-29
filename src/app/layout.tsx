@@ -15,6 +15,10 @@ export const metadata: Metadata = {
     url: "https://www.yaraproduct.com/en",
   },
   twitter: { card: "summary_large_image", title: "YARA | Luxury Skincare", description: "Discover YARA luxury skincare." },
+  icons: {
+    icon: "/icon",
+    apple: "/icon",
+  },
   robots: { index: true, follow: true },
 };
 

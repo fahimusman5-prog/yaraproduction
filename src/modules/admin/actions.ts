@@ -834,6 +834,32 @@ export async function updateOrderStatusAction(
       message: "Choose valid order and payment statuses.",
     };
   const supabase = await actionClient();
+  if (parsed.data.payment_status === "paid") {
+    const currentOrderResult = await supabase
+      .from("orders")
+      .select("payment_method,payment_status")
+      .eq("id", orderId)
+      .maybeSingle();
+    const currentOrder = currentOrderResult.data as {
+      payment_method?: string;
+      payment_status?: string;
+    } | null;
+    if (currentOrderResult.error)
+      return {
+        status: "error",
+        message: messageFromSupabaseError(
+          currentOrderResult.error,
+          "Unable to verify the current payment state.",
+        ),
+      };
+    if (
+      currentOrder?.payment_status !== "paid" &&
+      ["cash_on_delivery", "bank_transfer"].includes(
+        currentOrder?.payment_method ?? "",
+      )
+    )
+      await requireAdmin(`/admin/orders/${orderId}`);
+  }
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
