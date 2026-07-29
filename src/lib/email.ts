@@ -177,6 +177,7 @@ export async function sendOrderTransactionalEmail(input: {
   subject: string;
   intro: string;
   nextSteps: string;
+  details?: Array<[string, string]>;
 }) {
   try {
     const order = await loadOrderEmailData(input.orderId);

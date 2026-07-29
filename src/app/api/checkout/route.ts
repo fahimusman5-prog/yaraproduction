@@ -166,22 +166,70 @@ export async function POST(request: Request) {
         parsed.data.paymentMethod === "bank_transfer")
       {
       const isBank = parsed.data.paymentMethod === "bank_transfer";
+      const bankSetting = isBank
+        ? await supabase
+            .from("payment_method_settings")
+            .select(
+              "account_holder_name,bank_name,branch_name,account_number,swift_code,instructions",
+            )
+            .eq(
+              "region_code",
+              parsed.data.country === "sri-lanka" ? "LK" : "AE",
+            )
+            .eq("payment_method", "bank_transfer")
+            .eq("is_enabled", true)
+            .maybeSingle()
+        : null;
+      const bank = bankSetting?.data as {
+        account_holder_name?: string | null;
+        bank_name?: string | null;
+        branch_name?: string | null;
+        account_number?: string | null;
+        swift_code?: string | null;
+        instructions?: string | null;
+      } | null;
+      const customerDetails: Array<[string, string]> = isBank
+        ? ([
+            ["Payment method", "Bank Transfer"],
+            ["Payment status", "Awaiting payment verification"],
+            ["Amount to transfer", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],
+            ["Account holder", bank?.account_holder_name ?? ""],
+            ["Bank", bank?.bank_name ?? ""],
+            ["Branch", bank?.branch_name ?? ""],
+            ["Account number", bank?.account_number ?? ""],
+            ["SWIFT", bank?.swift_code ?? ""],
+            ["Instructions", bank?.instructions ?? ""],
+          ].filter((entry) => entry[1]) as Array<[string, string]>)
+        : [
+            ["Payment method", "Cash on Delivery"],
+            ["Payment status", "Payment due on delivery"],
+            ["Amount to collect", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],
+          ];
+      const adminDetails: Array<[string, string]> = [
+        ...customerDetails,
+        ["Customer address", `${parsed.data.customer.address}, ${parsed.data.customer.city} ${parsed.data.customer.postalCode}`.trim()],
+        ["Contact number", parsed.data.customer.phone],
+        ...(isBank && parsed.data.bankTransactionReference
+          ? [["Transfer reference", parsed.data.bankTransactionReference] as [string, string]]
+          : []),
+      ];
       const deliveries = [
         sendOrderTransactionalEmail({
-          template: isBank ? "new_order_customer" : "new_order_customer",
+          template: "new_order_customer",
           recipient: parsed.data.customer.email,
           orderId: order.order_id,
           subject: isBank
-            ? `Bank transfer order ${order.order_number} received`
-            : `Cash on delivery order ${order.order_number} confirmed`,
+            ? "Your YARA order has been received"
+            : "Your YARA order is confirmed",
           intro:
             isBank
-              ? "Your YARA order has been received and is awaiting bank payment verification."
-              : "Your YARA order is confirmed. Payment is due when your order is delivered.",
+              ? "Your order has been received and is awaiting bank payment verification."
+              : "Your cash-on-delivery order is confirmed.",
           nextSteps:
             isBank
-              ? "Transfer the final payable amount using your order number as the payment reference. YARA will confirm the order after reviewing the payment."
-              : "Keep the final amount ready for collection on delivery.",
+              ? "Please complete the bank transfer using your order number as the reference."
+              : "Payment will be collected when your order is delivered.",
+          details: customerDetails,
         }),
       ];
       const adminEmail = getAdminNotificationEmail();
@@ -198,6 +246,7 @@ export async function POST(request: Request) {
               : "A cash-on-delivery order is confirmed and requires fulfilment.",
             nextSteps:
               "Open the YARA admin workspace to verify the order, stock, payment method, and delivery details.",
+            details: adminDetails,
           }),
         );
         await Promise.all(deliveries);
