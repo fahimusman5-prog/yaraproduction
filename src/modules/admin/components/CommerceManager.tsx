@@ -7,10 +7,12 @@ import {
   archiveShippingZoneAction,
   completeAccountDeletionAction,
   createCouponAction,
+  createItemRefundAction,
   createShippingMethodAction,
   createShippingZoneAction,
   saveShippingProductRateAction,
   setCouponActiveAction,
+  reviewReturnItemsAction,
   updateShippingMethodAction,
   updateShippingZoneAction,
   updateReturnAction,
@@ -951,6 +953,14 @@ function ReturnCard({ request }: { request: any }) {
     updateReturnAction.bind(null, request.id),
     initialActionState,
   );
+  const [reviewState, reviewAction] = useActionState(
+    reviewReturnItemsAction.bind(null, request.id),
+    initialActionState,
+  );
+  const [refundState, refundAction] = useActionState(
+    createItemRefundAction.bind(null, request.order_id, request.id),
+    initialActionState,
+  );
   return (
     <article className="rounded-xl border border-[var(--staff-line)] p-4">
       <div className="flex flex-wrap justify-between gap-3">
@@ -967,6 +977,187 @@ function ReturnCard({ request }: { request: any }) {
           {request.status.replaceAll("_", " ")}
         </span>
       </div>
+      <div className="mt-4 grid gap-3">
+        {request.return_items?.map((item: any) => (
+          <div
+            key={item.id}
+            className="rounded-xl bg-slate-50 p-4 text-sm"
+          >
+            <p className="font-semibold">
+              {item.order_items?.products?.name ?? "Product"} · requested{" "}
+              {item.quantity}
+            </p>
+            <p className="mt-1 text-slate-500">
+              {String(item.reason).replaceAll("_", " ")}
+              {item.customer_note ? ` · ${item.customer_note}` : ""}
+            </p>
+            <p className="mt-2 text-xs">
+              Approved {item.approved_quantity} · Rejected{" "}
+              {item.rejected_quantity} · Received {item.received_quantity}
+            </p>
+            {item.inspection_outcome && (
+              <p className="mt-1 text-xs text-slate-500">
+                Inspection: {item.inspection_outcome}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+      {request.return_images?.length > 0 && (
+        <div className="mt-4">
+          <p className="staff-label">Private evidence</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {request.return_images.map((image: any, index: number) =>
+              image.signed_url ? (
+                <a
+                  key={image.id}
+                  href={image.signed_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="staff-button staff-button-secondary"
+                >
+                  Evidence {index + 1}
+                </a>
+              ) : null,
+            )}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Links expire after 15 minutes.
+          </p>
+        </div>
+      )}
+      <details className="mt-4 rounded-xl border border-[var(--staff-line)] p-4">
+        <summary className="min-h-11 cursor-pointer font-semibold">
+          Review item quantities
+        </summary>
+        <form action={reviewAction} className="mt-4 grid gap-4">
+          <ActionMessage state={reviewState} />
+          {request.return_items?.map((item: any) => (
+            <fieldset
+              key={item.id}
+              className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3"
+            >
+              <legend className="px-1 text-sm font-semibold">
+                {item.order_items?.products?.name ?? "Product"} ·{" "}
+                {item.quantity} requested
+              </legend>
+              <input type="hidden" name="return_item_id" value={item.id} />
+              <label>
+                <span className="staff-label">Approve</span>
+                <input
+                  name={`approved_${item.id}`}
+                  type="number"
+                  min="0"
+                  max={item.quantity}
+                  defaultValue={item.approved_quantity}
+                  required
+                  className="staff-input"
+                />
+              </label>
+              <label>
+                <span className="staff-label">Reject</span>
+                <input
+                  name={`rejected_${item.id}`}
+                  type="number"
+                  min="0"
+                  max={item.quantity}
+                  defaultValue={item.rejected_quantity}
+                  required
+                  className="staff-input"
+                />
+              </label>
+              <label>
+                <span className="staff-label">Inspection outcome</span>
+                <input
+                  name={`inspection_${item.id}`}
+                  maxLength={1000}
+                  defaultValue={item.inspection_outcome}
+                  className="staff-input"
+                />
+              </label>
+            </fieldset>
+          ))}
+          <label>
+            <span className="staff-label">Decision note</span>
+            <textarea
+              name="admin_note"
+              maxLength={2000}
+              className="staff-input"
+            />
+          </label>
+          <SubmitButton>Record item decisions</SubmitButton>
+        </form>
+      </details>
+      {request.orders?.payment_status === "paid" && (
+        <details className="mt-4 rounded-xl border border-[var(--staff-line)] p-4">
+          <summary className="min-h-11 cursor-pointer font-semibold">
+            Record partial refund
+          </summary>
+          <form action={refundAction} className="mt-4 grid gap-4">
+            <ActionMessage state={refundState} />
+            {request.return_items
+              ?.filter((item: any) => item.approved_quantity > 0)
+              .map((item: any) => (
+                <fieldset
+                  key={item.id}
+                  className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2"
+                >
+                  <legend className="px-1 text-sm font-semibold">
+                    {item.order_items?.products?.name ?? "Product"} · approved{" "}
+                    {item.approved_quantity}
+                  </legend>
+                  <input
+                    type="hidden"
+                    name="refund_order_item_id"
+                    value={item.order_items?.id}
+                  />
+                  <label>
+                    <span className="staff-label">Refund quantity</span>
+                    <input
+                      name={`refund_quantity_${item.order_items?.id}`}
+                      type="number"
+                      min="0"
+                      max={item.approved_quantity}
+                      defaultValue="0"
+                      className="staff-input"
+                    />
+                  </label>
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name={`refund_shipping_${item.order_items?.id}`}
+                      value="true"
+                    />
+                    Include proportional item shipping
+                  </label>
+                </fieldset>
+              ))}
+            <label>
+              <span className="staff-label">Customer-facing reason</span>
+              <input
+                name="reason"
+                minLength={3}
+                maxLength={1000}
+                required
+                className="staff-input"
+              />
+            </label>
+            <label>
+              <span className="staff-label">Internal note</span>
+              <textarea
+                name="internal_note"
+                maxLength={2000}
+                className="staff-input"
+              />
+            </label>
+            <SubmitButton>Record refund only</SubmitButton>
+            <p className="text-xs text-amber-700">
+              This creates an immutable accounting record. It does not contact a
+              payment provider or move money.
+            </p>
+          </form>
+        </details>
+      )}
       <form
         action={action}
         className="mt-4 grid gap-3 md:grid-cols-[190px_1fr_auto]"

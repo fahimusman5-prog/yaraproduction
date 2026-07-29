@@ -636,6 +636,22 @@ export async function updateReturnAction(
           : parsed.data.status === "resolved"
             ? { resolved_at: new Date().toISOString() }
             : {};
+  if (parsed.data.status === "received" && currentRow.status !== "received") {
+    const rpc = supabase.rpc.bind(supabase) as unknown as (
+      name: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+    const received = await rpc("mark_return_items_received", {
+      p_return_request_id: returnId,
+      p_actor_id: staff.userId,
+    });
+    if (received.error)
+      return {
+        status: "error",
+        message:
+          received.error.message ?? "Unable to record received quantities.",
+      };
+  }
   const update = await supabase
     .from("return_requests")
     .update({
@@ -690,6 +706,170 @@ export async function updateReturnAction(
   }
   revalidatePath("/admin/commerce");
   return { status: "success", message: "Return updated." };
+}
+
+export async function reviewReturnItemsAction(
+  returnId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("/admin/commerce");
+  if (!z.string().uuid().safeParse(returnId).success)
+    return { status: "error", message: "Return request not found." };
+  const itemIds = formData
+    .getAll("return_item_id")
+    .map(String)
+    .filter((id) => z.string().uuid().safeParse(id).success);
+  if (!itemIds.length)
+    return { status: "error", message: "No return items were selected." };
+  const items = itemIds.map((id) => ({
+    returnItemId: id,
+    approvedQuantity: Number(formData.get(`approved_${id}`) ?? 0),
+    rejectedQuantity: Number(formData.get(`rejected_${id}`) ?? 0),
+    inspectionOutcome: String(formData.get(`inspection_${id}`) ?? "").trim(),
+  }));
+  if (
+    items.some(
+      (item) =>
+        !Number.isInteger(item.approvedQuantity) ||
+        !Number.isInteger(item.rejectedQuantity) ||
+        item.approvedQuantity < 0 ||
+        item.rejectedQuantity < 0 ||
+        item.inspectionOutcome.length > 1000,
+    )
+  )
+    return { status: "error", message: "Check every item decision." };
+  const supabase = getSupabaseAdminClient();
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+  const reviewed = await rpc("review_return_request_items", {
+    p_return_request_id: returnId,
+    p_actor_id: staff.userId,
+    p_admin_note: String(formData.get("admin_note") ?? "").trim(),
+    p_items: items,
+  });
+  if (reviewed.error)
+    return {
+      status: "error",
+      message: reviewed.error.message ?? "Unable to review return items.",
+    };
+  const request = await supabase
+    .from("return_requests")
+    .select("order_id,orders(order_number,customer_email)")
+    .eq("id", returnId)
+    .single();
+  const relation = (
+    request.data as unknown as {
+      order_id: string;
+      orders:
+        | { order_number: string; customer_email: string }
+        | Array<{ order_number: string; customer_email: string }>;
+    } | null
+  );
+  const order = Array.isArray(relation?.orders)
+    ? relation?.orders[0]
+    : relation?.orders;
+  const status = String(reviewed.data);
+  if (relation && order) {
+    await sendOrderTransactionalEmail({
+      template: status === "rejected" ? "return_rejected" : "return_approved",
+      recipient: order.customer_email,
+      orderId: relation.order_id,
+      dedupeKey: `return_item_review:${returnId}:${status}`,
+      subject: `Return ${status} for order ${order.order_number}`,
+      intro:
+        status === "rejected"
+          ? "After reviewing each requested item, the return was not approved."
+          : "YARA reviewed each requested item. Approved and rejected quantities are recorded in your return.",
+      nextSteps:
+        String(formData.get("admin_note") ?? "").trim() ||
+        "Reply to this email if you need clarification about the item-level decision.",
+    });
+  }
+  revalidatePath("/admin/commerce");
+  return { status: "success", message: "Item decisions recorded." };
+}
+
+export async function createItemRefundAction(
+  orderId: string,
+  returnId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await requireAdmin("/admin/commerce");
+  if (
+    !z.string().uuid().safeParse(orderId).success ||
+    !z.string().uuid().safeParse(returnId).success
+  )
+    return { status: "error", message: "Return request not found." };
+  const orderItemIds = formData
+    .getAll("refund_order_item_id")
+    .map(String)
+    .filter((id) => z.string().uuid().safeParse(id).success);
+  const items = orderItemIds
+    .map((id) => ({
+      orderItemId: id,
+      quantity: Number(formData.get(`refund_quantity_${id}`) ?? 0),
+      includeShipping: formData.get(`refund_shipping_${id}`) === "true",
+    }))
+    .filter((item) => item.quantity > 0);
+  if (
+    !items.length ||
+    items.some(
+      (item) => !Number.isInteger(item.quantity) || item.quantity <= 0,
+    )
+  )
+    return { status: "error", message: "Select refundable item quantities." };
+  const supabase = getSupabaseAdminClient();
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+  const recorded = await rpc("record_item_refund", {
+    p_order_id: orderId,
+    p_return_request_id: returnId,
+    p_actor_id: staff.userId,
+    p_reason: String(formData.get("reason") ?? "").trim(),
+    p_internal_note: String(formData.get("internal_note") ?? "").trim(),
+    p_items: items,
+  });
+  if (recorded.error)
+    return {
+      status: "error",
+      message: recorded.error.message ?? "Unable to record item refund.",
+    };
+  const refundId = String(recorded.data);
+  const refund = await supabase
+    .from("refunds")
+    .select("amount,currency,orders(order_number,customer_email)")
+    .eq("id", refundId)
+    .single();
+  const row = refund.data as unknown as {
+    amount: number;
+    currency: string;
+    orders:
+      | { order_number: string; customer_email: string }
+      | Array<{ order_number: string; customer_email: string }>;
+  } | null;
+  const order = Array.isArray(row?.orders) ? row?.orders[0] : row?.orders;
+  if (row && order)
+    await sendOrderTransactionalEmail({
+      template: "refund_recorded",
+      recipient: order.customer_email,
+      orderId,
+      dedupeKey: `refund_recorded:${refundId}`,
+      subject: `Refund recorded for order ${order.order_number}`,
+      intro: `YARA recorded an item-level ${row.currency} ${Number(row.amount).toFixed(2)} refund request. No payment-provider refund has been issued.`,
+      nextSteps:
+        "A completion email will be sent only after a verified payment-provider refund event is available.",
+    });
+  revalidatePath("/admin/commerce");
+  return {
+    status: "success",
+    message: "Item-level refund recorded. No provider refund was issued.",
+  };
 }
 
 export async function createRefundAction(

@@ -51,7 +51,7 @@ export async function getCommerceOperations() {
       supabase
         .from("return_requests")
         .select(
-          "*,orders(order_number,currency,total_amount),return_items(id,quantity,order_items(product_id,products(name,sku)))",
+          "*,orders(order_number,currency,total_amount,payment_status),return_items(id,quantity,reason,customer_note,approved_quantity,rejected_quantity,received_quantity,inspection_outcome,order_items(id,product_id,quantity,unit_price,subtotal,shipping_fee,refunded_quantity,products(name,sku))),return_images(id,storage_path,original_filename,content_type,size_bytes)",
         )
         .order("created_at", { ascending: false }),
       supabase
@@ -80,6 +80,30 @@ export async function getCommerceOperations() {
     throw new Error(
       "Commerce operations could not be loaded. Apply the latest migrations.",
     );
+  const returnRows = (returns.data ?? []) as Array<{
+    return_images?: Array<{ storage_path: string }>;
+    [key: string]: unknown;
+  }>;
+  const evidencePaths = returnRows.flatMap((request) =>
+    (request.return_images ?? []).map((image) => image.storage_path),
+  );
+  const signedEvidence = evidencePaths.length
+    ? await supabase.storage
+        .from("return-evidence")
+        .createSignedUrls(evidencePaths, 15 * 60)
+    : { data: [], error: null };
+  if (signedEvidence.error)
+    throw new Error("Private return evidence could not be authorized.");
+  const signedByPath = new Map(
+    (signedEvidence.data ?? []).map((item) => [item.path, item.signedUrl]),
+  );
+  const returnsWithEvidence = returnRows.map((request) => ({
+    ...request,
+    return_images: (request.return_images ?? []).map((image) => ({
+      ...image,
+      signed_url: signedByPath.get(image.storage_path) ?? null,
+    })),
+  }));
   return {
     zones: zones.data ?? [],
     methods: methods.data ?? [],
@@ -88,7 +112,7 @@ export async function getCommerceOperations() {
     products: products.data ?? [],
     categories: categories.data ?? [],
     coupons: coupons.data ?? [],
-    returns: returns.data ?? [],
+    returns: returnsWithEvidence,
     refunds: refunds.data ?? [],
     deletionRequests: deletionRequests.data ?? [],
   };

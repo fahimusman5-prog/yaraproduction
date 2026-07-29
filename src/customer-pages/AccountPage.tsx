@@ -3,6 +3,7 @@ import {
   LogOut,
   MapPin,
   Package,
+  Paperclip,
   Pencil,
   Plus,
   Star,
@@ -30,6 +31,8 @@ type Order = {
   order_items: Array<{
     id: string;
     quantity: number;
+    returned_quantity: number;
+    refunded_quantity: number;
     products: { name: string } | null;
   }>;
   return_requests: Array<{ id: string; status: string }>;
@@ -81,6 +84,8 @@ export function AccountPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [returning, setReturning] = useState<Order | null>(null);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -107,7 +112,7 @@ export function AccountPage() {
       client
         .from("orders")
         .select(
-          "id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,discount_amount,currency,created_at,delivered_at,order_items(id,quantity,products(name)),return_requests(id,status)",
+          "id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,discount_amount,currency,created_at,delivered_at,order_items(id,quantity,returned_quantity,refunded_quantity,products(name)),return_requests(id,status)",
         )
         .eq("customer_user_id", auth.user.id)
         .order("created_at", { ascending: false })
@@ -241,30 +246,85 @@ export function AccountPage() {
       .map((item) => ({
         orderItemId: item.id,
         quantity: Number(data.get(`quantity_${item.id}`) ?? 0),
+        reason: String(data.get(`reason_${item.id}`) ?? "other"),
+        note: String(data.get(`note_${item.id}`) ?? ""),
       }))
       .filter((item) => item.quantity > 0);
+    if (!items.length) {
+      setMessage("Select at least one item and quantity to return.");
+      return;
+    }
     setBusy(true);
     setMessage("");
-    const response = await fetch("/api/returns", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    setUploadProgress(0);
+    const body = new FormData();
+    body.set(
+      "metadata",
+      JSON.stringify({
         orderId: returning.id,
-        reason: data.get("reason"),
         note: data.get("note"),
         items,
       }),
-    });
-    const payload = await response.json();
-    setMessage(
-      response.ok ? payload.message : payload.error || "Return request failed.",
     );
-    if (response.ok) {
+    evidenceFiles.forEach((file) => body.append("evidence", file));
+    const result = await new Promise<{
+      ok: boolean;
+      payload: { message?: string; error?: string };
+    }>((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/returns");
+      xhr.upload.onprogress = (progress) => {
+        if (progress.lengthComputable)
+          setUploadProgress(
+            Math.round((progress.loaded / progress.total) * 100),
+          );
+      };
+      xhr.onload = () => {
+        let payload: { message?: string; error?: string } = {};
+        try {
+          payload = JSON.parse(xhr.responseText);
+        } catch {
+          payload = { error: "Return request failed." };
+        }
+        resolve({ ok: xhr.status >= 200 && xhr.status < 300, payload });
+      };
+      xhr.onerror = () =>
+        resolve({
+          ok: false,
+          payload: { error: "The upload connection failed." },
+        });
+      xhr.send(body);
+    });
+    setMessage(
+      result.ok
+        ? result.payload.message ?? "Return request submitted."
+        : result.payload.error || "Return request failed.",
+    );
+    if (result.ok) {
       trackEvent("return_requested", { order_id: returning.id });
       setReturning(null);
+      setEvidenceFiles([]);
       await load();
     }
     setBusy(false);
+  };
+
+  const selectEvidence = (files: FileList | null) => {
+    if (!files) return;
+    const next = [...files];
+    const valid = next.every(
+      (file) =>
+        ["image/jpeg", "image/png", "image/webp"].includes(file.type) &&
+        file.size <= 5 * 1024 * 1024,
+    );
+    if (!valid || evidenceFiles.length + next.length > 5) {
+      setMessage(
+        "Choose up to five JPG, PNG, or WebP images, each no larger than 5 MB.",
+      );
+      return;
+    }
+    setEvidenceFiles((current) => [...current, ...next]);
+    setMessage("");
   };
 
   const requestDeletion = async (event: FormEvent<HTMLFormElement>) => {
@@ -640,7 +700,11 @@ export function AccountPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setReturning(null)}
+                onClick={() => {
+                  setReturning(null);
+                  setEvidenceFiles([]);
+                  setUploadProgress(0);
+                }}
                 className="glass-icon h-11 w-11"
                 aria-label="Close return form"
               >
@@ -654,46 +718,119 @@ export function AccountPage() {
             </p>
             <div className="mt-5 grid gap-3">
               {returning.order_items.map((item) => (
-                <label
+                <fieldset
                   key={item.id}
-                  className="grid grid-cols-[1fr_100px] items-center gap-4 rounded-2xl border border-yara-rose p-3"
+                  className="grid gap-3 rounded-2xl border border-yara-rose p-4 sm:grid-cols-2"
                 >
-                  <span className="text-sm">
+                  <legend className="px-1 text-sm font-semibold">
                     {item.products?.name ?? "Product"}{" "}
                     <span className="text-yara-taupe">
-                      · ordered {item.quantity}
+                      · {item.quantity - item.returned_quantity} remaining
                     </span>
-                  </span>
-                  <input
-                    name={`quantity_${item.id}`}
-                    type="number"
-                    min="0"
-                    max={item.quantity}
-                    defaultValue="0"
-                    className="field"
-                    aria-label={`Return quantity for ${item.products?.name ?? "product"}`}
-                  />
-                </label>
+                  </legend>
+                  <label>
+                    <span className="field-label">Quantity</span>
+                    <input
+                      name={`quantity_${item.id}`}
+                      type="number"
+                      min="0"
+                      max={item.quantity - item.returned_quantity}
+                      defaultValue="0"
+                      className="field"
+                      aria-label={`Return quantity for ${item.products?.name ?? "product"}`}
+                    />
+                  </label>
+                  <label>
+                    <span className="field-label">Reason</span>
+                    <select name={`reason_${item.id}`} className="field">
+                      <option value="damaged">Damaged</option>
+                      <option value="defective">Defective</option>
+                      <option value="incorrect_item">Incorrect item</option>
+                      <option value="unopened_return">Unused and unopened</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label className="sm:col-span-2">
+                    <span className="field-label">Item details (optional)</span>
+                    <input
+                      name={`note_${item.id}`}
+                      maxLength={1000}
+                      className="field"
+                    />
+                  </label>
+                </fieldset>
               ))}
             </div>
             <label className="mt-4 block">
-              <span className="field-label">Reason</span>
-              <select name="reason" className="field">
-                <option value="damaged">Damaged</option>
-                <option value="defective">Defective</option>
-                <option value="incorrect_item">Incorrect item</option>
-                <option value="unopened_return">Unused and unopened</option>
-                <option value="other">Other</option>
-              </select>
-            </label>
-            <label className="mt-4 block">
-              <span className="field-label">Details</span>
+              <span className="field-label">Overall details</span>
               <textarea
                 name="note"
                 maxLength={2000}
                 className="field min-h-24"
               />
             </label>
+            <div className="mt-4 rounded-2xl border border-dashed border-yara-rose p-4">
+              <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-yara-blush px-4 text-sm font-semibold text-yara-wine">
+                <Paperclip className="h-4 w-4" />
+                Add evidence images
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="sr-only"
+                  onChange={(event) => {
+                    selectEvidence(event.currentTarget.files);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <p className="mt-2 text-xs text-yara-taupe">
+                Up to 5 private JPG, PNG, or WebP images, 5 MB each.
+              </p>
+              {evidenceFiles.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {evidenceFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${file.lastModified}-${index}`}
+                      className="relative overflow-hidden rounded-xl border border-yara-rose"
+                    >
+                      <EvidencePreview file={file} index={index} />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEvidenceFiles((current) =>
+                            current.filter((_, itemIndex) => itemIndex !== index),
+                          )
+                        }
+                        className="absolute right-1 top-1 grid h-11 w-11 place-items-center rounded-full bg-white/90 text-red-700"
+                        aria-label={`Remove evidence image ${index + 1}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {busy && evidenceFiles.length > 0 && (
+                <div className="mt-3">
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-yara-rose"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={uploadProgress}
+                  >
+                    <div
+                      className="h-full bg-yara-wine transition-[width]"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-yara-taupe">
+                    Uploading {uploadProgress}%
+                  </p>
+                </div>
+              )}
+            </div>
             <button
               disabled={busy}
               className="btn-primary mt-6 w-full"
@@ -705,6 +842,24 @@ export function AccountPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function EvidencePreview({ file, index }: { file: File; index: number }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return url ? (
+    <img
+      src={url}
+      alt={`Evidence preview ${index + 1}`}
+      className="aspect-square w-full object-cover"
+    />
+  ) : (
+    <div className="aspect-square w-full animate-pulse bg-yara-blush" />
   );
 }
 
