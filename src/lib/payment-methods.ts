@@ -45,13 +45,15 @@ export function hasUsableBankTransferDetails(details: {
   const holder = details.accountHolderName?.trim() ?? "";
   const bank = details.bankName?.trim() ?? "";
   const account = details.accountNumber?.trim() ?? "";
-  const placeholders = new Set(["check", "test", "placeholder", "n/a", "na"]);
+  const placeholderPattern =
+    /\b(?:check|test|example|placeholder|dummy|sample|n\/?a|your account(?: number)?)\b/i;
   return (
     holder.length >= 2 &&
     bank.length >= 2 &&
     account.length >= 5 &&
-    !placeholders.has(holder.toLowerCase()) &&
-    !placeholders.has(bank.toLowerCase()) &&
+    !placeholderPattern.test(holder) &&
+    !placeholderPattern.test(bank) &&
+    !placeholderPattern.test(account) &&
     !/^0+$/.test(account.replace(/\s+/g, ""))
   );
 }

@@ -9,6 +9,7 @@ export async function getCommerceOperations() {
     zones,
     deliverySettings,
     paymentSettings,
+    exchangeRates,
     methods,
     shippingAudit,
     products,
@@ -25,6 +26,15 @@ export async function getCommerceOperations() {
             .from("delivery_settings")
             .select("*")
             .order("region_code")
+        : Promise.resolve({ data: [], error: null }),
+      staff.profile.role === "admin"
+        ? supabase
+            .from("exchange_rates")
+            .select("*")
+            .eq("source_currency", "AED")
+            .eq("target_currency", "USD")
+            .order("effective_from", { ascending: false })
+            .limit(1)
         : Promise.resolve({ data: [], error: null }),
       staff.profile.role === "admin"
         ? supabase
@@ -68,6 +78,7 @@ export async function getCommerceOperations() {
     zones,
     deliverySettings,
     paymentSettings,
+    exchangeRates,
     methods,
     shippingAudit,
     products,
@@ -109,6 +120,8 @@ export async function getCommerceOperations() {
     zones: zones.data ?? [],
     deliverySettings: deliverySettings.data ?? [],
     paymentSettings: paymentSettings.data ?? [],
+    exchangeRates: exchangeRates.data ?? [],
+    payHereUsdApproved: process.env.PAYHERE_USD_APPROVED === "true",
     methods: methods.data ?? [],
     shippingAudit: shippingAudit.data ?? [],
     products: products.data ?? [],

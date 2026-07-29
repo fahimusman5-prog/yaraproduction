@@ -36,6 +36,14 @@ test("placeholder bank details never activate bank transfer", () => {
       bankName: "Example Commercial Bank",
       accountNumber: "1234567890",
     }),
+    false,
+  );
+  assert.equal(
+    hasUsableBankTransferDetails({
+      accountHolderName: "YARA Productions",
+      bankName: "Commercial Bank",
+      accountNumber: "1234567890",
+    }),
     true,
   );
 });
@@ -128,7 +136,7 @@ test("offline methods create orders directly and never require gateway credentia
     /paymentMethod === "cash_on_delivery" \|\|\s+parsed\.data\.paymentMethod === "bank_transfer"/,
   );
   assert.match(route, /redirectUrl:[\s\S]*?&\$\{mode\}=1/);
-  assert.match(route, /paymentMethod === "card" && process\.env\.PAYMENTS_ENABLED/);
+  assert.match(route, /paymentMethod === "card" && !payHereConfig\.enabled/);
   assert.doesNotMatch(
     route,
     /paymentMethod === "(?:cash_on_delivery|bank_transfer)" && process\.env\.PAYMENTS_ENABLED/,

@@ -10,6 +10,7 @@ import {
   setCouponActiveAction,
   updateDeliverySettingAction,
   updatePaymentMethodSettingAction,
+  updateAedUsdExchangeRateAction,
   reviewReturnItemsAction,
   updateReturnAction,
 } from "../commerce-actions";
@@ -21,6 +22,8 @@ import { SubmitButton } from "./SubmitButton";
 type Props = {
   deliverySettings: any[];
   paymentSettings: any[];
+  exchangeRates: any[];
+  payHereUsdApproved: boolean;
   shippingAudit: any[];
   products: any[];
   categories: any[];
@@ -33,6 +36,8 @@ type Props = {
 export function CommerceManager({
   deliverySettings,
   paymentSettings,
+  exchangeRates,
+  payHereUsdApproved,
   shippingAudit,
   products,
   categories,
@@ -92,6 +97,9 @@ export function CommerceManager({
             ))}
           </div>
         </section>
+      )}
+      {payHereUsdApproved && (
+        <ExchangeRateEditor rate={exchangeRates[0] ?? null} />
       )}
       {/* Legacy zone and method controls were removed from the active admin
           interface. The preserved source below documents the historical UI
@@ -625,6 +633,53 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
         Save bank details
       </SubmitButton>
     </form>
+  );
+}
+
+function ExchangeRateEditor({ rate }: { rate: any | null }) {
+  const [state, action] = useActionState(
+    updateAedUsdExchangeRateAction,
+    initialActionState,
+  );
+  const localDateTime = (value: string | undefined, fallback: Date) => {
+    const date = value ? new Date(value) : fallback;
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+  return (
+    <section className="staff-panel p-5 sm:p-6">
+      <div className="max-w-3xl">
+        <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
+          Approved foreign-currency checkout
+        </p>
+        <h2 className="mt-2 text-xl font-bold">AED to USD PayHere rate</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Define 1 AED in USD. New UAE payment attempts lock this rate and the
+          converted USD charge permanently.
+        </p>
+      </div>
+      <form action={action} className="mt-6 max-w-2xl rounded-xl border border-[var(--staff-line)] p-4">
+        <ActionMessage state={state} />
+        {rate?.id && <input type="hidden" name="id" value={rate.id} />}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label>
+            <span className="staff-label">1 AED = USD</span>
+            <input name="rate" type="number" min="0.05" max="1" step="0.00000001" defaultValue={rate?.rate ?? ""} required className="staff-input" />
+          </label>
+          <label>
+            <span className="staff-label">Effective from</span>
+            <input name="effective_from" type="datetime-local" defaultValue={localDateTime(rate?.effective_from, new Date())} required className="staff-input" />
+          </label>
+          <label>
+            <span className="staff-label">Expires at</span>
+            <input name="expires_at" type="datetime-local" defaultValue={localDateTime(rate?.expires_at, new Date(Date.now() + 24 * 60 * 60 * 1000))} required className="staff-input" />
+          </label>
+        </div>
+        <SubmitButton pendingLabel="Saving approved rate…">
+          Save AED to USD rate
+        </SubmitButton>
+      </form>
+    </section>
   );
 }
 

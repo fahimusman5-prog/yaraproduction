@@ -8,6 +8,7 @@ import {
   type PaymentMethod,
   type PublicPaymentMethod,
 } from "@/lib/payment-methods";
+import { getPayHereConfig } from "@/lib/payhere";
 
 type SettingRow = {
   payment_method: PaymentMethod;
@@ -24,7 +25,8 @@ export async function GET(request: Request) {
   if (country !== "sri-lanka" && country !== "uae")
     return NextResponse.json({ error: "Invalid country." }, { status: 400 });
   const regionCode = country === "sri-lanka" ? "LK" : "AE";
-  const { data, error } = await getSupabaseAdminClient()
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
     .from("payment_method_settings")
     .select(
       "payment_method,account_holder_name,bank_name,branch_name,account_number,swift_code,instructions",
@@ -38,17 +40,31 @@ export async function GET(request: Request) {
   const byMethod = new Map(
     ((data ?? []) as SettingRow[]).map((row) => [row.payment_method, row]),
   );
-  const paymentsEnabled = process.env.PAYMENTS_ENABLED === "true";
+  const payHere = getPayHereConfig();
+  const rateResult =
+    country === "uae" && payHere.usdApproved
+      ? await admin
+          .from("exchange_rates")
+          .select("id")
+          .eq("source_currency", "AED")
+          .eq("target_currency", "USD")
+          .eq("active", true)
+          .lte("effective_from", new Date().toISOString())
+          .gt("expires_at", new Date().toISOString())
+          .limit(1)
+          .maybeSingle()
+      : null;
+  const uaeUsdReady = Boolean(rateResult?.data && !rateResult.error);
   const methods: PublicPaymentMethod[] = PAYMENT_METHODS.map((method) => {
     const row = byMethod.get(method);
     const providerAvailable =
       method === "card"
-        ? country === "sri-lanka" &&
-          paymentsEnabled &&
-          Boolean(
-            process.env.PAYHERE_MERCHANT_ID?.trim() &&
-              process.env.PAYHERE_MERCHANT_SECRET?.trim(),
-          )
+        ? payHere.enabled &&
+          payHere.merchantIdConfigured &&
+          payHere.merchantSecretConfigured &&
+          (country === "sri-lanka"
+            ? true
+            : payHere.usdApproved && uaeUsdReady)
         : method === "koko"
           ? false
           : method === "mintpay"
@@ -70,7 +86,9 @@ export async function GET(request: Request) {
       providerAvailable,
       unavailableReason:
         !providerAvailable
-          ? "Temporarily unavailable"
+          ? method === "card" && country === "uae"
+            ? "Card payment is temporarily unavailable for UAE orders. Please select Cash on Delivery or Bank Transfer."
+            : "Temporarily unavailable"
           : undefined,
       bankDetails:
         method === "bank_transfer" && row

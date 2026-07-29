@@ -4,7 +4,12 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
-import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
+import {
+  createPayHereHash,
+  getPayHereCheckoutUrl,
+  getPayHereConfig,
+  getPayHereEnvironment,
+} from "@/lib/payhere";
 import { createOrderTrackingToken } from "@/lib/order-tracking";
 import {
   getAdminNotificationEmail,
@@ -90,9 +95,11 @@ export async function POST(request: Request) {
       );
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
+    const payHereConfig = getPayHereConfig();
     if (
       parsed.data.paymentMethod === "card" &&
-      parsed.data.country !== "sri-lanka"
+      parsed.data.country === "uae" &&
+      !payHereConfig.usdApproved
     ) {
       return NextResponse.json(
         {
@@ -102,10 +109,14 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
-    if (parsed.data.paymentMethod === "card" && process.env.PAYMENTS_ENABLED !== "true") {
+    if (parsed.data.paymentMethod === "card" && !payHereConfig.enabled) {
       return NextResponse.json({ error: "Online payments are temporarily unavailable. Please choose another available ordering method." }, { status: 503 });
     }
-    if (parsed.data.paymentMethod === "card" && (!process.env.PAYHERE_MERCHANT_ID?.trim() || !process.env.PAYHERE_MERCHANT_SECRET?.trim())) {
+    if (
+      parsed.data.paymentMethod === "card" &&
+      (!payHereConfig.merchantIdConfigured ||
+        !payHereConfig.merchantSecretConfigured)
+    ) {
       return NextResponse.json({ error: "Online payments are not configured yet." }, { status: 503 });
     }
     if (parsed.data.paymentMethod === "koko")
@@ -348,8 +359,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&${mode}=1` });
     }
 
-    const amount = Number(order.total_amount).toFixed(2);
-    const { merchantId, hash } = createPayHereHash(String(order.order_number), amount, String(order.currency));
+    const prepared = await rpc("prepare_payhere_payment_attempt", {
+      p_order_id: order.order_id,
+      p_environment: getPayHereEnvironment(),
+      p_allow_usd:
+        parsed.data.country === "uae" && payHereConfig.usdApproved,
+    });
+    if (prepared.error) {
+      logSupabaseError(
+        "storefront-checkout",
+        "prepare-payhere-attempt",
+        prepared.error,
+        { route: "/api/payments/payhere/initiate", table: "payment_attempts" },
+      );
+      return NextResponse.json(
+        {
+          error:
+            parsed.data.country === "uae"
+              ? "Card payment is temporarily unavailable for UAE orders. Please select Cash on Delivery or Bank Transfer."
+              : "Card payment is temporarily unavailable. Please select another option.",
+        },
+        { status: 503 },
+      );
+    }
+    const attempt = (
+      Array.isArray(prepared.data) ? prepared.data[0] : prepared.data
+    ) as {
+      provider_order_id: string;
+      source_currency: "LKR" | "AED";
+      source_amount: number;
+      charge_currency: "LKR" | "USD";
+      charge_amount: number;
+      locked_exchange_rate: number;
+      exchange_rate_source: string;
+      exchange_rate_effective_at: string;
+    } | null;
+    if (!attempt)
+      return NextResponse.json(
+        { error: "Unable to prepare card payment." },
+        { status: 500 },
+      );
+    const amount = Number(attempt.charge_amount).toFixed(2);
+    const { merchantId, hash } = createPayHereHash(
+      attempt.provider_order_id,
+      amount,
+      attempt.charge_currency,
+    );
     const [firstName, ...rest] = parsed.data.customer.name.split(/\s+/);
     return NextResponse.json({
       orderId: order.order_id,
@@ -359,10 +414,10 @@ export async function POST(request: Request) {
         merchant_id: merchantId,
         return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
         cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
-        notify_url: `${origin}/api/payhere/notify`,
-        order_id: order.order_number,
+        notify_url: `${origin}/api/payments/payhere/notify`,
+        order_id: attempt.provider_order_id,
         items: `YARA order ${order.order_number}`,
-        currency: order.currency,
+        currency: attempt.charge_currency,
         amount,
         first_name: firstName,
         last_name: rest.join(" ") || "-",
@@ -373,6 +428,20 @@ export async function POST(request: Request) {
         country: parsed.data.country === "sri-lanka" ? "Sri Lanka" : "United Arab Emirates",
         hash,
       },
+      chargeSummary:
+        attempt.source_currency === "AED"
+          ? {
+              sourceCurrency: "AED",
+              sourceAmount: Number(attempt.source_amount),
+              chargeCurrency: "USD",
+              chargeAmount: Number(attempt.charge_amount),
+              exchangeRate: Number(attempt.locked_exchange_rate),
+              rateSource: attempt.exchange_rate_source,
+              rateEffectiveAt: attempt.exchange_rate_effective_at,
+              notice:
+                "PayHere will process this payment in USD. Your card issuer may apply its own foreign-currency or international transaction fee.",
+            }
+          : undefined,
     });
   } catch (error) {
     logSupabaseError("storefront-checkout", "initiate-checkout", error, { route: "/api/checkout" });
