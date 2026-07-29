@@ -3,12 +3,12 @@ import { requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function getCommerceOperations() {
-  await requireStaff("/admin/commerce");
+  const staff = await requireStaff("/admin/commerce");
   const supabase = getSupabaseAdminClient();
   const [
     zones,
+    deliverySettings,
     methods,
-    productRates,
     shippingAudit,
     products,
     categories,
@@ -24,16 +24,17 @@ export async function getCommerceOperations() {
         .is("archived_at", null)
         .order("country_code")
         .order("sort_order"),
+      staff.profile.role === "admin"
+        ? supabase
+            .from("delivery_settings")
+            .select("*")
+            .order("region_code")
+        : Promise.resolve({ data: [], error: null }),
       supabase
         .from("shipping_methods")
         .select("*,shipping_zones(name,country_code)")
         .is("archived_at", null)
         .order("sort_order"),
-      supabase
-        .from("shipping_product_rates")
-        .select("*,shipping_methods(name,currency),products(name,sku)")
-        .is("archived_at", null)
-        .order("created_at", { ascending: false }),
       supabase
         .from("shipping_audit_history")
         .select("*")
@@ -66,8 +67,8 @@ export async function getCommerceOperations() {
     ]);
   const failure = [
     zones,
+    deliverySettings,
     methods,
-    productRates,
     shippingAudit,
     products,
     categories,
@@ -106,8 +107,8 @@ export async function getCommerceOperations() {
   }));
   return {
     zones: zones.data ?? [],
+    deliverySettings: deliverySettings.data ?? [],
     methods: methods.data ?? [],
-    productRates: productRates.data ?? [],
     shippingAudit: shippingAudit.data ?? [],
     products: products.data ?? [],
     categories: categories.data ?? [],

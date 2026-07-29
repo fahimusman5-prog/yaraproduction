@@ -7,8 +7,7 @@ import { useCart } from "../context/CartContext";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
-import { getProductShipping, shippingLabel } from "../lib/shipping";
-import { formatPrice } from "../lib/format";
+import { isProductAvailableInRegion } from "../lib/shipping";
 
 export function ProductCard({ product, mobileCompact = false }: { product: Product; mobileCompact?: boolean }) {
   const { addItem } = useCart();
@@ -25,8 +24,9 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
   const successTimerRef = useRef<number | null>(null);
   const productPath = `/product/${product.slug || product.id}`;
   const outOfStock = product.stockQuantity === 0;
-  const shipping = country ? getProductShipping(product, country) : null;
-  const unavailable = Boolean(shipping && (!shipping.available || !shipping.configured));
+  const unavailable = country
+    ? !isProductAvailableInRegion(product, country)
+    : false;
 
   useEffect(() => () => {
     if (addingTimerRef.current) window.clearTimeout(addingTimerRef.current);
@@ -103,7 +103,7 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
             />
             <span className="mobile-card-size truncate text-[0.62rem] text-yara-taupe">{product.size}</span>
           </div>
-          {country && <p className={`mt-2 text-[0.68rem] ${unavailable ? "text-red-700" : "text-yara-taupe"}`}>{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}
+          {country && <p className={`mt-2 text-[0.68rem] ${unavailable ? "text-red-700" : "text-yara-taupe"}`}>{unavailable ? "Unavailable in this region" : "Delivery is charged once per order at checkout."}</p>}
           <div className="shop-product-actions mt-3 grid gap-2">
             <button type="button" onClick={handleBuyNow} disabled={outOfStock || unavailable || adding || added} className="product-card-buy btn-primary w-full" aria-label={`${t("common.buyNow")}: ${displayProduct.name}`}>
               {outOfStock || unavailable ? <PackageX className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}

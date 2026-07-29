@@ -14,7 +14,7 @@ import {
 
 const optionalNumber = z.preprocess(
   (value) => (value === "" ? null : value),
-  z.coerce.number().min(0).nullable(),
+  z.coerce.number().min(0).max(999_999_999).nullable(),
 );
 
 const zoneSchema = z.object({
@@ -53,6 +53,39 @@ const methodSchema = z
     message: "Maximum delivery days must be at least the minimum.",
   });
 
+const deliverySettingSchema = z
+  .object({
+    region_code: z.enum(["LK", "AE"]),
+    currency: z.enum(["LKR", "AED"]),
+    delivery_fee: optionalNumber,
+    is_enabled: z.enum(["true"]).optional(),
+    is_configured: z.enum(["true"]).optional(),
+  })
+  .superRefine((value, context) => {
+    const expectedCurrency = value.region_code === "LK" ? "LKR" : "AED";
+    if (value.currency !== expectedCurrency)
+      context.addIssue({
+        code: "custom",
+        path: ["currency"],
+        message: "Currency must match the selected region.",
+      });
+    if (
+      (value.is_configured === "true" || value.is_enabled === "true") &&
+      value.delivery_fee === null
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["delivery_fee"],
+        message: "Enter a delivery fee before configuring or enabling it.",
+      });
+    if (value.is_enabled === "true" && value.is_configured !== "true")
+      context.addIssue({
+        code: "custom",
+        path: ["is_enabled"],
+        message: "A delivery fee must be configured before it can be enabled.",
+      });
+  });
+
 function shippingZoneFields(data: z.infer<typeof zoneSchema>) {
   return {
     name: data.name,
@@ -87,7 +120,7 @@ function shippingMethodFields(data: z.infer<typeof methodSchema>) {
 }
 
 async function recordShippingAudit(input: {
-  entityType: "zone" | "method" | "product_rate";
+  entityType: "zone" | "method" | "product_rate" | "delivery_setting";
   entityId: string;
   action: "created" | "updated" | "activated" | "deactivated" | "archived";
   before?: unknown;
@@ -110,6 +143,90 @@ async function recordShippingAudit(input: {
       table: "shipping_audit_history",
       userId: input.actorId,
     });
+}
+
+export async function updateDeliverySettingAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const admin = await requireAdmin("/admin/commerce");
+  const parsed = deliverySettingSchema.safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message:
+        parsed.error.issues[0]?.message ?? "Check the delivery setting.",
+    };
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("delivery_settings")
+    .select("*")
+    .eq("region_code", parsed.data.region_code)
+    .maybeSingle();
+  if (before.error)
+    return {
+      status: "error",
+      message: "Unable to load the current delivery setting.",
+    };
+  const configured = parsed.data.is_configured === "true";
+  const enabled = parsed.data.is_enabled === "true" && configured;
+  const saved = await supabase
+    .from("delivery_settings")
+    .upsert(
+      {
+        region_code: parsed.data.region_code,
+        currency: parsed.data.currency,
+        delivery_fee: configured ? parsed.data.delivery_fee : null,
+        is_configured: configured,
+        is_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "region_code" },
+    )
+    .select("*")
+    .single();
+  if (saved.error) {
+    logSupabaseError(
+      "admin-commerce",
+      "update-delivery-setting",
+      saved.error,
+      {
+        route: "/admin/commerce",
+        table: "delivery_settings",
+        userId: admin.userId,
+      },
+    );
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        saved.error,
+        "Unable to update the delivery setting.",
+      ),
+    };
+  }
+  const beforeRow = before.data as { is_enabled?: boolean } | null;
+  const savedRow = saved.data as { id: string; is_enabled?: boolean };
+  await recordShippingAudit({
+    entityType: "delivery_setting",
+    entityId: savedRow.id,
+    action:
+      Boolean(beforeRow?.is_enabled) === Boolean(savedRow.is_enabled)
+        ? before.data
+          ? "updated"
+          : "created"
+        : savedRow.is_enabled
+          ? "activated"
+          : "deactivated",
+    before: before.data,
+    after: saved.data,
+    actorId: admin.userId,
+  });
+  revalidatePath("/admin/commerce");
+  revalidatePath("/checkout");
+  return {
+    status: "success",
+    message: `${parsed.data.region_code === "LK" ? "Sri Lanka" : "UAE"} delivery setting saved.`,
+  };
 }
 
 export async function createShippingZoneAction(

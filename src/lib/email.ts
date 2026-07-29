@@ -208,7 +208,7 @@ async function loadOrderEmailData(
     supabase
       .from("orders")
       .select(
-        "order_number,customer_name,subtotal_amount,discount_amount,shipping_fee,total_amount,currency,shipping_address,shipping_city,shipping_postal_code,shipping_method_name,order_status",
+        "order_number,customer_name,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,currency,shipping_address,shipping_city,shipping_postal_code,shipping_method_name,order_status",
       )
       .eq("id", orderId)
       .maybeSingle(),
@@ -242,6 +242,7 @@ async function loadOrderEmailData(
     subtotal: Number(order.subtotal_amount),
     discount: Number(order.discount_amount),
     shipping: Number(order.shipping_fee),
+    paymentFee: Number(order.payment_fee ?? 0),
     total: Number(order.total_amount),
     currency: String(order.currency),
     deliveryAddress: [

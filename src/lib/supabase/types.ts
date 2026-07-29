@@ -131,7 +131,9 @@ export interface Order {
   created_at: string;
   subtotal_amount: number;
   shipping_fee: number;
+  payment_fee: number;
   discount_amount: number;
+  region_code: "LK" | "AE";
   shipping_method_name: string;
   shipping_address: string;
   shipping_city: string;

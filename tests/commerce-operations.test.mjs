@@ -6,13 +6,13 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("coupon checkout validates and records discounts inside the order transaction", async () => {
   const [sql, route] = await Promise.all([
-    read("../supabase/migrations/20260729005507_atomic_coupon_checkout.sql"),
+    read("../supabase/migrations/20260729150000_regional_order_delivery_fee.sql"),
     read("../src/app/api/checkout/route.ts"),
   ]);
   for (const control of ["active", "starts_at", "ends_at", "country_scope", "minimum_order_amount", "usage_limit", "per_customer_limit", "coupon_products", "coupon_categories", "maximum_discount"]) assert.match(sql, new RegExp(control));
   assert.match(sql, /create_storefront_order\(/);
   assert.match(sql, /insert into public\.coupon_redemptions/);
-  assert.match(sql, /total_amount = subtotal_amount - v_discount \+ shipping_fee/);
+  assert.match(sql, /subtotal_amount - v_discount \+ shipping_fee \+ payment_fee/);
   assert.match(route, /create_storefront_order_with_coupon/);
 });
 

@@ -59,7 +59,6 @@ export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
                     <th>SKU</th>
                     <th>Qty</th>
                     <th>Unit</th>
-                    <th>Delivery</th>
                     <th>Subtotal</th>
                   </tr>
                 </thead>
@@ -75,14 +74,6 @@ export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
                       <td className="staff-metric">{item.quantity}</td>
                       <td className="staff-metric">
                         {formatMoney(Number(item.unit_price), order.currency)}
-                      </td>
-                      <td className="staff-metric">
-                        {item.free_shipping
-                          ? "Free"
-                          : formatMoney(
-                              Number(item.shipping_fee),
-                              order.currency,
-                            )}
                       </td>
                       <td className="staff-metric font-semibold">
                         {formatMoney(Number(item.subtotal), order.currency)}
@@ -113,8 +104,16 @@ export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
                     : formatMoney(Number(order.shipping_fee), order.currency)}
                 </dd>
               </div>
+              {Number(order.payment_fee ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <dt>Payment fee</dt>
+                  <dd>
+                    {formatMoney(Number(order.payment_fee), order.currency)}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between text-lg font-bold">
-                <dt>Total</dt>
+                <dt>Grand total</dt>
                 <dd className="text-yara-wine">
                   {formatMoney(Number(order.total_amount), order.currency)}
                 </dd>

@@ -24,6 +24,7 @@ type Order = {
   total_amount: number;
   subtotal_amount: number;
   shipping_fee: number;
+  payment_fee: number;
   discount_amount: number;
   currency: string;
   created_at: string;
@@ -112,7 +113,7 @@ export function AccountPage() {
       client
         .from("orders")
         .select(
-          "id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,discount_amount,currency,created_at,delivered_at,order_items(id,quantity,returned_quantity,refunded_quantity,products(name)),return_requests(id,status)",
+          "id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,payment_fee,discount_amount,currency,created_at,delivered_at,order_items(id,quantity,returned_quantity,refunded_quantity,products(name)),return_requests(id,status)",
         )
         .eq("customer_user_id", auth.user.id)
         .order("created_at", { ascending: false })
@@ -543,7 +544,7 @@ export function AccountPage() {
                     }).format(order.total_amount)}
                   </p>
                 </div>
-                <div className="mt-3 grid gap-1 text-xs text-yara-taupe sm:grid-cols-3">
+                <div className="mt-3 grid gap-1 text-xs text-yara-taupe sm:grid-cols-2 lg:grid-cols-4">
                   <span>
                     Subtotal: {money(order.subtotal_amount, order.currency)}
                   </span>
@@ -556,6 +557,11 @@ export function AccountPage() {
                   <span>
                     Discount: {money(order.discount_amount, order.currency)}
                   </span>
+                  {order.payment_fee > 0 && (
+                    <span>
+                      Payment fee: {money(order.payment_fee, order.currency)}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                   <span className="rounded-full bg-yara-rose px-3 py-1 capitalize">

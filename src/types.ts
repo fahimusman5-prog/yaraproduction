@@ -27,14 +27,8 @@ export interface Product {
   seoTitle?: string;
   seoDescription?: string;
   stockQuantity?: number;
-  shippingLKR?: number | null;
-  shippingAED?: number | null;
-  freeShippingLKR?: boolean;
-  freeShippingAED?: boolean;
   shippingAvailableLKR?: boolean;
   shippingAvailableAED?: boolean;
-  shippingCalculationLKR?: "per_line" | "per_unit";
-  shippingCalculationAED?: "per_line" | "per_unit";
 }
 
 export interface CartItem {

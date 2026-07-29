@@ -179,20 +179,17 @@ export function ProductForm({
       </fieldset>
 
       <fieldset>
-        <legend className="text-base font-bold">Shipping</legend>
-        <p className="mt-1 text-sm text-slate-500">Product fees take priority. Leave the fee blank only when delivery is unavailable or free.</p>
+        <legend className="text-base font-bold">Regional availability</legend>
+        <p className="mt-1 text-sm text-slate-500">Choose where this product can be delivered. The regional delivery fee is charged once per order and is managed under Commerce.</p>
         <div className="mt-4 grid gap-5 lg:grid-cols-2">
           {([
-            { title: "Sri Lanka", suffix: "lkr", currency: "LKR" },
-            { title: "UAE / Dubai", suffix: "aed", currency: "AED" },
-          ] as const).map(({ title, suffix, currency }) => (
+            { title: "Sri Lanka", suffix: "lkr" },
+            { title: "UAE / Dubai", suffix: "aed" },
+          ] as const).map(({ title, suffix }) => (
             <section key={suffix} className="rounded-xl border border-[var(--staff-line)] bg-white p-4">
               <h3 className="font-bold">{title}</h3>
               <div className="mt-4 grid gap-4">
-                <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name={`shipping_available_${suffix}`} value="true" defaultChecked={product?.[`shipping_available_${suffix}`] ?? true} className="h-4 w-4 accent-yara-wine" />Shipping available</label>
-                <label><span className="staff-label">Shipping fee ({currency})</span><input className="staff-input" name={`shipping_fee_${suffix}`} type="number" min="0" step="0.01" defaultValue={product?.[`shipping_fee_${suffix}`] ?? ""} placeholder="Required unless free" /></label>
-                <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name={`free_shipping_${suffix}`} value="true" defaultChecked={product?.[`free_shipping_${suffix}`] ?? false} className="h-4 w-4 accent-yara-wine" />Free delivery</label>
-                <label><span className="staff-label">Calculation</span><select className="staff-input" name={`shipping_calculation_${suffix}`} defaultValue={product?.[`shipping_calculation_${suffix}`] ?? "per_line"}><option value="per_line">Per product line</option><option value="per_unit">Per unit</option></select></label>
+                <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" name={`shipping_available_${suffix}`} value="true" defaultChecked={product?.[`shipping_available_${suffix}`] ?? true} className="h-4 w-4 accent-yara-wine" />Delivery available</label>
               </div>
             </section>
           ))}

@@ -19,6 +19,63 @@ const schema = z.object({
     .max(100),
 });
 
+export async function GET(request: Request) {
+  const country = new URL(request.url).searchParams.get("country");
+  const parsed = z.enum(["sri-lanka", "uae"]).safeParse(country);
+  if (!parsed.success)
+    return NextResponse.json({ error: "Choose a valid region." }, { status: 400 });
+  const regionCode = parsed.data === "sri-lanka" ? "LK" : "AE";
+  const currency = parsed.data === "sri-lanka" ? "LKR" : "AED";
+  try {
+    const { data, error } = await getSupabaseAdminClient()
+      .from("delivery_settings")
+      .select("currency,delivery_fee,is_enabled,is_configured")
+      .eq("region_code", regionCode)
+      .maybeSingle();
+    if (error)
+      return NextResponse.json(
+        { error: "Delivery settings are temporarily unavailable." },
+        { status: 503 },
+      );
+    const configuredFee =
+      data?.delivery_fee === null || data?.delivery_fee === undefined
+        ? null
+        : Number(data.delivery_fee);
+    return NextResponse.json(
+      {
+        deliveryConfigured: data?.is_configured === true,
+        deliveryEnabled: data?.is_enabled === true,
+        deliveryFee:
+          data?.is_configured === true &&
+          data?.is_enabled === true &&
+          configuredFee !== null &&
+          Number.isFinite(configuredFee) &&
+          configuredFee >= 0
+            ? configuredFee
+            : null,
+        currency: data?.currency ?? currency,
+        feeChargedOnce: true,
+        message:
+          data?.is_configured === true && data?.is_enabled === true
+            ? "Delivery is charged once per order."
+            : parsed.data === "uae"
+              ? "Delivery fee will be confirmed."
+              : "Delivery is temporarily unavailable.",
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    logSupabaseError("shipping-options", "load-regional-setting", error, {
+      route: "/api/shipping/options",
+      table: "delivery_settings",
+    });
+    return NextResponse.json(
+      { error: "Delivery settings are temporarily unavailable." },
+      { status: 503 },
+    );
+  }
+}
+
 export async function POST(request: Request) {
   if (!request.headers.get("content-type")?.includes("application/json"))
     return NextResponse.json({ error: "JSON request required." }, { status: 415 });
@@ -50,7 +107,15 @@ export async function POST(request: Request) {
       name: string,
       args: Record<string, unknown>,
     ) => Promise<{
-      data: { options?: unknown[]; reason?: string | null } | null;
+      data: {
+        options?: unknown[];
+        reason?: string | null;
+        deliveryConfigured?: boolean;
+        deliveryEnabled?: boolean;
+        deliveryFee?: number | null;
+        currency?: "LKR" | "AED";
+        feeChargedOnce?: boolean;
+      } | null;
       error: { message?: string } | null;
     }>;
     const { data, error } = await rpc("get_configured_shipping_options", {
@@ -71,6 +136,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       options: Array.isArray(data?.options) ? data.options : [],
       reason: data?.reason ?? null,
+      deliveryConfigured: data?.deliveryConfigured === true,
+      deliveryEnabled: data?.deliveryEnabled === true,
+      deliveryFee:
+        typeof data?.deliveryFee === "number" ? data.deliveryFee : null,
+      currency: data?.currency ?? null,
+      feeChargedOnce: data?.feeChargedOnce === true,
     });
   } catch (error) {
     logSupabaseError("shipping-options", "load", error, {

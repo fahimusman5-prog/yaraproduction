@@ -9,8 +9,10 @@ import { useCountry } from "../context/CountryContext";
 import { useCatalog } from "../context/CatalogContext";
 import { findProductByRouteKey } from "../lib/product-routing";
 import { ProductReviews } from "../components/ProductReviews";
-import { getProductShipping, shippingLabel } from "../lib/shipping";
-import { formatPrice } from "../lib/format";
+import {
+  deliveryAvailabilityLabel,
+  isProductAvailableInRegion,
+} from "../lib/shipping";
 import { trackEvent } from "../lib/analytics";
 
 export function ProductPage() {
@@ -50,8 +52,9 @@ export function ProductPage() {
   }
 
   const outOfStock = product.stockQuantity === 0;
-  const shipping = country ? getProductShipping(product, country) : null;
-  const unavailable = Boolean(shipping && (!shipping.available || !shipping.configured));
+  const unavailable = Boolean(
+    country && !isProductAvailableInRegion(product, country),
+  );
   const handleAdd = () => {
     if (outOfStock || unavailable) return;
     addItem(product, quantity);
@@ -110,7 +113,7 @@ export function ProductPage() {
             <span className="pb-1 text-sm text-yara-taupe">/ {product.size}</span>
           </div>
           <p className="mt-6 text-sm font-light leading-7 text-yara-taupe">{product.description}</p>
-          {country && <p className={`mt-4 text-sm font-semibold ${unavailable ? "text-red-700" : "text-yara-wine"}`}>{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}
+          {country && <p className={`mt-4 text-sm font-semibold ${unavailable ? "text-red-700" : "text-yara-wine"}`}>{deliveryAvailabilityLabel(product, country)}</p>}
 
           <div className="mt-7 flex flex-wrap items-center gap-4">
             <div className="glass-panel flex items-center rounded-full p-1">
