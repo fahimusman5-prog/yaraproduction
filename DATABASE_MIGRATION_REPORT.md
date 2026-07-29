@@ -1,32 +1,49 @@
-# Database migration report
+# Database migration drift report
 
-## Supabase project verification
+## Verified target
 
-- Project reference: `yhywklzutqzwafulnpcu`
+- Repository: `/Users/usmanfahim08/Documents/GitHub/yaraproduction`
+- Supabase project: `yhywklzutqzwafulnpcu`
 - Region: `ap-southeast-1`
-- PostgreSQL: 17.6.1.121
-- Project health: healthy at inspection time
-- All listed public commerce tables had RLS enabled.
+- PostgreSQL: 17
+- Production data was not reset, deleted, or reseeded.
 
-## Migration state
+## Drift identified
 
-The live project contained the repository migrations through `dynamic_skin_concern_management`, followed by the applied launch-readiness migrations:
+The hosted migration history contained five commerce migrations that were not
+present in the repository:
 
-- `launch_readiness_order_controls`
-- `revoke_order_transition_grants`
+- `shipping_coupon_returns_foundation`
+- `test_yara_rpc_syntax`
+- `shipping_coupon_order_rpc`
+- `shipping_coupon_order_rpc_v3`
+- `remove_test_yara_rpc`
 
-The connector assigned live migration versions `20260718062241` and the subsequent migration version for the grant repair. No destructive or data-seeding migration was executed.
+Those hosted migrations had created shipping zones/methods, coupons and
+redemptions, return requests/items/images, exchanges, and refunds. The
+repository therefore could not reproduce the hosted schema on a fresh database.
 
-## Schema findings
+## Reconciliation
 
-Existing tables: `profiles`, `categories`, `products`, `orders`, `order_items`, `pos_sales`, `pos_sale_items`, `stock_movements`, `skin_concerns`, `product_skin_concerns`, `product_reviews`, and `product_review_images`. Storage metadata showed two buckets.
+`20260729004652_reconcile_live_commerce_schema.sql` is the canonical additive
+reconciliation. It:
 
-Important existing gaps: products have one image URL and no variant/media/alt-text model; orders have no shipping-rate, courier, refund, return, or payment-event tables; profiles support only `admin`, `staff`, and `customer`; there is no coupon, notification, CMS, warehouse, supplier, or analytics model.
+- creates every hosted commerce table when absent;
+- adds coupon product/category restrictions;
+- adds return and refund status history;
+- adds missing return/refund operational columns;
+- creates constraints and indexes;
+- enables RLS on every exposed table;
+- adds customer-owned return access and staff management policies; and
+- grants Data API privileges explicitly, independently of Supabase's changing
+  automatic-exposure defaults.
 
-## Applied controls
+The migration was applied successfully to the existing project. Existing tables
+and records were preserved by `create table if not exists`, additive
+`add column if not exists`, and deliberate constraint replacement.
 
-`order_events` is an RLS-enabled, indexed audit table. `update_admin_order_status` locks the order, authorizes the actor against `profiles`, validates statuses, prevents reopening cancelled orders or moving delivered orders backwards, records an event, and restores stock exactly once on cancellation. Its exposed execution grants were removed from `anon`, `authenticated`, and `public`; only `service_role` is granted.
+## Remaining validation
 
-## Remaining database work
-
-Add shipping methods/zones, payment events/refunds, returns, coupons, product media/variants, customer addresses, notifications, admin audit logs, and appropriate indexes only with a reviewed domain model and backfill plan. Do not add nullable fields solely to make UI controls appear functional.
+Before release, run all local migrations against an empty Supabase development
+database and compare the resulting schema with production. Production remains
+the authoritative data source; this report does not authorize a database reset.

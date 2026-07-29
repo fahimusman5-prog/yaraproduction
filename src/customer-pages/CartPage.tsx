@@ -6,12 +6,14 @@ import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
+import { calculateCartShipping, shippingLabel } from "../lib/shipping";
 
 export function CartPage() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
   const { country } = useCountry();
   const { locale, t } = useI18n();
-  const total = subtotal;
+  const shipping = country ? calculateCartShipping(items, country) : null;
+  const total = subtotal + (shipping?.total ?? 0);
 
   if (!items.length) {
     return (
@@ -34,7 +36,7 @@ export function CartPage() {
               <Link to={`/product/${product.slug || product.id}`} className="overflow-hidden rounded-[1.3rem] bg-yara-rose"><img src={product.image} alt={t("product.imageAlt", { name: displayProduct.name })} className="aspect-square h-full w-full object-cover" /></Link>
               <div className="flex min-w-0 flex-col justify-between py-1">
                 <div className="flex items-start justify-between gap-3">
-                  <div><p className="text-[0.58rem] uppercase tracking-[0.13em] text-yara-wine">{displayProduct.category}</p><Link to={`/product/${product.slug || product.id}`}><h2 className="mt-1 text-xl sm:text-2xl">{displayProduct.name}</h2></Link><p className="mt-1 text-xs text-yara-taupe">{product.size}</p></div>
+                  <div><p className="text-[0.58rem] uppercase tracking-[0.13em] text-yara-wine">{displayProduct.category}</p><Link to={`/product/${product.slug || product.id}`}><h2 className="mt-1 text-xl sm:text-2xl">{displayProduct.name}</h2></Link><p className="mt-1 text-xs text-yara-taupe">{product.size}</p>{country && <p className="mt-1 text-xs text-yara-taupe">{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}</div>
                   <button onClick={() => removeItem(product.id)} className="glass-icon-destructive h-11 w-11" aria-label={t("cart.remove", { name: displayProduct.name })}><Trash2 className="h-4 w-4" /></button>
                 </div>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
@@ -56,9 +58,10 @@ export function CartPage() {
 
         <aside className="surface-card p-6 sm:p-8 lg:sticky lg:top-28">
           <h2 className="text-3xl">{t("common.orderSummary")}</h2>
-          <div className="mt-6 space-y-4 border-b border-yara-rose pb-6 text-sm"><div className="flex justify-between"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{t("common.confirmedWhenOrdering")}</span></div></div>
+          <div className="mt-6 space-y-4 border-b border-yara-rose pb-6 text-sm"><div className="flex justify-between"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{country && shipping?.valid ? (shipping.total === 0 ? "Free Delivery" : formatPrice(shipping.total, country)) : "Rate unavailable"}</span></div></div>
+          {shipping && !shipping.valid && <p className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">Delivery is unavailable until every product has a valid rate for this region.</p>}
           <div className="mt-6 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
-          <Link to="/checkout" className="btn-primary mt-7 w-full">{t("common.secureCheckout")} <ArrowRight className="h-4 w-4" /></Link>
+          {shipping?.valid ? <Link to="/checkout" className="btn-primary mt-7 w-full">{t("common.secureCheckout")} <ArrowRight className="h-4 w-4" /></Link> : <button type="button" disabled className="btn-primary mt-7 w-full opacity-60">{t("common.secureCheckout")} <ArrowRight className="h-4 w-4" /></button>}
           {country && <a href={createWhatsAppLink(cartOrderMessage(items, total, country, {}, locale), country)} target="_blank" rel="noreferrer" className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a]"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</a>}
           <p className="mt-5 text-center text-[0.6rem] uppercase tracking-[0.1em] text-yara-taupe">{t("common.securePayments")}</p>
         </aside>

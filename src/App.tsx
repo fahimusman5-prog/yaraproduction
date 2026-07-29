@@ -24,6 +24,7 @@ import { TermsAndConditionsPage } from "./customer-pages/TermsAndConditionsPage"
 import { CancellationPolicyPage, CookiePolicyPage, PaymentPolicyPage, ShippingPolicyPage } from "./customer-pages/OperationalPolicyPages";
 import { defaultLocale, isLocale, LocaleProvider, type Locale } from "./i18n";
 import { useEffect, useState } from "react";
+import { AnalyticsTracker } from "./components/AnalyticsTracker";
 
 function CountryGatedSite() {
   const { country } = useCountry();
@@ -95,6 +96,7 @@ export default function App() {
     <LocaleProvider locale={locale}>
       <CountryProvider>
         <Router {...routerProps}>
+          <AnalyticsTracker />
           <CountryGatedSite />
         </Router>
       </CountryProvider>

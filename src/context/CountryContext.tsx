@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { trackEvent } from "../lib/analytics";
 
 export type Country = "sri-lanka" | "uae";
 
@@ -41,6 +42,7 @@ export function CountryProvider({ children }: { children: ReactNode }) {
     selectCountry: (nextCountry: Country) => {
       localStorage.setItem("selectedCountry", nextCountry);
       setCountry(nextCountry);
+      trackEvent("region_changed", { country: nextCountry, currency: countryDetails[nextCountry].currency });
     },
     changeCountry: () => {
       localStorage.removeItem("selectedCountry");

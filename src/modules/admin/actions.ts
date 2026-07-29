@@ -17,6 +17,7 @@ import {
   skinConcernSchema,
 } from "./input";
 import { toSlug } from "./lib/format";
+import { sendTransactionalEmail, type EmailTemplate } from "@/lib/email";
 
 async function actionClient() {
   return getSupabaseAdminClient();
@@ -24,21 +25,43 @@ async function actionClient() {
 
 type ProductImageUpload = { url: string | null; newPath: string | null };
 
-async function uploadProductImage(supabase: Awaited<ReturnType<typeof actionClient>>, formData: FormData, existingUrl?: string | null) {
+async function uploadProductImage(
+  supabase: Awaited<ReturnType<typeof actionClient>>,
+  formData: FormData,
+  existingUrl?: string | null,
+) {
   const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) {
-    return { url: existingUrl ?? null, newPath: null } satisfies ProductImageUpload;
+    return {
+      url: existingUrl ?? null,
+      newPath: null,
+    } satisfies ProductImageUpload;
   }
-  if (file.size > 5 * 1024 * 1024) throw new Error("Product images must be 5 MB or smaller.");
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Use a JPG, PNG, or WebP image.");
-  const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[file.type];
+  if (file.size > 5 * 1024 * 1024)
+    throw new Error("Product images must be 5 MB or smaller.");
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
+    throw new Error("Use a JPG, PNG, or WebP image.");
+  const extension = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  }[file.type];
   const path = `products/${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type, upsert: false });
+  const { error } = await supabase.storage
+    .from("product-images")
+    .upload(path, file, { contentType: file.type, upsert: false });
   if (error) {
-    logSupabaseError("admin-product-image", "upload-product-image", error, { route: "/admin/products", table: "storage.objects" });
+    logSupabaseError("admin-product-image", "upload-product-image", error, {
+      route: "/admin/products",
+      table: "storage.objects",
+    });
     throw error;
   }
-  return { url: supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl, newPath: path } satisfies ProductImageUpload;
+  return {
+    url: supabase.storage.from("product-images").getPublicUrl(path).data
+      .publicUrl,
+    newPath: path,
+  } satisfies ProductImageUpload;
 }
 
 function productImagePath(publicUrl: string | null | undefined) {
@@ -47,7 +70,9 @@ function productImagePath(publicUrl: string | null | undefined) {
     const marker = "/storage/v1/object/public/product-images/";
     const pathname = new URL(publicUrl).pathname;
     const index = pathname.indexOf(marker);
-    return index === -1 ? null : decodeURIComponent(pathname.slice(index + marker.length));
+    return index === -1
+      ? null
+      : decodeURIComponent(pathname.slice(index + marker.length));
   } catch {
     return null;
   }
@@ -59,11 +84,15 @@ async function removeProductImage(
   context: { userId: string; productId?: string },
 ) {
   if (!path) return;
-  const { error } = await supabase.storage.from("product-images").remove([path]);
+  const { error } = await supabase.storage
+    .from("product-images")
+    .remove([path]);
   if (error) {
     logSupabaseError("admin-product-image", "remove-product-image", error, {
       ...context,
-      route: context.productId ? `/admin/products/${context.productId}/edit` : "/admin/products/new",
+      route: context.productId
+        ? `/admin/products/${context.productId}/edit`
+        : "/admin/products/new",
       table: "storage.objects",
     });
   }
@@ -82,7 +111,15 @@ async function saveAdminProduct(
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
-  ) => Promise<{ data: string | null; error: { code?: string; message: string; details?: string; hint?: string } | null }>;
+  ) => Promise<{
+    data: string | null;
+    error: {
+      code?: string;
+      message: string;
+      details?: string;
+      hint?: string;
+    } | null;
+  }>;
   const { data, error } = await rpc("save_admin_product", {
     p_product_id: args.productId,
     p_actor_id: args.actorId,
@@ -99,12 +136,25 @@ async function saveAdminProduct(
 
 async function adjustAdminProductStock(
   supabase: Awaited<ReturnType<typeof actionClient>>,
-  args: { productId: string; actorId: string; quantityChange: number; movementType: "manual_adjustment" | "restock" },
+  args: {
+    productId: string;
+    actorId: string;
+    quantityChange: number;
+    movementType: "manual_adjustment" | "restock";
+  },
 ) {
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
-  ) => Promise<{ data: number | null; error: { code?: string; message: string; details?: string; hint?: string } | null }>;
+  ) => Promise<{
+    data: number | null;
+    error: {
+      code?: string;
+      message: string;
+      details?: string;
+      hint?: string;
+    } | null;
+  }>;
   const { data, error } = await rpc("adjust_admin_product_stock", {
     p_product_id: args.productId,
     p_actor_id: args.actorId,
@@ -112,7 +162,8 @@ async function adjustAdminProductStock(
     p_movement_type: args.movementType,
   });
   if (error) throw error;
-  if (data === null) throw new Error("The stock adjustment did not return a stock value.");
+  if (data === null)
+    throw new Error("The stock adjustment did not return a stock value.");
   return data;
 }
 
@@ -137,23 +188,45 @@ function revalidateSkinConcerns(...slugs: Array<string | null | undefined>) {
   revalidatePath("/admin/products/[id]/edit", "page");
   revalidatePath("/[locale]/skin-concerns/[slug]", "page");
   revalidatePath("/skin-concerns/[slug]", "page");
-  for (const slug of new Set(slugs.filter((value): value is string => Boolean(value)))) {
+  for (const slug of new Set(
+    slugs.filter((value): value is string => Boolean(value)),
+  )) {
     revalidatePath(`/skin-concerns/${slug}`);
-    for (const locale of ["en", "si", "ta", "ar"]) revalidatePath(`/${locale}/skin-concerns/${slug}`);
+    for (const locale of ["en", "si", "ta", "ar"])
+      revalidatePath(`/${locale}/skin-concerns/${slug}`);
   }
 }
 
 export type SkinConcernActionState = ActionState & { concern?: SkinConcern };
 
-export async function setNewsletterSubscriberStatusAction(subscriberId: string, status: "subscribed" | "unsubscribed") {
+export async function setNewsletterSubscriberStatusAction(
+  subscriberId: string,
+  status: "subscribed" | "unsubscribed",
+) {
   const staff = await requireAdmin("/admin/newsletter");
-  if (!z.string().uuid().safeParse(subscriberId).success || !z.enum(["subscribed", "unsubscribed"]).safeParse(status).success) return;
-  const updates = status === "subscribed"
-    ? { status, subscribed_at: new Date().toISOString(), unsubscribed_at: null }
-    : { status, unsubscribed_at: new Date().toISOString() };
-  const { error } = await getSupabaseAdminClient().from("newsletter_subscribers").update(updates).eq("id", subscriberId);
+  if (
+    !z.string().uuid().safeParse(subscriberId).success ||
+    !z.enum(["subscribed", "unsubscribed"]).safeParse(status).success
+  )
+    return;
+  const updates =
+    status === "subscribed"
+      ? {
+          status,
+          subscribed_at: new Date().toISOString(),
+          unsubscribed_at: null,
+        }
+      : { status, unsubscribed_at: new Date().toISOString() };
+  const { error } = await getSupabaseAdminClient()
+    .from("newsletter_subscribers")
+    .update(updates)
+    .eq("id", subscriberId);
   if (error) {
-    logSupabaseError("admin-newsletter", "update-subscriber-status", error, { route: "/admin/newsletter", table: "newsletter_subscribers", userId: staff.userId });
+    logSupabaseError("admin-newsletter", "update-subscriber-status", error, {
+      route: "/admin/newsletter",
+      table: "newsletter_subscribers",
+      userId: staff.userId,
+    });
     throw new Error("Unable to update newsletter subscriber.");
   }
   revalidatePath("/admin/newsletter");
@@ -174,7 +247,15 @@ async function saveAdminSkinConcern(
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
-  ) => Promise<{ data: string | null; error: { code?: string; message: string; details?: string; hint?: string } | null }>;
+  ) => Promise<{
+    data: string | null;
+    error: {
+      code?: string;
+      message: string;
+      details?: string;
+      hint?: string;
+    } | null;
+  }>;
   const { data: concernId, error } = await rpc("save_admin_skin_concern", {
     p_concern_id: args.concernId,
     p_actor_id: args.actorId,
@@ -185,8 +266,13 @@ async function saveAdminSkinConcern(
     p_is_active: args.isActive,
   });
   if (error) throw error;
-  if (!concernId) throw new Error("The skin concern save did not return an ID.");
-  const result = await supabase.from("skin_concerns").select("*").eq("id", concernId).single();
+  if (!concernId)
+    throw new Error("The skin concern save did not return an ID.");
+  const result = await supabase
+    .from("skin_concerns")
+    .select("*")
+    .eq("id", concernId)
+    .single();
   if (result.error) throw result.error;
   return result.data as unknown as SkinConcern;
 }
@@ -197,7 +283,12 @@ export async function createSkinConcernAction(
 ): Promise<SkinConcernActionState> {
   const staff = await requireAdmin("/admin/skin-concerns");
   const parsed = skinConcernSchema.safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the skin concern details." };
+  if (!parsed.success)
+    return {
+      status: "error",
+      message:
+        parsed.error.issues[0]?.message ?? "Check the skin concern details.",
+    };
   try {
     const concern = await saveAdminSkinConcern(await actionClient(), {
       concernId: null,
@@ -211,12 +302,24 @@ export async function createSkinConcernAction(
     revalidateSkinConcerns(concern.slug);
     return { status: "success", message: "Skin concern created.", concern };
   } catch (error) {
-    logSupabaseError("admin-skin-concerns-create", "create-skin-concern", error, {
-      route: "/admin/skin-concerns",
-      table: "skin_concerns",
-      userId: staff.userId,
-    });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to create the skin concern.", { duplicate: "A skin concern with this name or slug already exists." }) };
+    logSupabaseError(
+      "admin-skin-concerns-create",
+      "create-skin-concern",
+      error,
+      {
+        route: "/admin/skin-concerns",
+        table: "skin_concerns",
+        userId: staff.userId,
+      },
+    );
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        error,
+        "Unable to create the skin concern.",
+        { duplicate: "A skin concern with this name or slug already exists." },
+      ),
+    };
   }
 }
 
@@ -226,13 +329,31 @@ export async function updateSkinConcernAction(
   formData: FormData,
 ): Promise<SkinConcernActionState> {
   const staff = await requireAdmin("/admin/skin-concerns");
-  if (!z.string().uuid().safeParse(concernId).success) return { status: "error", message: "Skin concern not found." };
+  if (!z.string().uuid().safeParse(concernId).success)
+    return { status: "error", message: "Skin concern not found." };
   const parsed = skinConcernSchema.safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the skin concern details." };
+  if (!parsed.success)
+    return {
+      status: "error",
+      message:
+        parsed.error.issues[0]?.message ?? "Check the skin concern details.",
+    };
   const supabase = await actionClient();
-  const before = await supabase.from("skin_concerns").select("slug").eq("id", concernId).maybeSingle();
-  if (before.error) return { status: "error", message: messageFromSupabaseError(before.error, "Unable to load the skin concern before saving.") };
-  if (!before.data) return { status: "error", message: "Skin concern not found." };
+  const before = await supabase
+    .from("skin_concerns")
+    .select("slug")
+    .eq("id", concernId)
+    .maybeSingle();
+  if (before.error)
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        before.error,
+        "Unable to load the skin concern before saving.",
+      ),
+    };
+  if (!before.data)
+    return { status: "error", message: "Skin concern not found." };
   try {
     const concern = await saveAdminSkinConcern(supabase, {
       concernId,
@@ -246,22 +367,51 @@ export async function updateSkinConcernAction(
     revalidateSkinConcerns(String(before.data.slug), concern.slug);
     return { status: "success", message: "Skin concern updated.", concern };
   } catch (error) {
-    logSupabaseError("admin-skin-concerns-update", "update-skin-concern", error, {
-      route: "/admin/skin-concerns",
-      table: "skin_concerns",
-      userId: staff.userId,
-      skinConcernId: concernId,
-    });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to update the skin concern.", { duplicate: "A skin concern with this name or slug already exists.", notFound: "Skin concern not found." }) };
+    logSupabaseError(
+      "admin-skin-concerns-update",
+      "update-skin-concern",
+      error,
+      {
+        route: "/admin/skin-concerns",
+        table: "skin_concerns",
+        userId: staff.userId,
+        skinConcernId: concernId,
+      },
+    );
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        error,
+        "Unable to update the skin concern.",
+        {
+          duplicate: "A skin concern with this name or slug already exists.",
+          notFound: "Skin concern not found.",
+        },
+      ),
+    };
   }
 }
 
-export async function setSkinConcernActiveAction(concernId: string, isActive: boolean) {
+export async function setSkinConcernActiveAction(
+  concernId: string,
+  isActive: boolean,
+) {
   const staff = await requireAdmin("/admin/skin-concerns");
-  if (!z.string().uuid().safeParse(concernId).success) throw new Error("Skin concern not found.");
+  if (!z.string().uuid().safeParse(concernId).success)
+    throw new Error("Skin concern not found.");
   const supabase = await actionClient();
-  const current = await supabase.from("skin_concerns").select("*").eq("id", concernId).maybeSingle();
-  if (current.error) throw new Error(messageFromSupabaseError(current.error, "Unable to load the skin concern."));
+  const current = await supabase
+    .from("skin_concerns")
+    .select("*")
+    .eq("id", concernId)
+    .maybeSingle();
+  if (current.error)
+    throw new Error(
+      messageFromSupabaseError(
+        current.error,
+        "Unable to load the skin concern.",
+      ),
+    );
   if (!current.data) throw new Error("Skin concern not found.");
   const row = current.data as Record<string, unknown>;
   try {
@@ -276,44 +426,93 @@ export async function setSkinConcernActiveAction(concernId: string, isActive: bo
     });
     revalidateSkinConcerns(concern.slug);
   } catch (error) {
-    logSupabaseError("admin-skin-concerns-status", "set-skin-concern-status", error, {
-      route: "/admin/skin-concerns",
-      table: "skin_concerns",
-      userId: staff.userId,
-      skinConcernId: concernId,
-    });
-    throw new Error(messageFromSupabaseError(error, "Unable to update the skin concern status."));
+    logSupabaseError(
+      "admin-skin-concerns-status",
+      "set-skin-concern-status",
+      error,
+      {
+        route: "/admin/skin-concerns",
+        table: "skin_concerns",
+        userId: staff.userId,
+        skinConcernId: concernId,
+      },
+    );
+    throw new Error(
+      messageFromSupabaseError(
+        error,
+        "Unable to update the skin concern status.",
+      ),
+    );
   }
 }
 
 export async function deleteSkinConcernAction(concernId: string) {
   const staff = await requireAdmin("/admin/skin-concerns");
-  if (!z.string().uuid().safeParse(concernId).success) throw new Error("Skin concern not found.");
+  if (!z.string().uuid().safeParse(concernId).success)
+    throw new Error("Skin concern not found.");
   const supabase = await actionClient();
-  const current = await supabase.from("skin_concerns").select("slug").eq("id", concernId).maybeSingle();
-  if (current.error) throw new Error(messageFromSupabaseError(current.error, "Unable to load the skin concern."));
+  const current = await supabase
+    .from("skin_concerns")
+    .select("slug")
+    .eq("id", concernId)
+    .maybeSingle();
+  if (current.error)
+    throw new Error(
+      messageFromSupabaseError(
+        current.error,
+        "Unable to load the skin concern.",
+      ),
+    );
   if (!current.data) throw new Error("Skin concern not found.");
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     name: string,
     args: Record<string, unknown>,
-  ) => Promise<{ error: { code?: string; message: string; details?: string; hint?: string } | null }>;
-  const { error } = await rpc("delete_admin_skin_concern", { p_concern_id: concernId, p_actor_id: staff.userId });
+  ) => Promise<{
+    error: {
+      code?: string;
+      message: string;
+      details?: string;
+      hint?: string;
+    } | null;
+  }>;
+  const { error } = await rpc("delete_admin_skin_concern", {
+    p_concern_id: concernId,
+    p_actor_id: staff.userId,
+  });
   if (error) {
-    logSupabaseError("admin-skin-concerns-delete", "delete-skin-concern", error, {
-      route: "/admin/skin-concerns",
-      table: "skin_concerns",
-      userId: staff.userId,
-      skinConcernId: concernId,
-    });
-    throw new Error(messageFromSupabaseError(error, "Unable to delete the skin concern.", { invalidReference: "Assigned skin concerns must be deactivated instead of deleted.", notFound: "Skin concern not found." }));
+    logSupabaseError(
+      "admin-skin-concerns-delete",
+      "delete-skin-concern",
+      error,
+      {
+        route: "/admin/skin-concerns",
+        table: "skin_concerns",
+        userId: staff.userId,
+        skinConcernId: concernId,
+      },
+    );
+    throw new Error(
+      messageFromSupabaseError(error, "Unable to delete the skin concern.", {
+        invalidReference:
+          "Assigned skin concerns must be deactivated instead of deleted.",
+        notFound: "Skin concern not found.",
+      }),
+    );
   }
   revalidateSkinConcerns(String(current.data.slug));
 }
 
-export async function createProductAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+export async function createProductAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const staff = await requireAdmin("/admin/products/new");
   const parsed = productSchema.safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the product details.",
+    };
   const supabase = await actionClient();
   let upload: ProductImageUpload = { url: null, newPath: null };
   try {
@@ -326,37 +525,70 @@ export async function createProductAction(_state: ActionState, formData: FormDat
       targetStock: parsed.data.stock_quantity,
     });
   } catch (error) {
-    await removeProductImage(supabase, upload.newPath, { userId: staff.userId });
+    await removeProductImage(supabase, upload.newPath, {
+      userId: staff.userId,
+    });
     logSupabaseError("admin-products-create", "create-product-action", error, {
       route: "/admin/products/new",
       table: "products",
       userId: staff.userId,
     });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to create product.") };
+    return {
+      status: "error",
+      message: messageFromSupabaseError(error, "Unable to create product."),
+    };
   }
   revalidateCatalog();
   redirect("/admin/products?saved=created");
 }
 
-export async function updateProductAction(productId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
+export async function updateProductAction(
+  productId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const staff = await requireAdmin(`/admin/products/${productId}/edit`);
-  if (!z.string().uuid().safeParse(productId).success) return { status: "error", message: "Product not found." };
+  if (!z.string().uuid().safeParse(productId).success)
+    return { status: "error", message: "Product not found." };
   const parsed = productSchema.safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the product details." };
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the product details.",
+    };
   const supabase = await actionClient();
-  const currentResult = await supabase.from("products").select("image_url").eq("id", productId).maybeSingle();
+  const currentResult = await supabase
+    .from("products")
+    .select("image_url")
+    .eq("id", productId)
+    .maybeSingle();
   if (currentResult.error) {
-    logSupabaseError("admin-products-edit", "select-current-product", currentResult.error, {
-      route: `/admin/products/${productId}/edit`,
-      table: "products",
-      userId: staff.userId,
-      productId,
-    });
-    return { status: "error", message: messageFromSupabaseError(currentResult.error, "Unable to load the product before saving.") };
+    logSupabaseError(
+      "admin-products-edit",
+      "select-current-product",
+      currentResult.error,
+      {
+        route: `/admin/products/${productId}/edit`,
+        table: "products",
+        userId: staff.userId,
+        productId,
+      },
+    );
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        currentResult.error,
+        "Unable to load the product before saving.",
+      ),
+    };
   }
-  if (!currentResult.data) return { status: "error", message: "Product not found." };
+  if (!currentResult.data)
+    return { status: "error", message: "Product not found." };
 
-  const previousImageUrl = typeof currentResult.data.image_url === "string" ? currentResult.data.image_url : null;
+  const previousImageUrl =
+    typeof currentResult.data.image_url === "string"
+      ? currentResult.data.image_url
+      : null;
   let upload: ProductImageUpload = { url: previousImageUrl, newPath: null };
   try {
     upload = await uploadProductImage(supabase, formData, previousImageUrl);
@@ -368,17 +600,26 @@ export async function updateProductAction(productId: string, _state: ActionState
       targetStock: parsed.data.stock_quantity,
     });
   } catch (error) {
-    await removeProductImage(supabase, upload.newPath, { userId: staff.userId, productId });
+    await removeProductImage(supabase, upload.newPath, {
+      userId: staff.userId,
+      productId,
+    });
     logSupabaseError("admin-products-edit", "update-product-action", error, {
       route: `/admin/products/${productId}/edit`,
       table: "products",
       userId: staff.userId,
       productId,
     });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to update product.") };
+    return {
+      status: "error",
+      message: messageFromSupabaseError(error, "Unable to update product."),
+    };
   }
   if (upload.newPath) {
-    await removeProductImage(supabase, productImagePath(previousImageUrl), { userId: staff.userId, productId });
+    await removeProductImage(supabase, productImagePath(previousImageUrl), {
+      userId: staff.userId,
+      productId,
+    });
   }
   revalidateCatalog(productId);
   redirect("/admin/products?saved=updated");
@@ -386,9 +627,15 @@ export async function updateProductAction(productId: string, _state: ActionState
 
 export async function archiveProductAction(productId: string) {
   const staff = await requireAdmin("/admin/products");
-  if (!z.string().uuid().safeParse(productId).success) throw new Error("Product not found.");
+  if (!z.string().uuid().safeParse(productId).success)
+    throw new Error("Product not found.");
   const supabase = await actionClient();
-  const { data, error } = await supabase.from("products").update({ status: "archived" }).eq("id", productId).select("id").maybeSingle();
+  const { data, error } = await supabase
+    .from("products")
+    .update({ status: "archived" })
+    .eq("id", productId)
+    .select("id")
+    .maybeSingle();
   if (error) {
     logSupabaseError("admin-products-archive", "archive-product", error, {
       route: "/admin/products",
@@ -396,37 +643,74 @@ export async function archiveProductAction(productId: string) {
       userId: staff.userId,
       productId,
     });
-    throw new Error(messageFromSupabaseError(error, "Unable to archive the product."));
+    throw new Error(
+      messageFromSupabaseError(error, "Unable to archive the product."),
+    );
   }
   if (!data) throw new Error("Product not found.");
   revalidateCatalog(productId);
 }
 
-export async function createCategoryAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+export async function createCategoryAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const staff = await requireAdmin("/admin/categories");
   const parsed = categorySchema.safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the category details." };
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the category details.",
+    };
   const supabase = await actionClient();
-  const { error } = await supabase.from("categories").insert({ ...parsed.data, slug: toSlug(parsed.data.slug || parsed.data.name) });
+  const { error } = await supabase
+    .from("categories")
+    .insert({
+      ...parsed.data,
+      slug: toSlug(parsed.data.slug || parsed.data.name),
+    });
   if (error) {
     logSupabaseError("admin-category-create", "insert-category", error, {
       route: "/admin/categories",
       table: "categories",
       userId: staff.userId,
     });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to create the category.") };
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        error,
+        "Unable to create the category.",
+      ),
+    };
   }
   revalidateCatalog();
   return { status: "success", message: "Category created." };
 }
 
-export async function updateCategoryAction(categoryId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
+export async function updateCategoryAction(
+  categoryId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const staff = await requireAdmin("/admin/categories");
-  if (!z.string().uuid().safeParse(categoryId).success) return { status: "error", message: "Category not found." };
+  if (!z.string().uuid().safeParse(categoryId).success)
+    return { status: "error", message: "Category not found." };
   const parsed = categorySchema.safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the category details." };
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the category details.",
+    };
   const supabase = await actionClient();
-  const { data, error } = await supabase.from("categories").update({ ...parsed.data, slug: toSlug(parsed.data.slug || parsed.data.name) }).eq("id", categoryId).select("id").maybeSingle();
+  const { data, error } = await supabase
+    .from("categories")
+    .update({
+      ...parsed.data,
+      slug: toSlug(parsed.data.slug || parsed.data.name),
+    })
+    .eq("id", categoryId)
+    .select("id")
+    .maybeSingle();
   if (error) {
     logSupabaseError("admin-category-update", "update-category", error, {
       route: "/admin/categories",
@@ -434,7 +718,13 @@ export async function updateCategoryAction(categoryId: string, _state: ActionSta
       userId: staff.userId,
       categoryId,
     });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to update the category.") };
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        error,
+        "Unable to update the category.",
+      ),
+    };
   }
   if (!data) return { status: "error", message: "Category not found." };
   revalidateCatalog();
@@ -443,21 +733,43 @@ export async function updateCategoryAction(categoryId: string, _state: ActionSta
 
 export async function deleteCategoryAction(categoryId: string) {
   const staff = await requireAdmin("/admin/categories");
-  if (!z.string().uuid().safeParse(categoryId).success) throw new Error("Category not found.");
+  if (!z.string().uuid().safeParse(categoryId).success)
+    throw new Error("Category not found.");
   const supabase = await actionClient();
-  const assigned = await supabase.from("products").select("id", { count: "exact", head: true }).eq("category_id", categoryId);
+  const assigned = await supabase
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", categoryId);
   if (assigned.error) {
-    logSupabaseError("admin-category-delete", "check-category-products", assigned.error, {
-      route: "/admin/categories",
-      table: "products",
-      userId: staff.userId,
-      categoryId,
-    });
-    throw new Error(messageFromSupabaseError(assigned.error, "Unable to verify whether the category is in use."));
+    logSupabaseError(
+      "admin-category-delete",
+      "check-category-products",
+      assigned.error,
+      {
+        route: "/admin/categories",
+        table: "products",
+        userId: staff.userId,
+        categoryId,
+      },
+    );
+    throw new Error(
+      messageFromSupabaseError(
+        assigned.error,
+        "Unable to verify whether the category is in use.",
+      ),
+    );
   }
-  if ((assigned.count ?? 0) > 0) throw new Error("This category is assigned to products and cannot be deleted.");
+  if ((assigned.count ?? 0) > 0)
+    throw new Error(
+      "This category is assigned to products and cannot be deleted.",
+    );
 
-  const { data, error } = await supabase.from("categories").delete().eq("id", categoryId).select("id").maybeSingle();
+  const { data, error } = await supabase
+    .from("categories")
+    .delete()
+    .eq("id", categoryId)
+    .select("id")
+    .maybeSingle();
   if (error) {
     logSupabaseError("admin-category-delete", "delete-category", error, {
       route: "/admin/categories",
@@ -465,36 +777,150 @@ export async function deleteCategoryAction(categoryId: string) {
       userId: staff.userId,
       categoryId,
     });
-    throw new Error(messageFromSupabaseError(error, "Unable to delete the category."));
+    throw new Error(
+      messageFromSupabaseError(error, "Unable to delete the category."),
+    );
   }
   if (!data) throw new Error("Category not found.");
   revalidateCatalog();
 }
 
-export async function updateOrderStatusAction(orderId: string, _state: ActionState, formData: FormData): Promise<ActionState> {
+export async function updateOrderStatusAction(
+  orderId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const staff = await requireStaff(`/admin/orders/${orderId}`);
-  const parsed = z.object({ order_status: z.enum(["pending", "paid", "processing", "packed", "shipped", "delivered", "cancelled", "refunded"]), payment_status: z.enum(["pending", "paid", "failed", "refunded"]), note: z.string().trim().max(1000).default("") }).safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: "Choose valid order and payment statuses." };
+  const parsed = z
+    .object({
+      order_status: z.enum([
+        "pending",
+        "paid",
+        "processing",
+        "packed",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "refunded",
+      ]),
+      payment_status: z.enum(["pending", "paid", "failed", "refunded"]),
+      note: z.string().trim().max(1000).default(""),
+      shipping_method_name: z.string().trim().max(160).default(""),
+      courier_name: z.string().trim().max(160).default(""),
+      tracking_number: z.string().trim().max(200).default(""),
+      tracking_url: z.string().trim().max(1000).refine((value) => !value || z.string().url().safeParse(value).success, "Enter a valid tracking URL.").default(""),
+      estimated_delivery_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).default(""),
+    })
+    .safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: "Choose valid order and payment statuses.",
+    };
   const supabase = await actionClient();
-  const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
-  const { data, error } = await rpc("update_admin_order_status", { p_order_id: orderId, p_order_status: parsed.data.order_status, p_payment_status: parsed.data.payment_status, p_actor_id: staff.userId, p_note: parsed.data.note });
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{
+    data: unknown;
+    error: { message?: string; code?: string } | null;
+  }>;
+  const { data, error } = await rpc("update_admin_order_status", {
+    p_order_id: orderId,
+    p_order_status: parsed.data.order_status,
+    p_payment_status: parsed.data.payment_status,
+    p_actor_id: staff.userId,
+    p_note: parsed.data.note,
+  });
   if (error) {
-    logSupabaseError("admin-order-status-update", "update-order-status", error, {
-      route: `/admin/orders/${orderId}`,
-      table: "orders",
-      userId: staff.userId,
-      orderId,
-    });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to update the order status.") };
+    logSupabaseError(
+      "admin-order-status-update",
+      "update-order-status",
+      error,
+      {
+        route: `/admin/orders/${orderId}`,
+        table: "orders",
+        userId: staff.userId,
+        orderId,
+      },
+    );
+    return {
+      status: "error",
+      message: messageFromSupabaseError(
+        error,
+        "Unable to update the order status.",
+      ),
+    };
   }
   if (!data) return { status: "error", message: "Order not found." };
-  revalidatePath("/admin/orders"); revalidatePath(`/admin/orders/${orderId}`); return { status: "success", message: "Order status updated." };
+  const fulfilment = await supabase.from("orders").update({
+    shipping_method_name: parsed.data.shipping_method_name,
+    courier_name: parsed.data.courier_name,
+    tracking_number: parsed.data.tracking_number,
+    tracking_url: parsed.data.tracking_url,
+    estimated_delivery_date: parsed.data.estimated_delivery_date || null,
+  }).eq("id", orderId);
+  if (fulfilment.error) return { status: "error", message: "Status changed, but fulfilment details could not be saved." };
+  const emailTemplate = (
+    {
+      processing: "order_processing",
+      packed: "order_packed",
+      shipped: "order_shipped",
+      delivered: "order_delivered",
+      cancelled: "order_cancelled",
+    } as Partial<Record<string, EmailTemplate>>
+  )[parsed.data.order_status];
+  if (emailTemplate) {
+    const order = await supabase
+      .from("orders")
+      .select("order_number,customer_name,customer_email,total_amount,currency")
+      .eq("id", orderId)
+      .maybeSingle();
+    const orderRow = order.data as { order_number: string; customer_name: string; customer_email: string; total_amount: number; currency: string } | null;
+    if (orderRow)
+      await sendTransactionalEmail({
+        template: emailTemplate,
+        recipient: orderRow.customer_email,
+        orderId,
+        subject: `Order ${orderRow.order_number}: ${parsed.data.order_status}`,
+        customerName: orderRow.customer_name,
+        intro: `Your order status is now ${parsed.data.order_status}.`,
+        details: [
+          ["Order", orderRow.order_number],
+          [
+            "Total",
+            `${orderRow.currency} ${Number(orderRow.total_amount).toFixed(2)}`,
+          ],
+        ],
+        nextSteps:
+          parsed.data.note || "Contact YARA if you need help with this order.",
+      });
+  }
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  return { status: "success", message: "Order status updated." };
 }
 
-export async function adjustStockAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+export async function adjustStockAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const staff = await requireStaff("/admin/inventory");
-  const parsed = z.object({ product_id: z.string().uuid(), quantity_change: z.coerce.number().int().refine((v) => v !== 0, "Enter a non-zero quantity."), movement_type: z.enum(["manual_adjustment", "restock"]) }).safeParse(formObject(formData));
-  if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the stock adjustment." };
+  const parsed = z
+    .object({
+      product_id: z.string().uuid(),
+      quantity_change: z.coerce
+        .number()
+        .int()
+        .refine((v) => v !== 0, "Enter a non-zero quantity."),
+      movement_type: z.enum(["manual_adjustment", "restock"]),
+    })
+    .safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the stock adjustment.",
+    };
   try {
     await adjustAdminProductStock(await actionClient(), {
       productId: parsed.data.product_id,
@@ -509,7 +935,10 @@ export async function adjustStockAction(_state: ActionState, formData: FormData)
       userId: staff.userId,
       productId: parsed.data.product_id,
     });
-    return { status: "error", message: messageFromSupabaseError(error, "Unable to update stock.") };
+    return {
+      status: "error",
+      message: messageFromSupabaseError(error, "Unable to update stock."),
+    };
   }
   revalidateCatalog(parsed.data.product_id);
   return { status: "success", message: "Stock updated and movement recorded." };
