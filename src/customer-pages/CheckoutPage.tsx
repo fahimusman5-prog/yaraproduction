@@ -25,8 +25,12 @@ export function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
   const shipping = country ? calculateCartShipping(items, country) : null;
-  const total = subtotal + (shipping?.total ?? 0);
+  const total = subtotal - (coupon?.discount ?? 0) + (shipping?.total ?? 0);
   const hasLiveCatalogItems = items.every(({ product }) => uuidPattern.test(product.id));
 
   useEffect(() => {
@@ -74,6 +78,16 @@ export function CheckoutPage() {
     }
   };
 
+  const applyCoupon = async () => {
+    if (!country || !couponInput.trim()) return;
+    setCheckingCoupon(true); setCouponMessage("");
+    const response = await fetch("/api/coupons/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: couponInput, country, items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })) }) });
+    const payload = await response.json();
+    if (response.ok) { setCoupon({ code: payload.code, discount: Number(payload.discount) }); setCouponMessage(`${payload.code} applied.`); }
+    else { setCoupon(null); setCouponMessage(payload.error || "Coupon could not be applied."); }
+    setCheckingCoupon(false);
+  };
+
   const preserveCheckoutDraft = () => {
     if (!formRef.current) return;
     const values = Object.fromEntries(new FormData(formRef.current).entries());
@@ -91,7 +105,7 @@ export function CheckoutPage() {
     try {
       const data = new FormData(event.currentTarget);
       const response = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        country, paymentMethod: payment, termsAccepted: data.get("termsAccepted") === "on", idempotencyKey: idempotencyKeyRef.current,
+        country, paymentMethod: payment, termsAccepted: data.get("termsAccepted") === "on", idempotencyKey: idempotencyKeyRef.current, couponCode: coupon?.code,
         customer: { name: `${data.get("firstName") ?? ""} ${data.get("lastName") ?? ""}`.trim(), email: data.get("email"), phone: data.get("phone"), address: data.get("address"), city: data.get("city"), postalCode: data.get("postalCode") },
         items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
       }) });
@@ -170,7 +184,8 @@ export function CheckoutPage() {
               <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p>{country && <p className="mt-1 text-[0.68rem] text-yara-taupe">{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}</div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
             );})}
           </div>
-          <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{country && shipping?.valid ? (shipping.total === 0 ? "Free Delivery" : formatPrice(shipping.total, country)) : "Rate unavailable"}</span></div></div>
+          <div className="mt-6 rounded-2xl bg-yara-blush p-4"><label><span className="field-label">Coupon</span><span className="flex gap-2"><input value={couponInput} onChange={(event) => setCouponInput(event.target.value.toUpperCase())} maxLength={40} className="field min-w-0 uppercase" placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={checkingCoupon || !couponInput.trim()} className="btn-secondary shrink-0">{checkingCoupon ? "Checking…" : "Apply"}</button></span></label>{couponMessage && <p role="status" className="mt-2 text-xs text-yara-taupe">{couponMessage}</p>}{coupon && <button type="button" onClick={() => { setCoupon(null); setCouponInput(""); setCouponMessage("Coupon removed."); }} className="mt-2 min-h-11 text-xs font-semibold text-yara-wine underline">Remove coupon</button>}</div>
+          <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div>{coupon && <div className="flex justify-between py-1.5 text-emerald-800"><span>Discount ({coupon.code})</span><span>−{country && formatPrice(coupon.discount, country)}</span></div>}<div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span>{country && shipping?.valid ? (shipping.total === 0 ? "Free Delivery" : formatPrice(shipping.total, country)) : "Rate unavailable"}</span></div></div>
           {shipping && !shipping.valid && <p role="alert" className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">{shipping.unavailable.length ? "One or more products are not available for delivery in this region." : "Delivery has not been configured for one or more products. Please contact YARA before ordering."}</p>}
           <div className="mt-5 flex items-end justify-between"><span className="font-serif text-2xl">{t("common.productTotal")}</span><span className="font-serif text-3xl text-yara-wine">{country && formatPrice(total, country)}</span></div>
           <label className="mt-6 flex items-start gap-3 text-sm leading-6 text-yara-taupe">

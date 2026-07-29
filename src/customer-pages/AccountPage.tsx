@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
 
-type Order = { id: string; order_number: string; order_status: string; payment_status: string; total_amount: number; subtotal_amount: number; shipping_fee: number; discount_amount: number; currency: string; created_at: string };
+type Order = { id: string; order_number: string; order_status: string; payment_status: string; total_amount: number; subtotal_amount: number; shipping_fee: number; discount_amount: number; currency: string; created_at: string; delivered_at: string | null; order_items: Array<{ id: string; quantity: number; products: { name: string } | null }>; return_requests: Array<{ id: string; status: string }> };
 type Address = { id: string; label: string; recipient_name: string; phone: string; address: string; address_line_2: string; city: string; district_area: string; building_details: string; landmark: string; postal_code: string; country: "sri-lanka" | "uae"; is_default: boolean };
 type AccountState = { loading: boolean; userId: string; email: string; name: string; orders: Order[]; addresses: Address[]; error: string };
 const emptyState: AccountState = { loading: true, userId: "", email: "", name: "", orders: [], addresses: [], error: "" };
@@ -13,6 +13,7 @@ export function AccountPage() {
   const [editing, setEditing] = useState<Address | "new" | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [returning, setReturning] = useState<Order | null>(null);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -22,7 +23,7 @@ export function AccountPage() {
     if (!auth.user) { navigate("/login", { replace: true }); return; }
     const [profile, orders, addresses] = await Promise.all([
       client.from("profiles").select("full_name,email").eq("id", auth.user.id).maybeSingle(),
-      client.from("orders").select("id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,discount_amount,currency,created_at").eq("customer_user_id", auth.user.id).order("created_at", { ascending: false }).limit(50),
+      client.from("orders").select("id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,discount_amount,currency,created_at,delivered_at,order_items(id,quantity,products(name)),return_requests(id,status)").eq("customer_user_id", auth.user.id).order("created_at", { ascending: false }).limit(50),
       client.from("customer_addresses").select("*").eq("user_id", auth.user.id).order("is_default", { ascending: false }).order("updated_at", { ascending: false }),
     ]);
     setState({ loading: false, userId: auth.user.id, email: String(profile.data?.email ?? auth.user.email ?? ""), name: String(profile.data?.full_name ?? auth.user.user_metadata?.full_name ?? ""), orders: (orders.data ?? []) as Order[], addresses: (addresses.data ?? []) as Address[], error: profile.error || orders.error || addresses.error ? "Some account information could not be loaded." : "" });
@@ -81,6 +82,19 @@ export function AccountPage() {
     await load(); setBusy(false);
   };
 
+  const submitReturn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!returning) return;
+    const data = new FormData(event.currentTarget);
+    const items = returning.order_items.map((item) => ({ orderItemId: item.id, quantity: Number(data.get(`quantity_${item.id}`) ?? 0) })).filter((item) => item.quantity > 0);
+    setBusy(true); setMessage("");
+    const response = await fetch("/api/returns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: returning.id, reason: data.get("reason"), note: data.get("note"), items }) });
+    const payload = await response.json();
+    setMessage(response.ok ? payload.message : payload.error || "Return request failed.");
+    if (response.ok) { setReturning(null); await load(); }
+    setBusy(false);
+  };
+
   if (state.loading) return <div className="page-shell grid min-h-[50vh] place-items-center" aria-busy="true"><LoaderCircle className="h-8 w-8 animate-spin text-yara-wine" /><span className="sr-only">Loading account</span></div>;
   return <div className="page-shell py-12 sm:py-20">
     <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="eyebrow">Your YARA account</p><h1 className="mt-3 text-4xl sm:text-5xl">Welcome{state.name ? `, ${state.name}` : ""}</h1><p className="mt-3 text-sm text-yara-taupe">{state.email}</p></div><button type="button" onClick={signOut} className="btn-secondary"><LogOut className="h-4 w-4" />Sign out</button></div>
@@ -92,8 +106,9 @@ export function AccountPage() {
         {state.addresses.length ? <div className="mt-5 grid gap-3">{state.addresses.map((address) => <article key={address.id} className="rounded-2xl border border-yara-rose p-4"><div className="flex flex-wrap justify-between gap-3"><div><p className="font-semibold">{address.label}{address.is_default && <span className="ml-2 rounded-full bg-yara-rose px-2 py-1 text-[0.65rem] text-yara-wine">Default</span>}</p><p className="mt-2 text-sm leading-6 text-yara-taupe">{address.recipient_name}<br />{address.address}{address.address_line_2 ? `, ${address.address_line_2}` : ""}<br />{address.district_area ? `${address.district_area}, ` : ""}{address.city}{address.postal_code ? ` ${address.postal_code}` : ""}<br />{address.phone}</p></div><div className="flex gap-2"><button type="button" onClick={() => setEditing(address)} className="glass-icon h-11 w-11" aria-label={`Edit ${address.label}`}><Pencil className="h-4 w-4" /></button><button type="button" onClick={() => removeAddress(address.id)} className="glass-icon-destructive h-11 w-11" aria-label={`Delete ${address.label}`}><Trash2 className="h-4 w-4" /></button></div></div>{!address.is_default && <button type="button" disabled={busy} onClick={() => setDefault(address.id)} className="mt-3 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-yara-wine"><Star className="h-4 w-4" />Set as default</button>}</article>)}</div> : <p className="mt-5 rounded-2xl bg-yara-blush p-5 text-sm text-yara-taupe">No saved addresses yet.</p>}
       </section>
     </div>
-    <section className="surface-card mt-6 p-6 sm:p-8"><Package className="h-6 w-6 text-yara-wine" /><h2 className="mt-4 text-2xl">Order history</h2>{state.orders.length ? <div className="mt-5 grid gap-3">{state.orders.map((order) => <article key={order.id} className="rounded-2xl border border-yara-rose p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-mono text-xs font-bold text-yara-wine">{order.order_number}</p><p className="mt-1 text-xs text-yara-taupe">{new Date(order.created_at).toLocaleDateString()}</p></div><p className="font-serif text-xl">{new Intl.NumberFormat(undefined, { style: "currency", currency: order.currency }).format(order.total_amount)}</p></div><div className="mt-3 grid gap-1 text-xs text-yara-taupe sm:grid-cols-3"><span>Subtotal: {money(order.subtotal_amount, order.currency)}</span><span>Delivery: {order.shipping_fee === 0 ? "Free" : money(order.shipping_fee, order.currency)}</span><span>Discount: {money(order.discount_amount, order.currency)}</span></div><div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-yara-rose px-3 py-1 capitalize">{order.order_status.replaceAll("_", " ")}</span><span className="rounded-full bg-yara-blush px-3 py-1 capitalize">{order.payment_status.replaceAll("_", " ")}</span></div></article>)}</div> : <div className="mt-6 rounded-2xl bg-yara-blush p-5 text-sm text-yara-taupe"><p>No account-linked orders yet.</p><Link to="/shop" className="mt-3 inline-block font-semibold text-yara-wine">Browse products</Link></div>}</section>
+    <section className="surface-card mt-6 p-6 sm:p-8"><Package className="h-6 w-6 text-yara-wine" /><h2 className="mt-4 text-2xl">Order history</h2>{state.orders.length ? <div className="mt-5 grid gap-3">{state.orders.map((order) => <article key={order.id} className="rounded-2xl border border-yara-rose p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-mono text-xs font-bold text-yara-wine">{order.order_number}</p><p className="mt-1 text-xs text-yara-taupe">{new Date(order.created_at).toLocaleDateString()}</p></div><p className="font-serif text-xl">{new Intl.NumberFormat(undefined, { style: "currency", currency: order.currency }).format(order.total_amount)}</p></div><div className="mt-3 grid gap-1 text-xs text-yara-taupe sm:grid-cols-3"><span>Subtotal: {money(order.subtotal_amount, order.currency)}</span><span>Delivery: {order.shipping_fee === 0 ? "Free" : money(order.shipping_fee, order.currency)}</span><span>Discount: {money(order.discount_amount, order.currency)}</span></div><div className="mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-yara-rose px-3 py-1 capitalize">{order.order_status.replaceAll("_", " ")}</span><span className="rounded-full bg-yara-blush px-3 py-1 capitalize">{order.payment_status.replaceAll("_", " ")}</span>{order.return_requests?.[0] && <span className="rounded-full bg-amber-50 px-3 py-1 capitalize text-amber-900">Return: {order.return_requests[0].status.replaceAll("_", " ")}</span>}{isReturnEligible(order) && !order.return_requests?.length && <button type="button" onClick={() => setReturning(order)} className="ml-auto min-h-11 font-semibold text-yara-wine underline">Request return</button>}</div></article>)}</div> : <div className="mt-6 rounded-2xl bg-yara-blush p-5 text-sm text-yara-taupe"><p>No account-linked orders yet.</p><Link to="/shop" className="mt-3 inline-block font-semibold text-yara-wine">Browse products</Link></div>}</section>
     {editing && <div className="fixed inset-0 z-[80] grid place-items-center overflow-y-auto bg-yara-ink/50 p-3 sm:p-6"><form onSubmit={saveAddress} className="my-auto w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-soft sm:p-8"><div className="flex items-center justify-between"><h2 className="text-2xl">{editing === "new" ? "Add address" : "Edit address"}</h2><button type="button" onClick={() => setEditing(null)} className="glass-icon h-11 w-11" aria-label="Close address form"><X className="h-4 w-4" /></button></div><AddressFields address={editing === "new" ? undefined : editing} /><button disabled={busy} className="btn-primary mt-6 w-full" type="submit">{busy ? "Saving…" : "Save address"}</button></form></div>}
+    {returning && <div className="fixed inset-0 z-[80] grid place-items-center overflow-y-auto bg-yara-ink/50 p-3 sm:p-6"><form onSubmit={submitReturn} className="my-auto w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-soft sm:p-8"><div className="flex items-center justify-between"><div><p className="eyebrow">Return request</p><h2 className="mt-2 text-2xl">{returning.order_number}</h2></div><button type="button" onClick={() => setReturning(null)} className="glass-icon h-11 w-11" aria-label="Close return form"><X className="h-4 w-4" /></button></div><p className="mt-4 text-sm leading-6 text-yara-taupe">Select unopened items or items that arrived damaged, defective, or incorrect. Every request is reviewed and inspected; approval is not automatic.</p><div className="mt-5 grid gap-3">{returning.order_items.map((item) => <label key={item.id} className="grid grid-cols-[1fr_100px] items-center gap-4 rounded-2xl border border-yara-rose p-3"><span className="text-sm">{item.products?.name ?? "Product"} <span className="text-yara-taupe">· ordered {item.quantity}</span></span><input name={`quantity_${item.id}`} type="number" min="0" max={item.quantity} defaultValue="0" className="field" aria-label={`Return quantity for ${item.products?.name ?? "product"}`} /></label>)}</div><label className="mt-4 block"><span className="field-label">Reason</span><select name="reason" className="field"><option value="damaged">Damaged</option><option value="defective">Defective</option><option value="incorrect_item">Incorrect item</option><option value="unopened_return">Unused and unopened</option><option value="other">Other</option></select></label><label className="mt-4 block"><span className="field-label">Details</span><textarea name="note" maxLength={2000} className="field min-h-24" /></label><button disabled={busy} className="btn-primary mt-6 w-full" type="submit">{busy ? "Submitting…" : "Submit for review"}</button></form></div>}
   </div>;
 }
 
@@ -115,4 +130,10 @@ function AddressFields({ address }: { address?: Address }) {
 
 function money(value: number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(Number(value ?? 0));
+}
+
+function isReturnEligible(order: Order) {
+  if (order.order_status !== "delivered" || !order.delivered_at) return false;
+  const delivered = new Date(order.delivered_at).getTime();
+  return Number.isFinite(delivered) && Date.now() - delivered <= 14 * 24 * 60 * 60 * 1000;
 }

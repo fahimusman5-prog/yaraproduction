@@ -21,6 +21,7 @@ const schema = z.object({
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().positive().max(1000) })).min(1).max(100),
   termsAccepted: z.literal(true),
   idempotencyKey: z.string().uuid(),
+  couponCode: z.string().trim().max(40).optional(),
 });
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
@@ -38,6 +39,9 @@ function checkoutErrorResponse(error: CheckoutDatabaseError) {
   }
   if (message === "Idempotency key is already in use.") {
     return { message: "This checkout request conflicts with an earlier order. Refresh the checkout and try again.", status: 409 };
+  }
+  if (message.startsWith("Coupon ") || message.startsWith("Order does not meet") || message === "Idempotent retry must use the original coupon.") {
+    return { message, status: 409 };
   }
   const schemaUnavailable = ["42P01", "42703", "PGRST200", "PGRST205"].includes(error.code ?? "");
   return {
@@ -79,13 +83,14 @@ export async function POST(request: Request) {
       name: string,
       args: Record<string, unknown>,
     ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
-    const { data, error } = await rpc("create_storefront_order", {
+    const { data, error } = await rpc("create_storefront_order_with_coupon", {
       p_customer: parsed.data.customer,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
       p_idempotency_key: parsed.data.idempotencyKey,
       p_customer_user_id: customerUserId ?? null,
+      p_coupon_code: parsed.data.couponCode || null,
     });
     if (error) {
       logSupabaseError("storefront-checkout", "create-order", error, {
