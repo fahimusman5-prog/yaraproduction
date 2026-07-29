@@ -8,9 +8,11 @@ import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 import { calculateCartShipping, shippingLabel } from "../lib/shipping";
+import { getSupabaseBrowserClient } from "../lib/supabase/browser";
 
 type PaymentMethod = "payhere" | "cod";
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+type SavedAddress = { id: string; label: string; recipient_name: string; phone: string; address: string; address_line_2: string; city: string; postal_code: string; country: "sri-lanka" | "uae"; is_default: boolean };
 
 export function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
@@ -22,6 +24,7 @@ export function CheckoutPage() {
   const [payment, setPayment] = useState<PaymentMethod>(paymentsEnabled ? "payhere" : "cod");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const shipping = country ? calculateCartShipping(items, country) : null;
   const total = subtotal + (shipping?.total ?? 0);
   const hasLiveCatalogItems = items.every(({ product }) => uuidPattern.test(product.id));
@@ -42,6 +45,34 @@ export function CheckoutPage() {
       sessionStorage.removeItem("yara-checkout-policy-draft");
     }
   }, []);
+
+  useEffect(() => {
+    const client = getSupabaseBrowserClient();
+    if (!client) return;
+    client.auth.getUser().then(async ({ data }: { data: { user: { id: string } | null } }) => {
+      if (!data.user) return;
+      const { data: addresses } = await client.from("customer_addresses").select("id,label,recipient_name,phone,address,address_line_2,city,postal_code,country,is_default").eq("user_id", data.user.id).order("is_default", { ascending: false });
+      setSavedAddresses((addresses ?? []) as SavedAddress[]);
+    });
+  }, []);
+
+  const useSavedAddress = (id: string) => {
+    const address = savedAddresses.find((item) => item.id === id);
+    if (!address || !formRef.current) return;
+    const [firstName, ...lastName] = address.recipient_name.split(/\s+/);
+    const values: Record<string, string> = {
+      firstName,
+      lastName: lastName.join(" "),
+      address: [address.address, address.address_line_2].filter(Boolean).join(", "),
+      city: address.city,
+      postalCode: address.postal_code,
+      phone: address.phone,
+    };
+    for (const [name, value] of Object.entries(values)) {
+      const field = formRef.current.elements.namedItem(name) as HTMLInputElement | null;
+      if (field) field.value = value;
+    }
+  };
 
   const preserveCheckoutDraft = () => {
     if (!formRef.current) return;
@@ -107,6 +138,7 @@ export function CheckoutPage() {
 
           <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><Truck className="h-4 w-4" /></span> {t("checkout.shippingAddress")}</h2>
+            {savedAddresses.some((address) => address.country === country) && <label className="mt-6 block"><span className="field-label">Saved address</span><select className="field" defaultValue="" onChange={(event) => useSavedAddress(event.target.value)}><option value="">Enter a new address</option>{savedAddresses.filter((address) => address.country === country).map((address) => <option key={address.id} value={address.id}>{address.label}{address.is_default ? " — Default" : ""}</option>)}</select></label>}
             <div className="mt-7 grid gap-5 sm:grid-cols-2">
               <label><span className="field-label">{t("checkout.firstName")}</span><input name="firstName" required autoComplete="given-name" className="field" /></label>
               <label><span className="field-label">{t("checkout.lastName")}</span><input name="lastName" required autoComplete="family-name" className="field" /></label>
