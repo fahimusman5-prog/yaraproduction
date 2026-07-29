@@ -13,6 +13,10 @@ type CatalogRow = {
   original_price_lkr: number | string | null; original_price_aed: number | string | null;
   benefits?: string[] | null; how_to_use?: string | null; ingredients?: string | null; caution?: string | null;
   seo_title?: string | null; seo_description?: string | null; original_category?: string | null; featured?: boolean | null;
+  shipping_fee_lkr: number | string | null; shipping_fee_aed: number | string | null;
+  free_shipping_lkr: boolean; free_shipping_aed: boolean;
+  shipping_available_lkr: boolean; shipping_available_aed: boolean;
+  shipping_calculation_lkr: "per_line" | "per_unit"; shipping_calculation_aed: "per_line" | "per_unit";
   categories: { name: string } | null;
   product_skin_concerns?: Array<{ skin_concerns: { name: string; slug: string } | null }> | null;
 };
@@ -49,6 +53,14 @@ function mapProduct(row: CatalogRow): Product {
     seoTitle: row.seo_title || undefined,
     seoDescription: row.seo_description || undefined,
     stockQuantity: row.stock_quantity,
+    shippingLKR: row.shipping_fee_lkr === null ? null : Number(row.shipping_fee_lkr),
+    shippingAED: row.shipping_fee_aed === null ? null : Number(row.shipping_fee_aed),
+    freeShippingLKR: row.free_shipping_lkr,
+    freeShippingAED: row.free_shipping_aed,
+    shippingAvailableLKR: row.shipping_available_lkr,
+    shippingAvailableAED: row.shipping_available_aed,
+    shippingCalculationLKR: row.shipping_calculation_lkr,
+    shippingCalculationAED: row.shipping_calculation_aed,
   };
 }
 

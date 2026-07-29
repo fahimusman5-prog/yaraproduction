@@ -20,6 +20,7 @@ const schema = z.object({
   }),
   items: z.array(z.object({ product_id: z.string().uuid(), quantity: z.number().int().positive().max(1000) })).min(1).max(100),
   termsAccepted: z.literal(true),
+  idempotencyKey: z.string().uuid(),
 });
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
@@ -31,6 +32,12 @@ function checkoutErrorResponse(error: CheckoutDatabaseError) {
   }
   if (message.startsWith("Insufficient stock for ")) {
     return { message, status: 409 };
+  }
+  if (message.includes("not available in your region") || message.startsWith("A delivery rate is not configured")) {
+    return { message, status: 409 };
+  }
+  if (message === "Idempotency key is already in use.") {
+    return { message: "This checkout request conflicts with an earlier order. Refresh the checkout and try again.", status: 409 };
   }
   const schemaUnavailable = ["42P01", "42703", "PGRST200", "PGRST205"].includes(error.code ?? "");
   return {
@@ -65,6 +72,9 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
+    const sessionClient = await getSupabaseServerClient();
+    const { data: claimsData } = sessionClient ? await sessionClient.auth.getClaims() : { data: null };
+    const customerUserId = claimsData?.claims?.sub;
     const rpc = supabase.rpc.bind(supabase) as unknown as (
       name: string,
       args: Record<string, unknown>,
@@ -74,6 +84,8 @@ export async function POST(request: Request) {
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
+      p_idempotency_key: parsed.data.idempotencyKey,
+      p_customer_user_id: customerUserId ?? null,
     });
     if (error) {
       logSupabaseError("storefront-checkout", "create-order", error, {
@@ -83,20 +95,13 @@ export async function POST(request: Request) {
       const response = checkoutErrorResponse(error);
       return NextResponse.json({ error: response.message }, { status: response.status });
     }
-    const order = (Array.isArray(data) ? data[0] : data) as { order_id: string; order_number: string; total_amount: number; currency: "LKR" | "AED" } | null;
+    const order = (Array.isArray(data) ? data[0] : data) as { order_id: string; order_number: string; total_amount: number; currency: "LKR" | "AED"; created: boolean } | null;
     if (!order) {
       logSupabaseError("storefront-checkout", "read-created-order", new Error("Order RPC returned no data."), {
         route: "/api/checkout",
         table: "orders",
       });
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
-    }
-    const sessionClient = await getSupabaseServerClient();
-    const { data: claimsData } = sessionClient ? await sessionClient.auth.getClaims() : { data: null };
-    const customerUserId = claimsData?.claims?.sub;
-    if (customerUserId) {
-      const { error: linkError } = await supabase.from("orders").update({ customer_user_id: customerUserId }).eq("id", order.order_id).is("customer_user_id", null);
-      if (linkError) logSupabaseError("storefront-checkout", "link-customer-order", linkError, { route: "/api/checkout", table: "orders", orderNumber: order.order_number, userId: customerUserId });
     }
     let trackingToken: string;
     try {

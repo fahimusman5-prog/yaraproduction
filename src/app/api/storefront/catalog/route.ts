@@ -9,7 +9,7 @@ export async function GET() {
     const [productsResult, categoriesResult, concernsResult] = await Promise.all([
       supabase
         .from("products")
-        .select("id,name,slug,description,image_url,price_lkr,price_aed,original_price_lkr,original_price_aed,stock_quantity,benefits,how_to_use,ingredients,caution,seo_title,seo_description,original_category,featured,categories(name),product_skin_concerns(skin_concerns(name,slug))")
+        .select("id,name,slug,description,image_url,price_lkr,price_aed,original_price_lkr,original_price_aed,stock_quantity,benefits,how_to_use,ingredients,caution,seo_title,seo_description,original_category,featured,shipping_fee_lkr,shipping_fee_aed,free_shipping_lkr,free_shipping_aed,shipping_available_lkr,shipping_available_aed,shipping_calculation_lkr,shipping_calculation_aed,categories(name),product_skin_concerns(skin_concerns(name,slug))")
         .eq("status", "active")
         .order("name"),
       supabase.from("categories").select("id,name,slug").eq("status", "active").order("name"),
