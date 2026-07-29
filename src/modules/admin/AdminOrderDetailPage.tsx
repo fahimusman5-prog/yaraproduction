@@ -144,10 +144,8 @@ export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-slate-500">Method</dt>
-                  <dd>
-                    {order.shipping_method_name || "Product-level delivery"}
-                  </dd>
+                  <dt className="text-xs text-slate-500">Delivery</dt>
+                  <dd>Fixed countrywide delivery</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-500">Tracking</dt>

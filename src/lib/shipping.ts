@@ -13,9 +13,19 @@ export function isProductAvailableInRegion(
   product: Product,
   country: Country,
 ) {
-  return country === "sri-lanka"
+  const regionEnabled = country === "sri-lanka"
     ? (product.shippingAvailableLKR ?? true)
     : (product.shippingAvailableAED ?? true);
+  const regionalPrice =
+    country === "sri-lanka" ? product.priceLKR : product.priceAED;
+  const inStock =
+    product.stockQuantity === undefined || product.stockQuantity > 0;
+  return (
+    regionEnabled &&
+    inStock &&
+    Number.isFinite(regionalPrice) &&
+    regionalPrice >= 0
+  );
 }
 
 export function getUnavailableProductIds(
@@ -49,12 +59,13 @@ export function calculateOrderTotal(input: {
   return Math.max(0, productSubtotal - discountTotal) + deliveryFee + paymentFee;
 }
 
+
 export function deliveryAvailabilityLabel(
   product: Product,
   country: Country,
 ) {
   return isProductAvailableInRegion(product, country)
-    ? "Delivery is calculated once per order at checkout."
+    ? "Fixed delivery fee for the entire country."
     : "Not available for delivery in this region.";
 }
 

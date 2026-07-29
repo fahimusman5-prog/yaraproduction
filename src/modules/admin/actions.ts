@@ -797,6 +797,9 @@ export async function updateOrderStatusAction(
   const parsed = z
     .object({
       order_status: z.enum([
+        "pending_payment",
+        "awaiting_bank_transfer",
+        "confirmed",
         "pending",
         "paid",
         "processing",
@@ -806,7 +809,17 @@ export async function updateOrderStatusAction(
         "cancelled",
         "refunded",
       ]),
-      payment_status: z.enum(["pending", "paid", "failed", "refunded"]),
+      payment_status: z.enum([
+        "unpaid",
+        "pending",
+        "processing",
+        "awaiting_bank_verification",
+        "payment_due_on_delivery",
+        "paid",
+        "failed",
+        "cancelled",
+        "refunded",
+      ]),
       note: z.string().trim().max(1000).default(""),
       shipping_method_name: z.string().trim().max(160).default(""),
       courier_name: z.string().trim().max(160).default(""),

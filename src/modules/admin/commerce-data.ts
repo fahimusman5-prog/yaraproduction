@@ -8,6 +8,7 @@ export async function getCommerceOperations() {
   const [
     zones,
     deliverySettings,
+    paymentSettings,
     methods,
     shippingAudit,
     products,
@@ -18,23 +19,21 @@ export async function getCommerceOperations() {
     deletionRequests,
   ] =
     await Promise.all([
-      supabase
-        .from("shipping_zones")
-        .select("*")
-        .is("archived_at", null)
-        .order("country_code")
-        .order("sort_order"),
+      Promise.resolve({ data: [], error: null }),
       staff.profile.role === "admin"
         ? supabase
             .from("delivery_settings")
             .select("*")
             .order("region_code")
         : Promise.resolve({ data: [], error: null }),
-      supabase
-        .from("shipping_methods")
-        .select("*,shipping_zones(name,country_code)")
-        .is("archived_at", null)
-        .order("sort_order"),
+      staff.profile.role === "admin"
+        ? supabase
+            .from("payment_method_settings")
+            .select("*")
+            .order("region_code")
+            .order("payment_method")
+        : Promise.resolve({ data: [], error: null }),
+      Promise.resolve({ data: [], error: null }),
       supabase
         .from("shipping_audit_history")
         .select("*")
@@ -68,6 +67,7 @@ export async function getCommerceOperations() {
   const failure = [
     zones,
     deliverySettings,
+    paymentSettings,
     methods,
     shippingAudit,
     products,
@@ -108,6 +108,7 @@ export async function getCommerceOperations() {
   return {
     zones: zones.data ?? [],
     deliverySettings: deliverySettings.data ?? [],
+    paymentSettings: paymentSettings.data ?? [],
     methods: methods.data ?? [],
     shippingAudit: shippingAudit.data ?? [],
     products: products.data ?? [],
