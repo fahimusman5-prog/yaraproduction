@@ -46,9 +46,12 @@ export function logSupabaseError(area: string, action: string, error: unknown, c
     action,
     ...context,
     supabaseCode: supabaseError.code,
-    message: supabaseError.message ?? (error instanceof Error ? error.message : String(error)),
-    details: supabaseError.details,
-    hint: supabaseError.hint,
+    errorType:
+      error instanceof Error
+        ? error.name
+        : supabaseError.code
+          ? "SupabaseError"
+          : "UnknownError",
   });
 }
 

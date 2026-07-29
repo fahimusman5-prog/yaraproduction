@@ -19,6 +19,7 @@ import { getLocalizedPath, localeLabels, locales, useI18n, type Locale } from ".
 import { footerSocialLinks } from "../lib/social-links";
 import { founderStory } from "../data/founder-story";
 import { NewsletterForm } from "./NewsletterForm";
+import { trackEvent } from "../lib/analytics";
 
 const mobileLocaleLabels: Record<Locale, string> = {
   en: "EN",
@@ -87,6 +88,7 @@ function LanguageSelector({ variant }: { variant: "desktop" | "mobile" }) {
           <a
             key={option}
             href={getLocalizedPath(option, location.pathname, location.search, location.hash)}
+            onClick={() => option !== locale && trackEvent("language_changed", { locale: option })}
             className={`rounded-full px-2.5 py-1.5 text-[0.58rem] font-bold uppercase tracking-[0.08em] transition duration-200 ${option === locale ? "bg-yara-wine text-white shadow-sm" : "text-yara-taupe hover:bg-white/70 hover:text-yara-wine"}`}
             hrefLang={option}
             aria-current={option === locale ? "true" : undefined}
@@ -134,7 +136,11 @@ function LanguageSelector({ variant }: { variant: "desktop" | "mobile" }) {
               role="menuitem"
               aria-current={active ? "true" : undefined}
               tabIndex={open ? 0 : -1}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                if (option !== locale)
+                  trackEvent("language_changed", { locale: option });
+              }}
               onKeyDown={handleMenuKeyDown}
               className={`flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition ${active ? "bg-yara-wine text-white shadow-sm" : "text-yara-ink hover:bg-white/75 focus-visible:bg-white/75"}`}
             >
@@ -230,7 +236,7 @@ function Header() {
             <Link to="/account" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Your account</Link>
             <div className="mt-4 flex flex-wrap gap-2" aria-label={t("nav.language")}>
               {locales.map((option) => (
-                <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} className={`glass-control px-3 py-2 text-xs font-bold ${option === locale ? "bg-yara-wine text-white" : "text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
+                <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} onClick={() => option !== locale && trackEvent("language_changed", { locale: option })} className={`glass-control px-3 py-2 text-xs font-bold ${option === locale ? "bg-yara-wine text-white" : "text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
               ))}
             </div>
             <CountryContactSelector variant="mobile" />

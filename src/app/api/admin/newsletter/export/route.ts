@@ -4,7 +4,8 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
 
 function csvValue(value: unknown) {
-  const string = value == null ? "" : String(value);
+  const raw = value == null ? "" : String(value);
+  const string = /^[\t\r ]*[=+\-@]/.test(raw) ? `'${raw}` : raw;
   return `"${string.replaceAll('"', '""')}"`;
 }
 

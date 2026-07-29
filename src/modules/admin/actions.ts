@@ -17,7 +17,10 @@ import {
   skinConcernSchema,
 } from "./input";
 import { toSlug } from "./lib/format";
-import { sendTransactionalEmail, type EmailTemplate } from "@/lib/email";
+import {
+  sendOrderTransactionalEmail,
+  type EmailTemplate,
+} from "@/lib/email";
 
 async function actionClient() {
   return getSupabaseAdminClient();
@@ -873,25 +876,20 @@ export async function updateOrderStatusAction(
   if (emailTemplate) {
     const order = await supabase
       .from("orders")
-      .select("order_number,customer_name,customer_email,total_amount,currency")
+      .select("order_number,customer_email")
       .eq("id", orderId)
       .maybeSingle();
-    const orderRow = order.data as { order_number: string; customer_name: string; customer_email: string; total_amount: number; currency: string } | null;
+    const orderRow = order.data as {
+      order_number: string;
+      customer_email: string;
+    } | null;
     if (orderRow)
-      await sendTransactionalEmail({
+      await sendOrderTransactionalEmail({
         template: emailTemplate,
         recipient: orderRow.customer_email,
         orderId,
         subject: `Order ${orderRow.order_number}: ${parsed.data.order_status}`,
-        customerName: orderRow.customer_name,
         intro: `Your order status is now ${parsed.data.order_status}.`,
-        details: [
-          ["Order", orderRow.order_number],
-          [
-            "Total",
-            `${orderRow.currency} ${Number(orderRow.total_amount).toFixed(2)}`,
-          ],
-        ],
         nextSteps:
           parsed.data.note || "Contact YARA if you need help with this order.",
       });

@@ -46,6 +46,7 @@ test("admin newsletter tools enforce admin authorization and safely export CSV",
   assert.match(actions, /requireAdmin\("\/admin\/newsletter"\)/);
   assert.match(exportRoute, /await requireAdmin\("\/admin\/newsletter"\)/);
   assert.match(exportRoute, /replaceAll\('\"', '\"\"'\)/);
+  assert.match(exportRoute, /\^\[\\t\\r \]\*\[=\+\\-@\]/);
   assert.match(manager, /Search subscribers/);
 });
 

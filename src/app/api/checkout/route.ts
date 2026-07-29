@@ -6,11 +6,16 @@ import { getAppOrigin, getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
 import { createPayHereHash, getPayHereCheckoutUrl } from "@/lib/payhere";
 import { createOrderTrackingToken } from "@/lib/order-tracking";
-import { sendTransactionalEmail } from "@/lib/email";
+import {
+  getAdminNotificationEmail,
+  sendOrderTransactionalEmail,
+} from "@/lib/email";
+import { consumeRequestRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
   paymentMethod: z.enum(["payhere", "cod"]),
+  shippingMethodId: z.string().uuid(),
   customer: z.object({
     name: z.string().trim().min(2).max(200),
     email: z.string().trim().email().max(320),
@@ -58,6 +63,22 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.includes("application/json")) {
       return NextResponse.json({ error: "JSON request required." }, { status: 415 });
     }
+    const rateLimit = await consumeRequestRateLimit(
+      request,
+      "checkout",
+      5,
+      600,
+    );
+    if (!rateLimit.allowed)
+      return NextResponse.json(
+        {
+          error:
+            rateLimit.reason === "limited"
+              ? "Too many checkout attempts. Please wait before trying again."
+              : "Checkout is temporarily unavailable.",
+        },
+        { status: rateLimit.reason === "limited" ? 429 : 503 },
+      );
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
     if (parsed.data.paymentMethod === "payhere" && process.env.PAYMENTS_ENABLED !== "true") {
@@ -84,8 +105,47 @@ export async function POST(request: Request) {
       name: string,
       args: Record<string, unknown>,
     ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
+    const shippingQuote = await rpc("get_configured_shipping_options", {
+      p_country: parsed.data.country,
+      p_city: parsed.data.customer.city,
+      p_subtotal: parsed.data.items.reduce((sum, item) => sum + item.quantity, 0),
+      p_items: parsed.data.items,
+    });
+    if (shippingQuote.error)
+      return NextResponse.json(
+        { error: "Delivery options are temporarily unavailable." },
+        { status: 503 },
+      );
+    const shippingPayload = shippingQuote.data as {
+      options?: Array<{
+        zoneId: string;
+        methodId: string;
+        codAvailable: boolean;
+      }>;
+    } | null;
+    const shippingOption = shippingPayload?.options?.find(
+      (option) => option.methodId === parsed.data.shippingMethodId,
+    );
+    if (!shippingOption)
+      return NextResponse.json(
+        {
+          error:
+            "The selected delivery method is no longer available for this address.",
+        },
+        { status: 409 },
+      );
+    if (parsed.data.paymentMethod === "cod" && !shippingOption.codAvailable)
+      return NextResponse.json(
+        { error: "Cash on delivery is not available for this delivery zone." },
+        { status: 409 },
+      );
+    const customerForOrder = {
+      ...parsed.data.customer,
+      shippingMethodId: shippingOption.methodId,
+      shippingZoneId: shippingOption.zoneId,
+    };
     const { data, error } = await rpc("create_storefront_order_with_coupon", {
-      p_customer: parsed.data.customer,
+      p_customer: customerForOrder,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
@@ -110,16 +170,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
     }
     if (order.created) {
-      const details: Array<[string, string]> = [
-        ["Order", order.order_number],
-        ["Total", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],
-        ["Payment", parsed.data.paymentMethod === "cod" ? "Cash on delivery" : "Awaiting provider confirmation"],
-      ];
       const deliveries = [
-        sendTransactionalEmail({ template: "new_order_customer", recipient: parsed.data.customer.email, orderId: order.order_id, subject: `We received order ${order.order_number}`, customerName: parsed.data.customer.name, intro: "Your order has been recorded. We will contact you if delivery details need confirmation.", details, nextSteps: "You will receive another update when the order moves through fulfilment." }),
+        sendOrderTransactionalEmail({
+          template: "new_order_customer",
+          recipient: parsed.data.customer.email,
+          orderId: order.order_id,
+          subject: `We received order ${order.order_number}`,
+          intro:
+            "Your YARA order has been recorded. Our team will review the delivery details and begin fulfilment.",
+          nextSteps:
+            "Keep this confirmation for your records. We will email you as the order moves through fulfilment.",
+        }),
       ];
-      const adminEmail = process.env.ADMIN_ORDER_EMAIL?.trim();
-      if (adminEmail) deliveries.push(sendTransactionalEmail({ template: "new_order_admin", recipient: adminEmail, orderId: order.order_id, subject: `New YARA order ${order.order_number}`, intro: "A new storefront order requires review.", details, nextSteps: "Open the admin workspace to verify fulfilment and delivery details." }));
+      const adminEmail = getAdminNotificationEmail();
+      if (adminEmail)
+        deliveries.push(
+          sendOrderTransactionalEmail({
+            template: "new_order_admin",
+            recipient: adminEmail,
+            orderId: order.order_id,
+            customerName: "YARA team",
+            subject: `New YARA order ${order.order_number}`,
+            intro: "A new storefront order requires fulfilment review.",
+            nextSteps:
+              "Open the YARA admin workspace to verify the order, stock, payment method, and delivery details.",
+          }),
+        );
       await Promise.all(deliveries);
     }
     let trackingToken: string;
@@ -131,13 +207,15 @@ export async function POST(request: Request) {
     }
 
     if (parsed.data.paymentMethod === "cod") {
-      return NextResponse.json({ redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
+      return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&cod=1` });
     }
 
     const amount = Number(order.total_amount).toFixed(2);
     const { merchantId, hash } = createPayHereHash(String(order.order_number), amount, String(order.currency));
     const [firstName, ...rest] = parsed.data.customer.name.split(/\s+/);
     return NextResponse.json({
+      orderId: order.order_id,
+      totalAmount: Number(order.total_amount),
       action: getPayHereCheckoutUrl(),
       fields: {
         merchant_id: merchantId,
