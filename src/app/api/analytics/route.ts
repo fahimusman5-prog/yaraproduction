@@ -4,7 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { logSupabaseError } from "@/lib/supabase/log";
 
-const events = ["page_view","product_view","category_view","search","add_to_cart","remove_from_cart","cart_view","begin_checkout","coupon_applied","coupon_rejected","region_changed","language_changed","newsletter_subscription","account_registration","login","address_created","order_created","order_awaiting_payment","whatsapp_click","return_requested","purchase","payment_success","payment_failure","payment_cancellation","refund"] as const;
+const events = ["page_view","product_view","category_view","search","add_to_cart","remove_from_cart","cart_view","begin_checkout","coupon_applied","coupon_rejected","region_changed","language_changed","newsletter_subscription","account_registration","login","address_created","address_selected","shipping_method_selected","order_created","order_awaiting_payment","whatsapp_click","return_requested","purchase","payment_success","payment_failure","payment_cancellation","refund"] as const;
 const schema = z.object({ eventName: z.enum(events), anonymousId: z.string().uuid(), sessionId: z.string().uuid(), properties: z.record(z.string(), z.union([z.string().max(300),z.number(),z.boolean()])).refine((value) => JSON.stringify(value).length <= 6000) });
 
 export async function POST(request: Request) {

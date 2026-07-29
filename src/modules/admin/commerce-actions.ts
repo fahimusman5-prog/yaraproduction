@@ -17,29 +17,119 @@ const optionalNumber = z.preprocess(
   z.coerce.number().min(0).nullable(),
 );
 
+const zoneSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  country_code: z.enum(["LK", "AE"]),
+  region_name: z.string().trim().min(2).max(120),
+  zone_kind: z.enum([
+    "district",
+    "emirate",
+    "city",
+    "zone",
+    "regional_fallback",
+  ]),
+  match_values: z.string().trim().max(1000).default(""),
+  minimum_order_amount: z.coerce.number().min(0).max(999_999_999),
+  cod_available: z.enum(["true"]).optional(),
+  is_regional_fallback: z.enum(["true"]).optional(),
+  active: z.enum(["true"]).optional(),
+});
+
+const methodSchema = z
+  .object({
+    shipping_zone_id: z.string().uuid(),
+    name: z.string().trim().min(2).max(120),
+    description: z.string().trim().max(500).default(""),
+    fee: optionalNumber,
+    currency: z.enum(["LKR", "AED"]),
+    free_shipping_threshold: optionalNumber,
+    minimum_order_amount: z.coerce.number().min(0).max(999_999_999),
+    estimated_min_days: z.coerce.number().int().min(0).max(365),
+    estimated_max_days: z.coerce.number().int().min(0).max(365),
+    cod_available: z.enum(["true"]).optional(),
+    active: z.enum(["true"]).optional(),
+  })
+  .refine((value) => value.estimated_max_days >= value.estimated_min_days, {
+    message: "Maximum delivery days must be at least the minimum.",
+  });
+
+function shippingZoneFields(data: z.infer<typeof zoneSchema>) {
+  return {
+    name: data.name,
+    country_code: data.country_code,
+    region_name: data.region_name,
+    zone_kind: data.zone_kind,
+    match_values: [
+      ...new Set(
+        data.match_values
+          .split(",")
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ].slice(0, 100),
+    minimum_order_amount: data.minimum_order_amount,
+    cod_available: data.cod_available === "true",
+    is_regional_fallback: data.is_regional_fallback === "true",
+    active: data.active === "true",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function shippingMethodFields(data: z.infer<typeof methodSchema>) {
+  return {
+    ...data,
+    fee: data.fee,
+    free_shipping_threshold: data.free_shipping_threshold,
+    cod_available: data.cod_available === "true",
+    active: data.active === "true",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function recordShippingAudit(input: {
+  entityType: "zone" | "method" | "product_rate";
+  entityId: string;
+  action: "created" | "updated" | "activated" | "deactivated" | "archived";
+  before?: unknown;
+  after?: unknown;
+  actorId: string;
+}) {
+  const { error } = await getSupabaseAdminClient()
+    .from("shipping_audit_history")
+    .insert({
+      entity_type: input.entityType,
+      entity_id: input.entityId,
+      action: input.action,
+      before_state: input.before ?? null,
+      after_state: input.after ?? null,
+      actor_id: input.actorId,
+    });
+  if (error)
+    logSupabaseError("admin-commerce", "shipping-audit", error, {
+      route: "/admin/commerce",
+      table: "shipping_audit_history",
+      userId: input.actorId,
+    });
+}
+
 export async function createShippingZoneAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const staff = await requireAdmin("/admin/commerce");
-  const parsed = z
-    .object({
-      name: z.string().trim().min(2).max(120),
-      country_code: z.enum(["LK", "AE"]),
-      region_name: z.string().trim().max(120).default(""),
-      active: z.enum(["true"]).optional(),
-    })
-    .safeParse(formObject(formData));
+  const parsed = zoneSchema.safeParse(formObject(formData));
   if (!parsed.success)
     return {
       status: "error",
       message: parsed.error.issues[0]?.message ?? "Check the shipping zone.",
     };
-  const { error } = await getSupabaseAdminClient()
+  const created = await getSupabaseAdminClient()
     .from("shipping_zones")
-    .insert({ ...parsed.data, active: parsed.data.active === "true" });
-  if (error) {
-    logSupabaseError("admin-commerce", "create-shipping-zone", error, {
+    .insert(shippingZoneFields(parsed.data))
+    .select("*")
+    .single();
+  if (created.error) {
+    logSupabaseError("admin-commerce", "create-shipping-zone", created.error, {
       route: "/admin/commerce",
       table: "shipping_zones",
       userId: staff.userId,
@@ -47,12 +137,19 @@ export async function createShippingZoneAction(
     return {
       status: "error",
       message: messageFromSupabaseError(
-        error,
+        created.error,
         "Unable to create shipping zone.",
         { duplicate: "That shipping zone already exists." },
       ),
     };
   }
+  await recordShippingAudit({
+    entityType: "zone",
+    entityId: (created.data as { id: string }).id,
+    action: "created",
+    after: created.data,
+    actorId: staff.userId,
+  });
   revalidatePath("/admin/commerce");
   return { status: "success", message: "Shipping zone created." };
 }
@@ -62,22 +159,7 @@ export async function createShippingMethodAction(
   formData: FormData,
 ): Promise<ActionState> {
   const staff = await requireAdmin("/admin/commerce");
-  const parsed = z
-    .object({
-      shipping_zone_id: z.string().uuid(),
-      name: z.string().trim().min(2).max(120),
-      description: z.string().trim().max(500).default(""),
-      fee: z.coerce.number().min(0).max(999999999),
-      currency: z.enum(["LKR", "AED"]),
-      free_shipping_threshold: optionalNumber,
-      estimated_min_days: z.coerce.number().int().min(0).max(365),
-      estimated_max_days: z.coerce.number().int().min(0).max(365),
-      active: z.enum(["true"]).optional(),
-    })
-    .refine((value) => value.estimated_max_days >= value.estimated_min_days, {
-      message: "Maximum delivery days must be at least the minimum.",
-    })
-    .safeParse(formObject(formData));
+  const parsed = methodSchema.safeParse(formObject(formData));
   if (!parsed.success)
     return {
       status: "error",
@@ -97,11 +179,18 @@ export async function createShippingMethodAction(
       status: "error",
       message: "Shipping method currency must match its zone.",
     };
-  const { error } = await getSupabaseAdminClient()
+  if (parsed.data.active === "true" && parsed.data.fee === null)
+    return {
+      status: "error",
+      message: "Enter a real fallback fee before activating this method.",
+    };
+  const created = await getSupabaseAdminClient()
     .from("shipping_methods")
-    .insert({ ...parsed.data, active: parsed.data.active === "true" });
-  if (error) {
-    logSupabaseError("admin-commerce", "create-shipping-method", error, {
+    .insert(shippingMethodFields(parsed.data))
+    .select("*")
+    .single();
+  if (created.error) {
+    logSupabaseError("admin-commerce", "create-shipping-method", created.error, {
       route: "/admin/commerce",
       table: "shipping_methods",
       userId: staff.userId,
@@ -109,13 +198,294 @@ export async function createShippingMethodAction(
     return {
       status: "error",
       message: messageFromSupabaseError(
-        error,
+        created.error,
         "Unable to create shipping method.",
       ),
     };
   }
+  await recordShippingAudit({
+    entityType: "method",
+    entityId: (created.data as { id: string }).id,
+    action: "created",
+    after: created.data,
+    actorId: staff.userId,
+  });
   revalidatePath("/admin/commerce");
   return { status: "success", message: "Shipping method created." };
+}
+
+export async function updateShippingZoneAction(
+  zoneId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(zoneId).success)
+    return { status: "error", message: "Shipping zone not found." };
+  const parsed = zoneSchema.safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the shipping zone.",
+    };
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("shipping_zones")
+    .select("*")
+    .eq("id", zoneId)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (before.error || !before.data)
+    return { status: "error", message: "Shipping zone not found." };
+  const updated = await supabase
+    .from("shipping_zones")
+    .update(shippingZoneFields(parsed.data))
+    .eq("id", zoneId)
+    .select("*")
+    .single();
+  if (updated.error)
+    return { status: "error", message: "Unable to update shipping zone." };
+  const beforeRow = before.data as { active?: boolean };
+  const updatedRow = updated.data as { active?: boolean };
+  await recordShippingAudit({
+    entityType: "zone",
+    entityId: zoneId,
+    action:
+      Boolean(beforeRow.active) === Boolean(updatedRow.active)
+        ? "updated"
+        : updatedRow.active
+          ? "activated"
+          : "deactivated",
+    before: before.data,
+    after: updated.data,
+    actorId: staff.userId,
+  });
+  revalidatePath("/admin/commerce");
+  return { status: "success", message: "Shipping zone updated." };
+}
+
+export async function archiveShippingZoneAction(zoneId: string) {
+  const staff = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(zoneId).success)
+    throw new Error("Shipping zone not found.");
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("shipping_zones")
+    .select("*")
+    .eq("id", zoneId)
+    .maybeSingle();
+  if (before.error || !before.data) throw new Error("Shipping zone not found.");
+  const timestamp = new Date().toISOString();
+  const updated = await supabase
+    .from("shipping_zones")
+    .update({ active: false, archived_at: timestamp, updated_at: timestamp })
+    .eq("id", zoneId)
+    .select("*")
+    .single();
+  if (updated.error) throw new Error("Unable to archive shipping zone.");
+  await recordShippingAudit({
+    entityType: "zone",
+    entityId: zoneId,
+    action: "archived",
+    before: before.data,
+    after: updated.data,
+    actorId: staff.userId,
+  });
+  revalidatePath("/admin/commerce");
+}
+
+export async function updateShippingMethodAction(
+  methodId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(methodId).success)
+    return { status: "error", message: "Shipping method not found." };
+  const parsed = methodSchema.safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the shipping method.",
+    };
+  if (parsed.data.active === "true" && parsed.data.fee === null)
+    return {
+      status: "error",
+      message: "Enter a real fallback fee before activating this method.",
+    };
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("shipping_methods")
+    .select("*")
+    .eq("id", methodId)
+    .is("archived_at", null)
+    .maybeSingle();
+  if (before.error || !before.data)
+    return { status: "error", message: "Shipping method not found." };
+  const zone = await supabase
+    .from("shipping_zones")
+    .select("country_code")
+    .eq("id", parsed.data.shipping_zone_id)
+    .maybeSingle();
+  if (
+    !zone.data ||
+    (zone.data.country_code === "LK" ? "LKR" : "AED") !== parsed.data.currency
+  )
+    return {
+      status: "error",
+      message: "Shipping method currency must match its zone.",
+    };
+  const updated = await supabase
+    .from("shipping_methods")
+    .update(shippingMethodFields(parsed.data))
+    .eq("id", methodId)
+    .select("*")
+    .single();
+  if (updated.error)
+    return { status: "error", message: "Unable to update shipping method." };
+  const beforeRow = before.data as { active?: boolean };
+  const updatedRow = updated.data as { active?: boolean };
+  await recordShippingAudit({
+    entityType: "method",
+    entityId: methodId,
+    action:
+      Boolean(beforeRow.active) === Boolean(updatedRow.active)
+        ? "updated"
+        : updatedRow.active
+          ? "activated"
+          : "deactivated",
+    before: before.data,
+    after: updated.data,
+    actorId: staff.userId,
+  });
+  revalidatePath("/admin/commerce");
+  return { status: "success", message: "Shipping method updated." };
+}
+
+export async function archiveShippingMethodAction(methodId: string) {
+  const staff = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(methodId).success)
+    throw new Error("Shipping method not found.");
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("shipping_methods")
+    .select("*")
+    .eq("id", methodId)
+    .maybeSingle();
+  if (before.error || !before.data)
+    throw new Error("Shipping method not found.");
+  const timestamp = new Date().toISOString();
+  const updated = await supabase
+    .from("shipping_methods")
+    .update({ active: false, archived_at: timestamp, updated_at: timestamp })
+    .eq("id", methodId)
+    .select("*")
+    .single();
+  if (updated.error) throw new Error("Unable to archive shipping method.");
+  await recordShippingAudit({
+    entityType: "method",
+    entityId: methodId,
+    action: "archived",
+    before: before.data,
+    after: updated.data,
+    actorId: staff.userId,
+  });
+  revalidatePath("/admin/commerce");
+}
+
+export async function saveShippingProductRateAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await requireAdmin("/admin/commerce");
+  const parsed = z
+    .object({
+      shipping_method_id: z.string().uuid(),
+      product_id: z.string().uuid(),
+      fee: optionalNumber,
+      calculation_type: z.enum(["per_line", "per_unit"]),
+      free_shipping: z.enum(["true"]).optional(),
+      active: z.enum(["true"]).optional(),
+    })
+    .safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message:
+        parsed.error.issues[0]?.message ?? "Check the product delivery rate.",
+    };
+  if (parsed.data.free_shipping !== "true" && parsed.data.fee === null)
+    return {
+      status: "error",
+      message: "Enter a fee or mark this product as free delivery.",
+    };
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("shipping_product_rates")
+    .select("*")
+    .eq("shipping_method_id", parsed.data.shipping_method_id)
+    .eq("product_id", parsed.data.product_id)
+    .maybeSingle();
+  const saved = await supabase
+    .from("shipping_product_rates")
+    .upsert(
+      {
+        shipping_method_id: parsed.data.shipping_method_id,
+        product_id: parsed.data.product_id,
+        fee: parsed.data.free_shipping === "true" ? null : parsed.data.fee,
+        calculation_type: parsed.data.calculation_type,
+        free_shipping: parsed.data.free_shipping === "true",
+        active: parsed.data.active === "true",
+        archived_at: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "shipping_method_id,product_id" },
+    )
+    .select("*")
+    .single();
+  if (saved.error)
+    return { status: "error", message: "Unable to save product delivery rate." };
+  await recordShippingAudit({
+    entityType: "product_rate",
+    entityId: (saved.data as { id: string }).id,
+    action: before.data ? "updated" : "created",
+    before: before.data,
+    after: saved.data,
+    actorId: staff.userId,
+  });
+  revalidatePath("/admin/commerce");
+  return { status: "success", message: "Product delivery rate saved." };
+}
+
+export async function archiveShippingProductRateAction(rateId: string) {
+  const staff = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(rateId).success)
+    throw new Error("Product delivery rate not found.");
+  const supabase = getSupabaseAdminClient();
+  const before = await supabase
+    .from("shipping_product_rates")
+    .select("*")
+    .eq("id", rateId)
+    .maybeSingle();
+  if (before.error || !before.data)
+    throw new Error("Product delivery rate not found.");
+  const timestamp = new Date().toISOString();
+  const saved = await supabase
+    .from("shipping_product_rates")
+    .update({ active: false, archived_at: timestamp, updated_at: timestamp })
+    .eq("id", rateId)
+    .select("*")
+    .single();
+  if (saved.error) throw new Error("Unable to archive product delivery rate.");
+  await recordShippingAudit({
+    entityType: "product_rate",
+    entityId: rateId,
+    action: "archived",
+    before: before.data,
+    after: saved.data,
+    actorId: staff.userId,
+  });
+  revalidatePath("/admin/commerce");
 }
 
 export async function createCouponAction(

@@ -2,7 +2,7 @@ export type AnalyticsEvent =
   | "page_view" | "product_view" | "category_view" | "search" | "add_to_cart" | "remove_from_cart"
   | "cart_view" | "begin_checkout" | "coupon_applied" | "coupon_rejected" | "region_changed"
   | "language_changed" | "newsletter_subscription" | "account_registration" | "login"
-  | "address_created" | "order_created" | "order_awaiting_payment" | "whatsapp_click"
+  | "address_created" | "address_selected" | "shipping_method_selected" | "order_created" | "order_awaiting_payment" | "whatsapp_click"
   | "return_requested" | "purchase" | "payment_success" | "payment_failure"
   | "payment_cancellation" | "refund";
 

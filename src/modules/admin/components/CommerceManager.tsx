@@ -2,11 +2,17 @@
 
 import { useActionState } from "react";
 import {
+  archiveShippingMethodAction,
+  archiveShippingProductRateAction,
+  archiveShippingZoneAction,
   completeAccountDeletionAction,
   createCouponAction,
   createShippingMethodAction,
   createShippingZoneAction,
+  saveShippingProductRateAction,
   setCouponActiveAction,
+  updateShippingMethodAction,
+  updateShippingZoneAction,
   updateReturnAction,
 } from "../commerce-actions";
 import { initialActionState } from "../action-state";
@@ -17,6 +23,10 @@ import { SubmitButton } from "./SubmitButton";
 type Props = {
   zones: any[];
   methods: any[];
+  productRates: any[];
+  shippingAudit: any[];
+  products: any[];
+  categories: any[];
   coupons: any[];
   returns: any[];
   refunds: any[];
@@ -26,6 +36,10 @@ type Props = {
 export function CommerceManager({
   zones,
   methods,
+  productRates,
+  shippingAudit,
+  products,
+  categories,
   coupons,
   returns,
   refunds,
@@ -41,6 +55,10 @@ export function CommerceManager({
   );
   const [couponState, couponAction] = useActionState(
     createCouponAction,
+    initialActionState,
+  );
+  const [productRateState, productRateAction] = useActionState(
+    saveShippingProductRateAction,
     initialActionState,
   );
   return (
@@ -62,8 +80,56 @@ export function CommerceManager({
               </select>
             </label>
             <label>
-              <span className="staff-label">District / emirate group</span>
-              <input name="region_name" className="staff-input" />
+              <span className="staff-label">District / emirate label</span>
+              <input name="region_name" required className="staff-input" />
+            </label>
+            <label>
+              <span className="staff-label">Match type</span>
+              <select name="zone_kind" className="staff-input">
+                <option value="district">Sri Lanka district</option>
+                <option value="emirate">UAE emirate</option>
+                <option value="city">City</option>
+                <option value="zone">Custom zone</option>
+                <option value="regional_fallback">Regional fallback</option>
+              </select>
+            </label>
+            <label>
+              <span className="staff-label">Minimum order</span>
+              <input
+                name="minimum_order_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue="0"
+                required
+                className="staff-input"
+              />
+            </label>
+          </div>
+          <label>
+            <span className="staff-label">Matching districts / cities</span>
+            <input
+              name="match_values"
+              className="staff-input"
+              placeholder="Colombo, Dehiwala, Mount Lavinia"
+            />
+            <span className="mt-1 block text-xs text-slate-500">
+              Comma-separated. Prices are configured on delivery methods, not
+              here.
+            </span>
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input type="checkbox" name="cod_available" value="true" />
+              Cash on delivery allowed
+            </label>
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="is_regional_fallback"
+                value="true"
+              />
+              Regional fallback
             </label>
           </div>
           <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -107,7 +173,6 @@ export function CommerceManager({
                 type="number"
                 min="0"
                 step="0.01"
-                required
                 className="staff-input"
               />
             </label>
@@ -118,6 +183,18 @@ export function CommerceManager({
                 type="number"
                 min="0"
                 step="0.01"
+                className="staff-input"
+              />
+            </label>
+            <label>
+              <span className="staff-label">Minimum order</span>
+              <input
+                name="minimum_order_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue="0"
+                required
                 className="staff-input"
               />
             </label>
@@ -149,6 +226,10 @@ export function CommerceManager({
             <textarea name="description" className="staff-input" />
           </label>
           <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" name="cod_available" value="true" />
+            Cash on delivery allowed
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" name="active" value="true" />
             Active
           </label>
@@ -175,7 +256,9 @@ export function CommerceManager({
                     <td>{method.shipping_zones?.name}</td>
                     <td>{method.name}</td>
                     <td>
-                      {method.currency} {Number(method.fee).toFixed(2)}
+                      {method.fee === null
+                        ? "Business value required"
+                        : `${method.currency} ${Number(method.fee).toFixed(2)}`}
                     </td>
                     <td>
                       {method.estimated_min_days}–{method.estimated_max_days}{" "}
@@ -191,6 +274,187 @@ export function CommerceManager({
           <p className="mt-4 text-sm text-amber-800">
             No delivery method is configured. Product-level fees may still
             calculate, but no selectable method or estimate is available.
+          </p>
+        )}
+      </section>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <div className="staff-panel p-5">
+          <h2 className="text-lg font-bold">Edit shipping zones</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Inactive placeholders do not appear at checkout. Add real business
+            values before activation.
+          </p>
+          <div className="mt-4 grid gap-4">
+            {zones.length ? (
+              zones.map((zone) => (
+                <ShippingZoneEditor key={zone.id} zone={zone} />
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">No zones configured.</p>
+            )}
+          </div>
+        </div>
+        <div className="staff-panel p-5">
+          <h2 className="text-lg font-bold">Edit shipping methods</h2>
+          <div className="mt-4 grid gap-4">
+            {methods.length ? (
+              methods.map((method) => (
+                <ShippingMethodEditor
+                  key={method.id}
+                  method={method}
+                  zones={zones}
+                />
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">
+                Add a zone before creating methods.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+      <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
+        <form
+          action={productRateAction}
+          className="staff-panel space-y-4 p-5"
+        >
+          <h2 className="text-lg font-bold">Product-level method rate</h2>
+          <ActionMessage state={productRateState} />
+          <label>
+            <span className="staff-label">Delivery method</span>
+            <select
+              name="shipping_method_id"
+              required
+              className="staff-input"
+            >
+              <option value="">Choose method</option>
+              {methods.map((method) => (
+                <option key={method.id} value={method.id}>
+                  {method.shipping_zones?.name} · {method.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="staff-label">Product</span>
+            <select name="product_id" required className="staff-input">
+              <option value="">Choose product</option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} · {product.sku}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label>
+              <span className="staff-label">Fee</span>
+              <input
+                name="fee"
+                type="number"
+                min="0"
+                step="0.01"
+                className="staff-input"
+              />
+            </label>
+            <label>
+              <span className="staff-label">Calculation</span>
+              <select name="calculation_type" className="staff-input">
+                <option value="per_line">Once per product line</option>
+                <option value="per_unit">Per unit</option>
+              </select>
+            </label>
+          </div>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" name="free_shipping" value="true" />
+            Free delivery for this method
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" name="active" value="true" />
+            Active
+          </label>
+          <SubmitButton>Save product rate</SubmitButton>
+        </form>
+        <div className="staff-panel p-5">
+          <h2 className="text-lg font-bold">Product delivery overrides</h2>
+          {productRates.length ? (
+            <div className="staff-table-wrap mt-4">
+              <table className="staff-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Method</th>
+                    <th>Rate</th>
+                    <th>State</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productRates.map((rate) => (
+                    <tr key={rate.id}>
+                      <td>{rate.products?.name}</td>
+                      <td>{rate.shipping_methods?.name}</td>
+                      <td>
+                        {rate.free_shipping
+                          ? "Free"
+                          : `${rate.shipping_methods?.currency} ${Number(rate.fee).toFixed(2)} ${
+                              rate.calculation_type === "per_unit"
+                                ? "per unit"
+                                : "per line"
+                            }`}
+                      </td>
+                      <td>{rate.active ? "Active" : "Inactive"}</td>
+                      <td>
+                        <ConfirmActionButton
+                          action={archiveShippingProductRateAction.bind(
+                            null,
+                            rate.id,
+                          )}
+                          label="Archive"
+                          title="Archive this product delivery rate?"
+                          detail="Checkout will immediately stop using this override. The audit record is retained."
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">
+              No product-level method overrides.
+            </p>
+          )}
+        </div>
+      </section>
+      <section className="staff-panel p-5">
+        <h2 className="text-lg font-bold">Shipping audit history</h2>
+        {shippingAudit.length ? (
+          <div className="staff-table-wrap mt-4">
+            <table className="staff-table">
+              <thead>
+                <tr>
+                  <th>Entity</th>
+                  <th>Action</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shippingAudit.map((entry) => (
+                  <tr key={entry.id}>
+                    <td className="capitalize">
+                      {entry.entity_type.replaceAll("_", " ")}
+                    </td>
+                    <td className="capitalize">{entry.action}</td>
+                    <td>{new Date(entry.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-slate-500">
+            No shipping configuration changes recorded yet.
           </p>
         )}
       </section>
@@ -410,6 +674,275 @@ export function CommerceManager({
         ) : <p className="mt-4 text-sm text-slate-500">No account deletion requests need attention.</p>}
       </section>
     </div>
+  );
+}
+
+function ShippingZoneEditor({ zone }: { zone: any }) {
+  const [state, action] = useActionState(
+    updateShippingZoneAction.bind(null, zone.id),
+    initialActionState,
+  );
+  return (
+    <details className="rounded-xl border border-[var(--staff-line)] p-4">
+      <summary className="min-h-11 cursor-pointer font-semibold">
+        {zone.name} · {zone.active ? "Active" : "Inactive"}
+      </summary>
+      <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <ActionMessage state={state} />
+        <label>
+          <span className="staff-label">Name</span>
+          <input
+            name="name"
+            defaultValue={zone.name}
+            required
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Market</span>
+          <select
+            name="country_code"
+            defaultValue={zone.country_code}
+            className="staff-input"
+          >
+            <option value="LK">Sri Lanka</option>
+            <option value="AE">UAE</option>
+          </select>
+        </label>
+        <label>
+          <span className="staff-label">Region label</span>
+          <input
+            name="region_name"
+            defaultValue={zone.region_name}
+            required
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Match type</span>
+          <select
+            name="zone_kind"
+            defaultValue={zone.zone_kind}
+            className="staff-input"
+          >
+            <option value="district">District</option>
+            <option value="emirate">Emirate</option>
+            <option value="city">City</option>
+            <option value="zone">Custom zone</option>
+            <option value="regional_fallback">Regional fallback</option>
+          </select>
+        </label>
+        <label className="sm:col-span-2">
+          <span className="staff-label">Matching values</span>
+          <input
+            name="match_values"
+            defaultValue={(zone.match_values ?? []).join(", ")}
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Minimum order</span>
+          <input
+            name="minimum_order_amount"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={zone.minimum_order_amount ?? 0}
+            required
+            className="staff-input"
+          />
+        </label>
+        <div className="grid gap-2">
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="cod_available"
+              value="true"
+              defaultChecked={zone.cod_available}
+            />
+            COD allowed
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="is_regional_fallback"
+              value="true"
+              defaultChecked={zone.is_regional_fallback}
+            />
+            Regional fallback
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="active"
+              value="true"
+              defaultChecked={zone.active}
+            />
+            Active
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <SubmitButton>Save zone</SubmitButton>
+          <ConfirmActionButton
+            action={archiveShippingZoneAction.bind(null, zone.id)}
+            label="Archive"
+            title={`Archive ${zone.name}?`}
+            detail="The zone and its delivery methods will stop appearing at checkout. Audit history is retained."
+          />
+        </div>
+      </form>
+    </details>
+  );
+}
+
+function ShippingMethodEditor({
+  method,
+  zones,
+}: {
+  method: any;
+  zones: any[];
+}) {
+  const [state, action] = useActionState(
+    updateShippingMethodAction.bind(null, method.id),
+    initialActionState,
+  );
+  return (
+    <details className="rounded-xl border border-[var(--staff-line)] p-4">
+      <summary className="min-h-11 cursor-pointer font-semibold">
+        {method.name} · {method.active ? "Active" : "Inactive"}
+      </summary>
+      <form action={action} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <ActionMessage state={state} />
+        <label className="sm:col-span-2">
+          <span className="staff-label">Zone</span>
+          <select
+            name="shipping_zone_id"
+            defaultValue={method.shipping_zone_id}
+            className="staff-input"
+          >
+            {zones.map((zone) => (
+              <option key={zone.id} value={zone.id}>
+                {zone.name} · {zone.country_code}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className="staff-label">Method</span>
+          <input
+            name="name"
+            defaultValue={method.name}
+            required
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Currency</span>
+          <select
+            name="currency"
+            defaultValue={method.currency}
+            className="staff-input"
+          >
+            <option>LKR</option>
+            <option>AED</option>
+          </select>
+        </label>
+        <label>
+          <span className="staff-label">Fallback fee</span>
+          <input
+            name="fee"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={method.fee ?? ""}
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Free threshold</span>
+          <input
+            name="free_shipping_threshold"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={method.free_shipping_threshold ?? ""}
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Minimum order</span>
+          <input
+            name="minimum_order_amount"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={method.minimum_order_amount ?? 0}
+            required
+            className="staff-input"
+          />
+        </label>
+        <label>
+          <span className="staff-label">Estimate</span>
+          <span className="grid grid-cols-2 gap-2">
+            <input
+              name="estimated_min_days"
+              type="number"
+              min="0"
+              defaultValue={method.estimated_min_days}
+              required
+              className="staff-input"
+              aria-label="Minimum delivery days"
+            />
+            <input
+              name="estimated_max_days"
+              type="number"
+              min="0"
+              defaultValue={method.estimated_max_days}
+              required
+              className="staff-input"
+              aria-label="Maximum delivery days"
+            />
+          </span>
+        </label>
+        <label className="sm:col-span-2">
+          <span className="staff-label">Description</span>
+          <textarea
+            name="description"
+            defaultValue={method.description}
+            className="staff-input"
+          />
+        </label>
+        <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="cod_available"
+              value="true"
+              defaultChecked={method.cod_available}
+            />
+            COD allowed
+          </label>
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="active"
+              value="true"
+              defaultChecked={method.active}
+            />
+            Active
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:col-span-2">
+          <SubmitButton>Save method</SubmitButton>
+          <ConfirmActionButton
+            action={archiveShippingMethodAction.bind(null, method.id)}
+            label="Archive"
+            title={`Archive ${method.name}?`}
+            detail="Checkout will immediately stop offering this method. Audit history is retained."
+          />
+        </div>
+      </form>
+    </details>
   );
 }
 

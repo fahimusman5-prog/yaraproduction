@@ -14,6 +14,7 @@ import {
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
   paymentMethod: z.enum(["payhere", "cod"]),
+  shippingMethodId: z.string().uuid(),
   customer: z.object({
     name: z.string().trim().min(2).max(200),
     email: z.string().trim().email().max(320),
@@ -87,8 +88,47 @@ export async function POST(request: Request) {
       name: string,
       args: Record<string, unknown>,
     ) => Promise<{ data: unknown; error: CheckoutDatabaseError | null }>;
+    const shippingQuote = await rpc("get_configured_shipping_options", {
+      p_country: parsed.data.country,
+      p_city: parsed.data.customer.city,
+      p_subtotal: parsed.data.items.reduce((sum, item) => sum + item.quantity, 0),
+      p_items: parsed.data.items,
+    });
+    if (shippingQuote.error)
+      return NextResponse.json(
+        { error: "Delivery options are temporarily unavailable." },
+        { status: 503 },
+      );
+    const shippingPayload = shippingQuote.data as {
+      options?: Array<{
+        zoneId: string;
+        methodId: string;
+        codAvailable: boolean;
+      }>;
+    } | null;
+    const shippingOption = shippingPayload?.options?.find(
+      (option) => option.methodId === parsed.data.shippingMethodId,
+    );
+    if (!shippingOption)
+      return NextResponse.json(
+        {
+          error:
+            "The selected delivery method is no longer available for this address.",
+        },
+        { status: 409 },
+      );
+    if (parsed.data.paymentMethod === "cod" && !shippingOption.codAvailable)
+      return NextResponse.json(
+        { error: "Cash on delivery is not available for this delivery zone." },
+        { status: 409 },
+      );
+    const customerForOrder = {
+      ...parsed.data.customer,
+      shippingMethodId: shippingOption.methodId,
+      shippingZoneId: shippingOption.zoneId,
+    };
     const { data, error } = await rpc("create_storefront_order_with_coupon", {
-      p_customer: parsed.data.customer,
+      p_customer: customerForOrder,
       p_country: parsed.data.country,
       p_payment_method: parsed.data.paymentMethod,
       p_items: parsed.data.items,
