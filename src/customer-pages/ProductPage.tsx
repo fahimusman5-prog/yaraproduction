@@ -9,6 +9,8 @@ import { useCountry } from "../context/CountryContext";
 import { useCatalog } from "../context/CatalogContext";
 import { findProductByRouteKey } from "../lib/product-routing";
 import { ProductReviews } from "../components/ProductReviews";
+import { getProductShipping, shippingLabel } from "../lib/shipping";
+import { formatPrice } from "../lib/format";
 
 export function ProductPage() {
   const { id: productKey } = useParams();
@@ -37,8 +39,10 @@ export function ProductPage() {
   }
 
   const outOfStock = product.stockQuantity === 0;
+  const shipping = country ? getProductShipping(product, country) : null;
+  const unavailable = Boolean(shipping && (!shipping.available || !shipping.configured));
   const handleAdd = () => {
-    if (outOfStock) return;
+    if (outOfStock || unavailable) return;
     addItem(product, quantity);
     setAdded(true);
     successTimerRef.current = window.setTimeout(() => setAdded(false), 1800);
@@ -95,6 +99,7 @@ export function ProductPage() {
             <span className="pb-1 text-sm text-yara-taupe">/ {product.size}</span>
           </div>
           <p className="mt-6 text-sm font-light leading-7 text-yara-taupe">{product.description}</p>
+          {country && <p className={`mt-4 text-sm font-semibold ${unavailable ? "text-red-700" : "text-yara-wine"}`}>{shippingLabel(product, country, (amount) => formatPrice(amount, country))}</p>}
 
           <div className="mt-7 flex flex-wrap items-center gap-4">
             <div className="glass-panel flex items-center rounded-full p-1">
@@ -106,8 +111,8 @@ export function ProductPage() {
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <button onClick={handleAdd} className="btn-primary w-full" disabled={outOfStock} aria-live="polite">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {outOfStock ? "Out of stock" : added ? "Added to bag" : "Add to cart"}</button>
-            <button onClick={() => { if (!outOfStock) { addItem(product, quantity); navigate("/checkout"); } }} className="btn-primary w-full" disabled={outOfStock}>Buy now</button>
+            <button onClick={handleAdd} className="btn-primary w-full" disabled={outOfStock || unavailable} aria-live="polite">{added ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />} {outOfStock ? "Out of stock" : unavailable ? "Unavailable" : added ? "Added to bag" : "Add to cart"}</button>
+            <button onClick={() => { if (!outOfStock && !unavailable) { addItem(product, quantity); navigate("/checkout"); } }} className="btn-primary w-full" disabled={outOfStock || unavailable}>Buy now</button>
             {country && <a href={createWhatsAppLink(productOrderMessage(product, quantity, country), country)} target="_blank" rel="noreferrer" className="glass-control inline-flex min-h-11 items-center justify-center gap-2 border-[#20a852]/55 px-6 py-3 text-xs font-semibold uppercase tracking-[0.13em] text-[#117a3a] sm:col-span-2"><MessageCircle className="h-4 w-4" /> WhatsApp order</a>}
           </div>
 

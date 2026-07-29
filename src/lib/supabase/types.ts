@@ -101,6 +101,14 @@ export interface Product {
   seo_title: string;
   seo_description: string;
   featured: boolean;
+  shipping_fee_lkr: number | null;
+  shipping_fee_aed: number | null;
+  free_shipping_lkr: boolean;
+  free_shipping_aed: boolean;
+  shipping_available_lkr: boolean;
+  shipping_available_aed: boolean;
+  shipping_calculation_lkr: "per_line" | "per_unit";
+  shipping_calculation_aed: "per_line" | "per_unit";
   created_at: string;
   updated_at: string;
   categories?: Pick<Category, "name"> | null;
@@ -121,6 +129,15 @@ export interface Order {
   payment_status: "pending" | "paid" | "failed" | "refunded";
   order_status: OrderStatus;
   created_at: string;
+  subtotal_amount: number;
+  shipping_fee: number;
+  discount_amount: number;
+  shipping_method_name: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_postal_code: string;
+  courier_name: string | null;
+  tracking_number: string | null;
 }
 
 export interface OrderItem {
@@ -130,6 +147,10 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  shipping_fee: number;
+  shipping_calculation_type: "per_line" | "per_unit";
+  free_shipping: boolean;
+  product_shipping_fee: number;
   products?: Pick<Product, "name" | "sku"> | null;
 }
 

@@ -17,6 +17,8 @@ const managedKeys = [
   "NEXT_PUBLIC_APP_URL",
   "PAYHERE_MERCHANT_ID",
   "PAYHERE_MERCHANT_SECRET",
+  "PAYMENTS_ENABLED",
+  "NEXT_PUBLIC_PAYMENTS_ENABLED",
   "VERCEL_ENV",
 ];
 
@@ -65,11 +67,38 @@ test("reports malformed URLs without echoing credentials", async () => {
     NEXT_PUBLIC_APP_URL: "https://www.yaraproduct.com/checkout",
     PAYHERE_MERCHANT_ID: "merchant",
     PAYHERE_MERCHANT_SECRET: "merchant-secret",
+    PAYMENTS_ENABLED: "true",
+    NEXT_PUBLIC_PAYMENTS_ENABLED: "true",
   }, () => {
     const issues = getServerEnvIssues().join(" ");
     assert.match(issues, /valid HTTP or HTTPS URL/);
     assert.match(issues, /origin without a path/);
     assert.doesNotMatch(issues, /merchant-secret|sb_secret_example/);
+  });
+});
+
+test("payment credentials are optional only while payments are explicitly disabled", async () => {
+  await withEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_example_public_value",
+    SUPABASE_SECRET_KEY: "sb_secret_example_server_value",
+    NEXT_PUBLIC_APP_URL: "https://www.yaraproduct.com",
+    VERCEL_ENV: "production",
+    PAYMENTS_ENABLED: "false",
+    NEXT_PUBLIC_PAYMENTS_ENABLED: "false",
+  }, () => {
+    assert.deepEqual(getServerEnvIssues(), []);
+  });
+  await withEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_example_public_value",
+    SUPABASE_SECRET_KEY: "sb_secret_example_server_value",
+    NEXT_PUBLIC_APP_URL: "https://www.yaraproduct.com",
+    VERCEL_ENV: "production",
+    PAYMENTS_ENABLED: "true",
+    NEXT_PUBLIC_PAYMENTS_ENABLED: "true",
+  }, () => {
+    assert.match(getServerEnvIssues().join(" "), /PAYHERE_MERCHANT_ID.*PAYHERE_MERCHANT_SECRET/);
   });
 });
 

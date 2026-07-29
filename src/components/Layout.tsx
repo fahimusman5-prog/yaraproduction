@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   X,
   MessageCircle,
+  UserRound,
 } from "lucide-react";
 import { CountryContactSelector } from "./CountryContactSelector";
 import { Link, NavLink, useLocation } from "react-router-dom";
@@ -202,6 +203,7 @@ function Header() {
               </span>
             )}
           </Link>
+          <Link to="/account" className="glass-icon hidden h-11 w-11 text-yara-wine sm:grid" aria-label="Your YARA account"><UserRound className="h-[18px] w-[18px]" /></Link>
           <button onClick={changeCountry} className="glass-control hidden min-h-11 px-3 py-2 text-[0.5rem] font-semibold uppercase tracking-[0.07em] text-yara-wine lg:block xl:text-[0.54rem] xl:tracking-[0.09em]">{t("nav.changeCountry")}</button>
           <button
             className="glass-icon h-11 w-11 text-yara-wine lg:hidden"
@@ -225,6 +227,7 @@ function Header() {
             <Link to="/terms-and-conditions" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Terms and Conditions</Link>
             <Link to="/refund-policy" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Returns &amp; Refund Policy</Link>
             <Link to="/privacy-policy" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Privacy Policy</Link>
+            <Link to="/account" className="border-b border-yara-rose/60 py-3 text-sm uppercase tracking-[0.16em]">Your account</Link>
             <div className="mt-4 flex flex-wrap gap-2" aria-label={t("nav.language")}>
               {locales.map((option) => (
                 <a key={option} href={getLocalizedPath(option, location.pathname, location.search, location.hash)} className={`glass-control px-3 py-2 text-xs font-bold ${option === locale ? "bg-yara-wine text-white" : "text-yara-taupe"}`} hrefLang={option}>{localeLabels[option]}</a>
@@ -252,10 +255,8 @@ function Footer() {
             {t("layout.footerText")}
           </p>
           <div className="mt-5 flex flex-wrap gap-3 text-yara-wine">
-            {footerSocialLinks.map(({ name, href, icon: Icon, ariaLabel }) => href ? (
-              <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} title={ariaLabel} className="glass-icon h-11 w-11"><Icon className="h-5 w-5" /></a>
-            ) : (
-              <button key={name} type="button" disabled aria-label="YARA Facebook page is not yet available" title="YARA Facebook page is not yet available" className="glass-icon h-11 w-11"><Icon className="h-5 w-5" /></button>
+            {footerSocialLinks.filter((link) => Boolean(link.href)).map(({ name, href, icon: Icon, ariaLabel }) => (
+              <a key={name} href={href!} target="_blank" rel="noopener noreferrer" aria-label={ariaLabel} title={ariaLabel} className="glass-icon h-11 w-11"><Icon className="h-5 w-5" /></a>
             ))}
           </div>
         </div>
@@ -268,7 +269,7 @@ function Footer() {
         <div>
           <h3 className="font-sans text-[0.68rem] font-semibold uppercase tracking-[0.17em]">{t("layout.care")}</h3>
           <div className="mt-5 grid gap-3 text-sm font-light text-yara-taupe">
-            <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/contact">{t("layout.shippingPolicy")}</Link><Link to="/refund-policy">Returns &amp; Refund Policy</Link><Link to="/terms-and-conditions">Terms and Conditions</Link><Link to="/privacy-policy">Privacy Policy</Link>
+            <Link to="/contact">{t("layout.contactUs")}</Link><Link to="/shipping-policy">{t("layout.shippingPolicy")}</Link><Link to="/refund-policy">Returns &amp; Refund Policy</Link><Link to="/cancellation-policy">Cancellation Policy</Link><Link to="/payment-policy">Payment Policy</Link><Link to="/terms-and-conditions">Terms and Conditions</Link><Link to="/privacy-policy">Privacy Policy</Link><Link to="/cookie-policy">Cookie Policy</Link>
           </div>
         </div>
         <div id="newsletter-signup" className="scroll-mt-28">
