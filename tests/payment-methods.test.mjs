@@ -66,3 +66,47 @@ test("checkout rejects unavailable installment providers without fake success", 
   assert.doesNotMatch(route, /paymentMethod === "koko"[\s\S]{0,200}redirectUrl/);
 });
 
+test("offline methods create orders directly and never require gateway credentials", async () => {
+  const route = await readFile("src/app/api/checkout/route.ts", "utf8");
+  assert.match(
+    route,
+    /paymentMethod === "cash_on_delivery" \|\|\s+parsed\.data\.paymentMethod === "bank_transfer"/,
+  );
+  assert.match(route, /redirectUrl:[\s\S]*?&\$\{mode\}=1/);
+  assert.match(route, /paymentMethod === "card" && process\.env\.PAYMENTS_ENABLED/);
+  assert.doesNotMatch(
+    route,
+    /paymentMethod === "(?:cash_on_delivery|bank_transfer)" && process\.env\.PAYMENTS_ENABLED/,
+  );
+});
+
+test("offline confirmation emails contain exact payment instructions", async () => {
+  const route = await readFile("src/app/api/checkout/route.ts", "utf8");
+  assert.match(route, /Your YARA order is confirmed/);
+  assert.match(route, /Payment will be collected when your order is delivered/);
+  assert.match(route, /Your YARA order has been received/);
+  assert.match(route, /Please complete the bank transfer using your order number as the reference/);
+  assert.match(route, /\["Amount to collect"/);
+  assert.match(route, /\["Amount to transfer"/);
+  assert.match(route, /\["Transfer reference"/);
+});
+
+test("confirmation page distinguishes COD, bank transfer, and online payment", async () => {
+  const page = await readFile("src/app/payment/success/page.tsx", "utf8");
+  assert.match(page, /bank\?: string/);
+  assert.match(page, /Payment method/);
+  assert.match(page, /Payment status/);
+  assert.match(page, /Amount to pay/);
+  assert.match(page, /Amount to transfer/);
+  assert.match(page, /Delivery address/);
+});
+
+test("regional delivery fees are fully configured in the fixed-delivery migration", async () => {
+  const sql = await readFile(
+    "supabase/migrations/20260729160000_simplify_fixed_country_delivery.sql",
+    "utf8",
+  );
+  assert.match(sql, /\('LK', 'LKR', 500, true, true\)/);
+  assert.match(sql, /\('AE', 'AED', 25, true, true\)/);
+  assert.match(sql, /v_subtotal \+ v_delivery \+ v_payment_fee/);
+});
