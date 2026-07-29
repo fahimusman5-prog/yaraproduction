@@ -30,8 +30,8 @@ export async function getCommerceOperations() {
         ? supabase
             .from("payment_method_settings")
             .select("*")
+            .eq("payment_method", "bank_transfer")
             .order("region_code")
-            .order("payment_method")
         : Promise.resolve({ data: [], error: null }),
       Promise.resolve({ data: [], error: null }),
       supabase

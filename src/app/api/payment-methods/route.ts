@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   PAYMENT_COPY,
+  PAYMENT_METHOD_CONFIG,
+  hasUsableBankTransferDetails,
   PAYMENT_METHODS,
   type PaymentMethod,
   type PublicPaymentMethod,
@@ -9,8 +11,6 @@ import {
 
 type SettingRow = {
   payment_method: PaymentMethod;
-  processing_fee_percent: number;
-  is_enabled: boolean;
   account_holder_name: string | null;
   bank_name: string | null;
   branch_name: string | null;
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const { data, error } = await getSupabaseAdminClient()
     .from("payment_method_settings")
     .select(
-      "payment_method,processing_fee_percent,is_enabled,account_holder_name,bank_name,branch_name,account_number,swift_code,instructions",
+      "payment_method,account_holder_name,bank_name,branch_name,account_number,swift_code,instructions",
     )
     .eq("region_code", regionCode);
   if (error)
@@ -43,37 +43,35 @@ export async function GET(request: Request) {
     const row = byMethod.get(method);
     const providerAvailable =
       method === "card"
-        ? paymentsEnabled &&
+        ? country === "sri-lanka" &&
+          paymentsEnabled &&
           Boolean(
             process.env.PAYHERE_MERCHANT_ID?.trim() &&
               process.env.PAYHERE_MERCHANT_SECRET?.trim(),
           )
         : method === "koko"
-          ? Boolean(
-              process.env.KOKO_MERCHANT_ID?.trim() &&
-                process.env.KOKO_MERCHANT_SECRET?.trim() &&
-                process.env.KOKO_CHECKOUT_URL?.trim(),
-            )
+          ? false
           : method === "mintpay"
-            ? Boolean(
-                process.env.MINTPAY_MERCHANT_ID?.trim() &&
-                  process.env.MINTPAY_MERCHANT_SECRET?.trim() &&
-                  process.env.MINTPAY_CHECKOUT_URL?.trim(),
-              )
-            : true;
-    const enabled = Boolean(row?.is_enabled);
+            ? false
+            : method === "bank_transfer"
+              ? hasUsableBankTransferDetails({
+                  accountHolderName: row?.account_holder_name,
+                  bankName: row?.bank_name,
+                  accountNumber: row?.account_number,
+                })
+              : true;
+    const enabled = providerAvailable;
     return {
       method,
       ...PAYMENT_COPY[method],
-      processingFeePercent: Number(row?.processing_fee_percent ?? 0),
+      processingFeePercent:
+        PAYMENT_METHOD_CONFIG[method].processingFeePercent,
       enabled,
       providerAvailable,
       unavailableReason:
-        enabled && !providerAvailable
-          ? `${PAYMENT_COPY[method].label} payment is being activated.`
-          : !enabled
-            ? `${PAYMENT_COPY[method].label} is not available for this region.`
-            : undefined,
+        !providerAvailable
+          ? "Temporarily unavailable"
+          : undefined,
       bankDetails:
         method === "bank_transfer" && row
           ? {

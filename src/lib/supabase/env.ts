@@ -104,8 +104,6 @@ export function getServerEnvIssues() {
   if (paymentsEnabled && !payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing while PAYMENTS_ENABLED=true.");
   if (paymentsEnabled && !payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing while PAYMENTS_ENABLED=true.");
   if (process.env.PAYMENTS_ENABLED && !["true", "false"].includes(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true or false.");
-  if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED && !["true", "false"].includes(process.env.NEXT_PUBLIC_PAYMENTS_ENABLED)) issues.push("NEXT_PUBLIC_PAYMENTS_ENABLED must be true or false.");
-  if (process.env.PAYMENTS_ENABLED !== process.env.NEXT_PUBLIC_PAYMENTS_ENABLED) issues.push("PAYMENTS_ENABLED and NEXT_PUBLIC_PAYMENTS_ENABLED must match.");
   const emailVariables = [
     "RESEND_API_KEY",
     "EMAIL_FROM",

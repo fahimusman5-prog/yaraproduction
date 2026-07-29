@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   PAYMENT_METHODS,
+  PAYMENT_METHOD_CONFIG,
+  hasUsableBankTransferDetails,
   calculateProcessingFee,
 } from "../src/lib/payment-methods.ts";
 
@@ -19,11 +21,41 @@ test("payment methods are separate and complete", () => {
   ]);
 });
 
+test("placeholder bank details never activate bank transfer", () => {
+  assert.equal(
+    hasUsableBankTransferDetails({
+      accountHolderName: "check",
+      bankName: "check",
+      accountNumber: "00000000",
+    }),
+    false,
+  );
+  assert.equal(
+    hasUsableBankTransferDetails({
+      accountHolderName: "YARA Productions",
+      bankName: "Example Commercial Bank",
+      accountNumber: "1234567890",
+    }),
+    true,
+  );
+});
+
 test("processing fees use discounted subtotal plus one delivery charge", () => {
   assert.equal(calculateProcessingFee(10_000, 0, 500, 4), 420);
   assert.equal(calculateProcessingFee(10_000, 0, 500, 9), 945);
   assert.equal(calculateProcessingFee(10_000, 0, 500, 0), 0);
   assert.equal(calculateProcessingFee(10_000, 1_000, 500, 4), 380);
+  assert.equal(calculateProcessingFee(101, 0, 0, 4, "LKR"), 4);
+  assert.equal(calculateProcessingFee(101, 0, 0, 4, "AED"), 4.04);
+  assert.deepEqual(
+    Object.fromEntries(
+      PAYMENT_METHODS.map((method) => [
+        method,
+        PAYMENT_METHOD_CONFIG[method].processingFeePercent,
+      ]),
+    ),
+    { card: 4, koko: 9, mintpay: 4, bank_transfer: 0, cash_on_delivery: 0 },
+  );
 });
 
 test("database owns payment pricing and immutable snapshots", async () => {
@@ -61,9 +93,32 @@ test("bank transfer and COD remain unpaid while online methods remain pending", 
 
 test("checkout rejects unavailable installment providers without fake success", async () => {
   const route = await readFile("src/app/api/checkout/route.ts", "utf8");
-  assert.match(route, /Koko payment is being activated/);
-  assert.match(route, /MintPay payment is being activated/);
+  assert.match(route, /Koko is temporarily unavailable/);
+  assert.match(route, /MintPay is temporarily unavailable/);
   assert.doesNotMatch(route, /paymentMethod === "koko"[\s\S]{0,200}redirectUrl/);
+});
+
+test("payment rules are canonical and cannot be edited in admin", async () => {
+  const [migration, api, manager] = await Promise.all([
+    readFile(
+      "supabase/migrations/20260729163000_canonical_payment_rules.sql",
+      "utf8",
+    ),
+    readFile("src/app/api/payment-methods/route.ts", "utf8"),
+    readFile("src/modules/admin/components/CommerceManager.tsx", "utf8"),
+  ]);
+  assert.match(migration, /when 'card' then 4/);
+  assert.match(migration, /when 'koko' then 9/);
+  assert.match(migration, /when 'mintpay' then 4/);
+  assert.match(migration, /when new\.currency = 'LKR' then round/);
+  assert.match(api, /PAYMENT_METHOD_CONFIG\[method\]\.processingFeePercent/);
+  const paymentEditor = manager.slice(
+    manager.indexOf("function PaymentSettingEditor"),
+    manager.indexOf("function DeliverySettingEditor"),
+  );
+  assert.doesNotMatch(paymentEditor, /name="processing_fee_percent"/);
+  assert.doesNotMatch(paymentEditor, /name="minimum_order_amount"/);
+  assert.doesNotMatch(paymentEditor, /name="maximum_order_amount"/);
 });
 
 test("offline methods create orders directly and never require gateway credentials", async () => {
@@ -109,4 +164,10 @@ test("regional delivery fees are fully configured in the fixed-delivery migratio
   assert.match(sql, /\('LK', 'LKR', 500, true, true\)/);
   assert.match(sql, /\('AE', 'AED', 25, true, true\)/);
   assert.match(sql, /v_subtotal \+ v_delivery \+ v_payment_fee/);
+});
+
+test("checkout never renders an indeterminate grand total label", async () => {
+  const page = await readFile("src/customer-pages/CheckoutPage.tsx", "utf8");
+  assert.doesNotMatch(page, /Grand total[\s\S]{0,300}To be confirmed/);
+  assert.match(page, /Grand total[\s\S]{0,300}Unavailable/);
 });

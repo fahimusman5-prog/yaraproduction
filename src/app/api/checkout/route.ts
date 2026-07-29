@@ -11,7 +11,10 @@ import {
   sendOrderTransactionalEmail,
 } from "@/lib/email";
 import { consumeRequestRateLimit } from "@/lib/rate-limit";
-import { PAYMENT_METHODS } from "@/lib/payment-methods";
+import {
+  PAYMENT_METHODS,
+  hasUsableBankTransferDetails,
+} from "@/lib/payment-methods";
 
 const schema = z.object({
   country: z.enum(["sri-lanka", "uae"]),
@@ -87,6 +90,18 @@ export async function POST(request: Request) {
       );
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
+    if (
+      parsed.data.paymentMethod === "card" &&
+      parsed.data.country !== "sri-lanka"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Card payment is temporarily unavailable for UAE orders. Please select another option.",
+        },
+        { status: 503 },
+      );
+    }
     if (parsed.data.paymentMethod === "card" && process.env.PAYMENTS_ENABLED !== "true") {
       return NextResponse.json({ error: "Online payments are temporarily unavailable. Please choose another available ordering method." }, { status: 503 });
     }
@@ -95,12 +110,12 @@ export async function POST(request: Request) {
     }
     if (parsed.data.paymentMethod === "koko")
       return NextResponse.json(
-        { error: "Koko payment is being activated." },
+        { error: "Koko is temporarily unavailable. Please select another option." },
         { status: 503 },
       );
     if (parsed.data.paymentMethod === "mintpay")
       return NextResponse.json(
-        { error: "MintPay payment is being activated." },
+        { error: "MintPay is temporarily unavailable. Please select another option." },
         { status: 503 },
       );
     const origin = getAppOrigin(request.url);
@@ -114,6 +129,37 @@ export async function POST(request: Request) {
     }
 
     const supabase = getSupabaseAdminClient();
+    if (parsed.data.paymentMethod === "bank_transfer") {
+      const { data: bank, error: bankError } = await supabase
+        .from("payment_method_settings")
+        .select("account_holder_name,bank_name,account_number")
+        .eq(
+          "region_code",
+          parsed.data.country === "sri-lanka" ? "LK" : "AE",
+        )
+        .eq("payment_method", "bank_transfer")
+        .maybeSingle();
+      const bankDetails = bank as {
+        account_holder_name?: string | null;
+        bank_name?: string | null;
+        account_number?: string | null;
+      } | null;
+      if (
+        bankError ||
+        !hasUsableBankTransferDetails({
+          accountHolderName: bankDetails?.account_holder_name,
+          bankName: bankDetails?.bank_name,
+          accountNumber: bankDetails?.account_number,
+        })
+      )
+        return NextResponse.json(
+          {
+            error:
+              "Bank transfer is temporarily unavailable. Please select another option.",
+          },
+          { status: 503 },
+        );
+    }
     const sessionClient = await getSupabaseServerClient();
     const { data: claimsData } = sessionClient ? await sessionClient.auth.getClaims() : { data: null };
     const customerUserId = claimsData?.claims?.sub;
@@ -166,6 +212,37 @@ export async function POST(request: Request) {
         parsed.data.paymentMethod === "bank_transfer")
       {
       const isBank = parsed.data.paymentMethod === "bank_transfer";
+      const orderSummaryResult = await supabase
+        .from("orders")
+        .select(
+          "country,currency,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,payment_status",
+        )
+        .eq("id", order.order_id)
+        .maybeSingle();
+      const summary = orderSummaryResult.data as {
+        country?: string;
+        currency?: string;
+        subtotal_amount?: number;
+        discount_amount?: number;
+        shipping_fee?: number;
+        payment_fee?: number;
+        total_amount?: number;
+        payment_status?: string;
+      } | null;
+      const money = (value: number | undefined) =>
+        `${order.currency} ${Number(value ?? 0).toFixed(
+          order.currency === "LKR" ? 0 : 2,
+        )}`;
+      const summaryDetails: Array<[string, string]> = [
+        ["Order number", order.order_number],
+        ["Region", parsed.data.country === "sri-lanka" ? "Sri Lanka" : "UAE"],
+        ["Currency", order.currency],
+        ["Subtotal", money(summary?.subtotal_amount)],
+        ["Discount", money(summary?.discount_amount)],
+        ["Shipping", money(summary?.shipping_fee)],
+        ["Processing fee", money(summary?.payment_fee)],
+        ["Grand total", money(summary?.total_amount ?? order.total_amount)],
+      ];
       const bankSetting = isBank
         ? await supabase
             .from("payment_method_settings")
@@ -190,6 +267,7 @@ export async function POST(request: Request) {
       } | null;
       const customerDetails: Array<[string, string]> = isBank
         ? ([
+            ...summaryDetails,
             ["Payment method", "Bank Transfer"],
             ["Payment status", "Awaiting payment verification"],
             ["Amount to transfer", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],
@@ -201,6 +279,7 @@ export async function POST(request: Request) {
             ["Instructions", bank?.instructions ?? ""],
           ].filter((entry) => entry[1]) as Array<[string, string]>)
         : [
+            ...summaryDetails,
             ["Payment method", "Cash on Delivery"],
             ["Payment status", "Payment due on delivery"],
             ["Amount to collect", `${order.currency} ${Number(order.total_amount).toFixed(2)}`],

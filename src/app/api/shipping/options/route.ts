@@ -2,20 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
-import { consumeRequestRateLimit } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
-  const rateLimit = await consumeRequestRateLimit(
-    request,
-    "shipping-settings",
-    120,
-    600,
-  );
-  if (!rateLimit.allowed)
-    return NextResponse.json(
-      { error: "Delivery settings are temporarily unavailable." },
-      { status: rateLimit.reason === "limited" ? 429 : 503 },
-    );
   const country = new URL(request.url).searchParams.get("country");
   const parsed = z.enum(["sri-lanka", "uae"]).safeParse(country);
   if (!parsed.success)

@@ -73,17 +73,7 @@ const deliverySettingSchema = z
 const paymentSettingSchema = z
   .object({
     region_code: z.enum(["LK", "AE"]),
-    payment_method: z.enum([
-      "card",
-      "koko",
-      "mintpay",
-      "bank_transfer",
-      "cash_on_delivery",
-    ]),
-    processing_fee_percent: z.coerce.number().min(0).max(100),
-    minimum_order_amount: optionalNumber,
-    maximum_order_amount: optionalNumber,
-    is_enabled: z.enum(["true"]).optional(),
+    payment_method: z.literal("bank_transfer"),
     account_holder_name: z.string().trim().max(200).default(""),
     bank_name: z.string().trim().max(200).default(""),
     branch_name: z.string().trim().max(200).default(""),
@@ -91,21 +81,8 @@ const paymentSettingSchema = z
     swift_code: z.string().trim().max(100).default(""),
     instructions: z.string().trim().max(2000).default(""),
   })
-  .refine(
-    (value) =>
-      value.maximum_order_amount === null ||
-      value.minimum_order_amount === null ||
-      value.maximum_order_amount >= value.minimum_order_amount,
-    { message: "Maximum order must be at least the minimum." },
-  )
   .superRefine((value, context) => {
-    if (
-      value.payment_method === "bank_transfer" &&
-      value.is_enabled === "true" &&
-      (!value.account_holder_name ||
-        !value.bank_name ||
-        !value.account_number)
-    )
+    if (!value.account_holder_name || !value.bank_name || !value.account_number)
       context.addIssue({
         code: "custom",
         message:
@@ -273,10 +250,10 @@ export async function updatePaymentMethodSettingAction(
   const value = parsed.data;
   const expectedCurrency = value.region_code === "LK" ? "LKR" : "AED";
   const fields = {
-    processing_fee_percent: value.processing_fee_percent,
-    minimum_order_amount: value.minimum_order_amount,
-    maximum_order_amount: value.maximum_order_amount,
-    is_enabled: value.is_enabled === "true",
+    processing_fee_percent: 0,
+    minimum_order_amount: null,
+    maximum_order_amount: null,
+    is_enabled: true,
     account_holder_name: value.account_holder_name || null,
     bank_name: value.bank_name || null,
     branch_name: value.branch_name || null,
@@ -304,7 +281,7 @@ export async function updatePaymentMethodSettingAction(
   }
   revalidatePath("/admin/commerce");
   revalidatePath("/checkout");
-  return { status: "success", message: "Payment method saved." };
+  return { status: "success", message: "Bank transfer details saved." };
 }
 
 export async function createShippingZoneAction(

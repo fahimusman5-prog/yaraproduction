@@ -18,7 +18,6 @@ const managedKeys = [
   "PAYHERE_MERCHANT_ID",
   "PAYHERE_MERCHANT_SECRET",
   "PAYMENTS_ENABLED",
-  "NEXT_PUBLIC_PAYMENTS_ENABLED",
   "EMAIL_REPLY_TO",
   "ADMIN_NOTIFICATION_EMAIL",
   "RESEND_API_KEY",
@@ -73,7 +72,6 @@ test("reports malformed URLs without echoing credentials", async () => {
     PAYHERE_MERCHANT_ID: "merchant",
     PAYHERE_MERCHANT_SECRET: "merchant-secret",
     PAYMENTS_ENABLED: "true",
-    NEXT_PUBLIC_PAYMENTS_ENABLED: "true",
   }, () => {
     const issues = getServerEnvIssues().join(" ");
     assert.match(issues, /valid HTTP or HTTPS URL/);
@@ -90,7 +88,6 @@ test("payment credentials are optional only while payments are explicitly disabl
     NEXT_PUBLIC_APP_URL: "https://www.yaraproduct.com",
     VERCEL_ENV: "production",
     PAYMENTS_ENABLED: "false",
-    NEXT_PUBLIC_PAYMENTS_ENABLED: "false",
   }, () => {
     assert.deepEqual(getServerEnvIssues(), []);
   });
@@ -101,7 +98,6 @@ test("payment credentials are optional only while payments are explicitly disabl
     NEXT_PUBLIC_APP_URL: "https://www.yaraproduct.com",
     VERCEL_ENV: "production",
     PAYMENTS_ENABLED: "true",
-    NEXT_PUBLIC_PAYMENTS_ENABLED: "true",
   }, () => {
     assert.match(getServerEnvIssues().join(" "), /PAYHERE_MERCHANT_ID.*PAYHERE_MERCHANT_SECRET/);
   });

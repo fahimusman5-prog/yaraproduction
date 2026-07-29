@@ -77,10 +77,13 @@ export function CommerceManager({
             <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
               Checkout payments
             </p>
-            <h2 className="mt-2 text-xl font-bold">Payment method settings</h2>
+            <h2 className="mt-2 text-xl font-bold">
+              Regional bank transfer details
+            </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Configure each region separately. Provider credentials remain
-              server-only environment variables.
+              Card and instalment-provider availability is controlled by
+              server-only deployment credentials. Processing fees are fixed in
+              code and cannot be edited here.
             </p>
           </div>
           <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -576,7 +579,6 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
     updatePaymentMethodSettingAction.bind(null, setting.id),
     initialActionState,
   );
-  const isBank = setting.payment_method === "bank_transfer";
   return (
     <form action={action} className="rounded-xl border border-[var(--staff-line)] p-4">
       <ActionMessage state={state} />
@@ -592,55 +594,8 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
             {setting.provider_name ? ` · ${setting.provider_name}` : ""}
           </p>
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="is_enabled"
-            value="true"
-            defaultChecked={setting.is_enabled}
-          />
-          Enabled
-        </label>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label>
-          <span className="staff-label">Processing fee %</span>
-          <input
-            name="processing_fee_percent"
-            type="number"
-            min="0"
-            max="100"
-            step="0.001"
-            defaultValue={setting.processing_fee_percent}
-            required
-            className="staff-input"
-          />
-        </label>
-        <label>
-          <span className="staff-label">Minimum order</span>
-          <input
-            name="minimum_order_amount"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={setting.minimum_order_amount ?? ""}
-            className="staff-input"
-          />
-        </label>
-        <label>
-          <span className="staff-label">Maximum order</span>
-          <input
-            name="maximum_order_amount"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={setting.maximum_order_amount ?? ""}
-            className="staff-input"
-          />
-        </label>
-      </div>
-      {isBank && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {[
             ["account_holder_name", "Account holder"],
             ["bank_name", "Bank name"],
@@ -665,10 +620,9 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
               className="staff-input"
             />
           </label>
-        </div>
-      )}
+      </div>
       <SubmitButton pendingLabel="Saving payment method…">
-        Save payment method
+        Save bank details
       </SubmitButton>
     </form>
   );
