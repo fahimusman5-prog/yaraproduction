@@ -154,12 +154,15 @@ export async function getOrders() {
 }
 export async function getOrder(orderId: string) {
   const supabase = await client(`/admin/orders/${orderId}`);
-  const [orderResult, itemsResult] = await Promise.all([
+  const [orderResult, itemsResult, eventsResult, returnsResult, refundsResult] = await Promise.all([
     supabase.from("orders").select("*").eq("id", orderId).maybeSingle(),
     supabase
       .from("order_items")
       .select("*,products(name,sku)")
       .eq("order_id", orderId),
+    supabase.from("order_events").select("*").eq("order_id", orderId).order("created_at", { ascending: false }),
+    supabase.from("return_requests").select("*").eq("order_id", orderId).order("created_at", { ascending: false }),
+    supabase.from("refunds").select("*").eq("order_id", orderId).order("created_at", { ascending: false }),
   ]);
   if (orderResult.error) {
     failLoad("admin-orders-detail", "select-order", orderResult.error, {
@@ -181,6 +184,9 @@ export async function getOrder(orderId: string) {
   return {
     order: orderResult.data as Order,
     items: (itemsResult.data ?? []) as OrderItem[],
+    events: eventsResult.data ?? [],
+    returns: returnsResult.data ?? [],
+    refunds: refundsResult.data ?? [],
   };
 }
 export async function getCustomers() {

@@ -4,6 +4,7 @@ import { ArrowRight, Check, LoaderCircle } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
 import { useI18n } from "@/i18n";
 import { invalidNewsletterResponse, newsletterMessage, type NewsletterResponse } from "@/lib/newsletter";
+import { trackEvent } from "@/lib/analytics";
 
 export function NewsletterForm() {
   const { locale, t } = useI18n();
@@ -24,6 +25,7 @@ export function NewsletterForm() {
       const next = body && typeof body.message === "string" ? body : newsletterMessage("error");
       setFeedback(next);
       if (next.success) setEmail("");
+      if (next.success) trackEvent("newsletter_subscription", { locale });
     } catch {
       setFeedback(newsletterMessage("error"));
     } finally { setSubmitting(false); }

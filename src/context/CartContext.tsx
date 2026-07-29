@@ -3,6 +3,7 @@ import type { CartItem, Product } from "../types";
 import { useCountry } from "./CountryContext";
 import { getProductPrice } from "../lib/format";
 import { useCatalog } from "./CatalogContext";
+import { trackEvent } from "../lib/analytics";
 
 interface CartContextValue {
   items: CartItem[];
@@ -56,10 +57,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...current, { product, quantity }];
     });
+    trackEvent("add_to_cart", { product_id: product.id, quantity, country: country ?? undefined });
   };
 
   const removeItem = (productId: string) => {
     setItems((current) => current.filter((item) => item.product.id !== productId));
+    trackEvent("remove_from_cart", { product_id: productId, country: country ?? undefined });
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
