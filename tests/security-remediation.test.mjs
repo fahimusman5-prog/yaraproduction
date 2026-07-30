@@ -17,7 +17,7 @@ test("analytics removes sensitive property names and common PII values", () => {
   );
 });
 
-test("public commerce routes use the durable pseudonymous rate limiter", async () => {
+test("mutating public commerce routes use the durable pseudonymous rate limiter", async () => {
   const [helper, checkout, shipping, coupon, analytics, environment] =
     await Promise.all([
       read("../src/lib/rate-limit.ts"),
@@ -30,8 +30,9 @@ test("public commerce routes use the durable pseudonymous rate limiter", async (
   assert.match(helper, /createHmac\("sha256", secret\)/);
   assert.match(helper, /consume_api_rate_limit/);
   assert.doesNotMatch(helper, /console\.(?:log|error)\([^)]*keyHash/);
-  for (const source of [checkout, shipping, coupon, analytics])
+  for (const source of [checkout, coupon, analytics])
     assert.match(source, /consumeRequestRateLimit/);
+  assert.doesNotMatch(shipping, /consumeRequestRateLimit/);
   assert.match(environment, /RATE_LIMIT_SECRET=/);
   assert.doesNotMatch(environment, /NEXT_PUBLIC_RATE_LIMIT_SECRET/);
 });

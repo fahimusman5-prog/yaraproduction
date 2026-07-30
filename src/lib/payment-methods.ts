@@ -8,6 +8,17 @@ export const PAYMENT_METHODS = [
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+export const PAYMENT_METHOD_CONFIG: Record<
+  PaymentMethod,
+  { type: "online" | "offline"; processingFeePercent: number }
+> = {
+  card: { type: "online", processingFeePercent: 4 },
+  koko: { type: "online", processingFeePercent: 9 },
+  mintpay: { type: "online", processingFeePercent: 4 },
+  bank_transfer: { type: "offline", processingFeePercent: 0 },
+  cash_on_delivery: { type: "offline", processingFeePercent: 0 },
+};
+
 export type PublicPaymentMethod = {
   method: PaymentMethod;
   label: string;
@@ -26,6 +37,27 @@ export type PublicPaymentMethod = {
   };
 };
 
+export function hasUsableBankTransferDetails(details: {
+  accountHolderName?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+}) {
+  const holder = details.accountHolderName?.trim() ?? "";
+  const bank = details.bankName?.trim() ?? "";
+  const account = details.accountNumber?.trim() ?? "";
+  const placeholderPattern =
+    /\b(?:check|test|example|placeholder|dummy|sample|n\/?a|your account(?: number)?)\b/i;
+  return (
+    holder.length >= 2 &&
+    bank.length >= 2 &&
+    account.length >= 5 &&
+    !placeholderPattern.test(holder) &&
+    !placeholderPattern.test(bank) &&
+    !placeholderPattern.test(account) &&
+    !/^0+$/.test(account.replace(/\s+/g, ""))
+  );
+}
+
 export const PAYMENT_COPY: Record<
   PaymentMethod,
   { label: string; description: string; action: string }
@@ -33,17 +65,17 @@ export const PAYMENT_COPY: Record<
   card: {
     label: "Card Payment",
     description: "Secure online payment",
-    action: "Pay Now",
+    action: "Proceed to Payment",
   },
   koko: {
     label: "Koko",
     description: "Pay in instalments with Koko",
-    action: "Pay with Koko",
+    action: "Proceed to Payment",
   },
   mintpay: {
     label: "MintPay",
     description: "Pay in instalments with MintPay",
-    action: "Pay with MintPay",
+    action: "Proceed to Payment",
   },
   bank_transfer: {
     label: "Bank Transfer",
@@ -62,6 +94,7 @@ export function calculateProcessingFee(
   discountTotal: number,
   deliveryFee: number,
   percentage: number,
+  currency: "LKR" | "AED" = "AED",
 ) {
   for (const value of [
     productSubtotal,
@@ -73,6 +106,8 @@ export function calculateProcessingFee(
       throw new Error("Payment calculation values must be non-negative.");
   const basePayable =
     Math.max(0, productSubtotal - discountTotal) + deliveryFee;
-  return Math.round(basePayable * (percentage / 100) * 100) / 100;
+  const fee = basePayable * (percentage / 100);
+  return currency === "LKR"
+    ? Math.round(fee)
+    : Math.round(fee * 100) / 100;
 }
-

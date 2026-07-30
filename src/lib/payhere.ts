@@ -4,6 +4,28 @@ import { createHash, timingSafeEqual } from "node:crypto";
 
 const md5 = (value: string) => createHash("md5").update(value, "utf8").digest("hex").toUpperCase();
 
+export type PayHereConfig = {
+  enabled: boolean;
+  sandbox: boolean;
+  usdApproved: boolean;
+  aedApproved: boolean;
+  merchantIdConfigured: boolean;
+  merchantSecretConfigured: boolean;
+};
+
+export function getPayHereConfig(): PayHereConfig {
+  return {
+    enabled: process.env.PAYMENTS_ENABLED === "true",
+    sandbox: process.env.PAYHERE_SANDBOX !== "false",
+    usdApproved: process.env.PAYHERE_USD_APPROVED === "true",
+    aedApproved: process.env.PAYHERE_AED_APPROVED === "true",
+    merchantIdConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID?.trim()),
+    merchantSecretConfigured: Boolean(
+      process.env.PAYHERE_MERCHANT_SECRET?.trim(),
+    ),
+  };
+}
+
 function credentials() {
   const merchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
   const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
@@ -18,9 +40,13 @@ function credentials() {
 }
 
 export function getPayHereCheckoutUrl() {
-  return process.env.PAYHERE_SANDBOX === "false"
-    ? "https://www.payhere.lk/pay/checkout"
-    : "https://sandbox.payhere.lk/pay/checkout";
+  return getPayHereConfig().sandbox
+    ? "https://sandbox.payhere.lk/pay/checkout"
+    : "https://www.payhere.lk/pay/checkout";
+}
+
+export function getPayHereEnvironment() {
+  return getPayHereConfig().sandbox ? "sandbox" : "live";
 }
 
 export function createPayHereHash(orderId: string, amount: string, currency: string) {

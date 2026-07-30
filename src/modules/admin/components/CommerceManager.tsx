@@ -10,6 +10,7 @@ import {
   setCouponActiveAction,
   updateDeliverySettingAction,
   updatePaymentMethodSettingAction,
+  updateAedUsdExchangeRateAction,
   reviewReturnItemsAction,
   updateReturnAction,
 } from "../commerce-actions";
@@ -21,6 +22,8 @@ import { SubmitButton } from "./SubmitButton";
 type Props = {
   deliverySettings: any[];
   paymentSettings: any[];
+  exchangeRates: any[];
+  payHereUsdApproved: boolean;
   shippingAudit: any[];
   products: any[];
   categories: any[];
@@ -33,6 +36,8 @@ type Props = {
 export function CommerceManager({
   deliverySettings,
   paymentSettings,
+  exchangeRates,
+  payHereUsdApproved,
   shippingAudit,
   products,
   categories,
@@ -77,10 +82,13 @@ export function CommerceManager({
             <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
               Checkout payments
             </p>
-            <h2 className="mt-2 text-xl font-bold">Payment method settings</h2>
+            <h2 className="mt-2 text-xl font-bold">
+              Regional bank transfer details
+            </h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Configure each region separately. Provider credentials remain
-              server-only environment variables.
+              Card and instalment-provider availability is controlled by
+              server-only deployment credentials. Processing fees are fixed in
+              code and cannot be edited here.
             </p>
           </div>
           <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -89,6 +97,9 @@ export function CommerceManager({
             ))}
           </div>
         </section>
+      )}
+      {payHereUsdApproved && (
+        <ExchangeRateEditor rate={exchangeRates[0] ?? null} />
       )}
       {/* Legacy zone and method controls were removed from the active admin
           interface. The preserved source below documents the historical UI
@@ -576,7 +587,6 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
     updatePaymentMethodSettingAction.bind(null, setting.id),
     initialActionState,
   );
-  const isBank = setting.payment_method === "bank_transfer";
   return (
     <form action={action} className="rounded-xl border border-[var(--staff-line)] p-4">
       <ActionMessage state={state} />
@@ -592,55 +602,8 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
             {setting.provider_name ? ` · ${setting.provider_name}` : ""}
           </p>
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="is_enabled"
-            value="true"
-            defaultChecked={setting.is_enabled}
-          />
-          Enabled
-        </label>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label>
-          <span className="staff-label">Processing fee %</span>
-          <input
-            name="processing_fee_percent"
-            type="number"
-            min="0"
-            max="100"
-            step="0.001"
-            defaultValue={setting.processing_fee_percent}
-            required
-            className="staff-input"
-          />
-        </label>
-        <label>
-          <span className="staff-label">Minimum order</span>
-          <input
-            name="minimum_order_amount"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={setting.minimum_order_amount ?? ""}
-            className="staff-input"
-          />
-        </label>
-        <label>
-          <span className="staff-label">Maximum order</span>
-          <input
-            name="maximum_order_amount"
-            type="number"
-            min="0"
-            step="0.01"
-            defaultValue={setting.maximum_order_amount ?? ""}
-            className="staff-input"
-          />
-        </label>
-      </div>
-      {isBank && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {[
             ["account_holder_name", "Account holder"],
             ["bank_name", "Bank name"],
@@ -665,12 +628,58 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
               className="staff-input"
             />
           </label>
-        </div>
-      )}
+      </div>
       <SubmitButton pendingLabel="Saving payment method…">
-        Save payment method
+        Save bank details
       </SubmitButton>
     </form>
+  );
+}
+
+function ExchangeRateEditor({ rate }: { rate: any | null }) {
+  const [state, action] = useActionState(
+    updateAedUsdExchangeRateAction,
+    initialActionState,
+  );
+  const localDateTime = (value: string | undefined, fallback: Date) => {
+    const date = value ? new Date(value) : fallback;
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+  return (
+    <section className="staff-panel p-5 sm:p-6">
+      <div className="max-w-3xl">
+        <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
+          Approved foreign-currency checkout
+        </p>
+        <h2 className="mt-2 text-xl font-bold">AED to USD PayHere rate</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Define 1 AED in USD. New UAE payment attempts lock this rate and the
+          converted USD charge permanently.
+        </p>
+      </div>
+      <form action={action} className="mt-6 max-w-2xl rounded-xl border border-[var(--staff-line)] p-4">
+        <ActionMessage state={state} />
+        {rate?.id && <input type="hidden" name="id" value={rate.id} />}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label>
+            <span className="staff-label">1 AED = USD</span>
+            <input name="rate" type="number" min="0.05" max="1" step="0.00000001" defaultValue={rate?.rate ?? ""} required className="staff-input" />
+          </label>
+          <label>
+            <span className="staff-label">Effective from</span>
+            <input name="effective_from" type="datetime-local" defaultValue={localDateTime(rate?.effective_from, new Date())} required className="staff-input" />
+          </label>
+          <label>
+            <span className="staff-label">Expires at</span>
+            <input name="expires_at" type="datetime-local" defaultValue={localDateTime(rate?.expires_at, new Date(Date.now() + 24 * 60 * 60 * 1000))} required className="staff-input" />
+          </label>
+        </div>
+        <SubmitButton pendingLabel="Saving approved rate…">
+          Save AED to USD rate
+        </SubmitButton>
+      </form>
+    </section>
   );
 }
 

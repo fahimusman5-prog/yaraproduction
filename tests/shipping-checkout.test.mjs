@@ -183,13 +183,16 @@ test("admin updates are admin-only, validated, confirmed, and audited", async ()
   assert.match(migration, /with check \(\(select private\.is_admin\(\)\)\)/);
 });
 
-test("PayHere amount is the exact server order total and webhook verifies it", async () => {
+test("PayHere amount is the exact locked server charge and webhook verifies it", async () => {
   const [checkout, webhook] = await Promise.all([
     read("../src/app/api/checkout/route.ts"),
     read("../src/app/api/payhere/notify/route.ts"),
   ]);
-  assert.match(checkout, /const amount = Number\(order\.total_amount\)\.toFixed\(2\)/);
-  assert.match(checkout, /fields:[\s\S]*?currency: order\.currency,\s+amount,/);
+  assert.match(checkout, /const amount = Number\(attempt\.charge_amount\)\.toFixed\(2\)/);
+  assert.match(
+    checkout,
+    /fields:[\s\S]*?currency: attempt\.charge_currency,\s+amount,/,
+  );
   assert.match(webhook, /update_payhere_payment/);
 });
 

@@ -73,17 +73,7 @@ const deliverySettingSchema = z
 const paymentSettingSchema = z
   .object({
     region_code: z.enum(["LK", "AE"]),
-    payment_method: z.enum([
-      "card",
-      "koko",
-      "mintpay",
-      "bank_transfer",
-      "cash_on_delivery",
-    ]),
-    processing_fee_percent: z.coerce.number().min(0).max(100),
-    minimum_order_amount: optionalNumber,
-    maximum_order_amount: optionalNumber,
-    is_enabled: z.enum(["true"]).optional(),
+    payment_method: z.literal("bank_transfer"),
     account_holder_name: z.string().trim().max(200).default(""),
     bank_name: z.string().trim().max(200).default(""),
     branch_name: z.string().trim().max(200).default(""),
@@ -91,27 +81,28 @@ const paymentSettingSchema = z
     swift_code: z.string().trim().max(100).default(""),
     instructions: z.string().trim().max(2000).default(""),
   })
-  .refine(
-    (value) =>
-      value.maximum_order_amount === null ||
-      value.minimum_order_amount === null ||
-      value.maximum_order_amount >= value.minimum_order_amount,
-    { message: "Maximum order must be at least the minimum." },
-  )
   .superRefine((value, context) => {
-    if (
-      value.payment_method === "bank_transfer" &&
-      value.is_enabled === "true" &&
-      (!value.account_holder_name ||
-        !value.bank_name ||
-        !value.account_number)
-    )
+    if (!value.account_holder_name || !value.bank_name || !value.account_number)
       context.addIssue({
         code: "custom",
         message:
           "Account holder, bank name, and account number are required before enabling bank transfer.",
       });
   });
+
+const exchangeRateSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    rate: z.coerce.number().min(0.05).max(1),
+    effective_from: z.string().min(1),
+    expires_at: z.string().min(1),
+  })
+  .refine(
+    (value) =>
+      new Date(value.expires_at).getTime() >
+      new Date(value.effective_from).getTime(),
+    { message: "Expiry must be after the effective time." },
+  );
 
 function shippingZoneFields(data: z.infer<typeof zoneSchema>) {
   return {
@@ -273,10 +264,10 @@ export async function updatePaymentMethodSettingAction(
   const value = parsed.data;
   const expectedCurrency = value.region_code === "LK" ? "LKR" : "AED";
   const fields = {
-    processing_fee_percent: value.processing_fee_percent,
-    minimum_order_amount: value.minimum_order_amount,
-    maximum_order_amount: value.maximum_order_amount,
-    is_enabled: value.is_enabled === "true",
+    processing_fee_percent: 0,
+    minimum_order_amount: null,
+    maximum_order_amount: null,
+    is_enabled: true,
     account_holder_name: value.account_holder_name || null,
     bank_name: value.bank_name || null,
     branch_name: value.branch_name || null,
@@ -304,7 +295,65 @@ export async function updatePaymentMethodSettingAction(
   }
   revalidatePath("/admin/commerce");
   revalidatePath("/checkout");
-  return { status: "success", message: "Payment method saved." };
+  return { status: "success", message: "Bank transfer details saved." };
+}
+
+export async function updateAedUsdExchangeRateAction(
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const admin = await requireAdmin("/admin/commerce");
+  if (process.env.PAYHERE_USD_APPROVED !== "true")
+    return {
+      status: "error",
+      message:
+        "PayHere USD capability must be approved in server configuration first.",
+    };
+  const parsed = exchangeRateSchema.safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Check the exchange rate.",
+    };
+  const fields = {
+    source_currency: "AED",
+    target_currency: "USD",
+    rate: parsed.data.rate,
+    effective_from: new Date(parsed.data.effective_from).toISOString(),
+    expires_at: new Date(parsed.data.expires_at).toISOString(),
+    active: true,
+    rate_source: "admin-approved",
+    updated_by: admin.userId,
+    updated_at: new Date().toISOString(),
+  };
+  const saved = parsed.data.id
+    ? await getSupabaseAdminClient()
+        .from("exchange_rates")
+        .update(fields)
+        .eq("id", parsed.data.id)
+        .eq("source_currency", "AED")
+        .eq("target_currency", "USD")
+        .select("id")
+        .maybeSingle()
+    : await getSupabaseAdminClient()
+        .from("exchange_rates")
+        .insert(fields)
+        .select("id")
+        .maybeSingle();
+  if (saved.error || !saved.data) {
+    logSupabaseError("admin-commerce", "save-aed-usd-rate", saved.error, {
+      route: "/admin/commerce",
+      table: "exchange_rates",
+      userId: admin.userId,
+    });
+    return {
+      status: "error",
+      message: "Unable to save the approved AED to USD rate.",
+    };
+  }
+  revalidatePath("/admin/commerce");
+  revalidatePath("/checkout");
+  return { status: "success", message: "AED to USD rate saved." };
 }
 
 export async function createShippingZoneAction(

@@ -70,7 +70,7 @@ export const founderStory = {
     description:
       "Fazeena expanded YARA into beauty, fashion, and international trading.",
     items: [
-      { initials: "YP", name: "YARA Production", category: "Ayurvedic Skincare" },
+      { initials: "YP", name: "YARA Productions", category: "Ayurvedic Skincare" },
       { initials: "YA", name: "YARA Arabian", category: "Luxury Clothing" },
       { initials: "YI", name: "YARA International Trading", category: "Sri Lanka" },
       { initials: "YG", name: "YARA Global Trading", category: "Dubai" },

@@ -28,9 +28,12 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 SUPABASE_SECRET_KEY=sb_secret_your_key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
+PAYMENTS_ENABLED=false
 PAYHERE_MERCHANT_ID=your_merchant_id
 PAYHERE_MERCHANT_SECRET=your_merchant_secret
 PAYHERE_SANDBOX=true
+PAYHERE_USD_APPROVED=false
+PAYHERE_AED_APPROVED=false
 
 # Optional storefront overrides
 NEXT_PUBLIC_WHATSAPP_NUMBER_SRI_LANKA=94741266855
@@ -62,9 +65,21 @@ The migrations include Data API grants, RLS, Storage policies, role enforcement,
 ## PayHere setup
 
 1. Add the merchant ID and merchant secret to local and Vercel environment variables.
-2. Keep `PAYHERE_SANDBOX=true` while testing; set it to `false` only for approved production credentials.
-3. Set `NEXT_PUBLIC_APP_URL` to the canonical HTTPS production origin.
-4. Confirm the merchant account accepts every enabled currency. LKR and AED prices are stored separately and never converted by the app.
+2. Set `PAYMENTS_ENABLED=true` only after PayHere has been verified in its sandbox.
+3. Keep `PAYHERE_SANDBOX=true` while testing; set it to `false` only for approved production credentials.
+4. Set `NEXT_PUBLIC_APP_URL` to the canonical HTTPS production origin. PayHere posts verified notifications to `/api/payhere/notify`.
+5. Confirm the merchant account accepts LKR. UAE card checkout remains disabled until a verified AED-capable provider adapter is implemented.
+
+Koko and MintPay remain visibly unavailable until their official checkout and
+server-verification adapters are implemented and verified. Do not add merchant
+secrets to public environment variables.
+
+For UAE PayHere checkout, obtain written confirmation that the merchant can
+accept USD, set `PAYHERE_USD_APPROVED=true`, and configure a current AED-to-USD
+rate in Admin Commerce. The commercial order remains in AED while the payment
+attempt locks the disclosed USD charge. `PAYHERE_AED_APPROVED` is documented as
+a capability record only; this implementation never submits AED or INR to
+PayHere.
 
 ## Commands
 
