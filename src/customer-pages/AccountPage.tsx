@@ -10,6 +10,8 @@ import {
   Trash2,
   UserRound,
   X,
+  ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -29,6 +31,17 @@ type Order = {
   currency: string;
   created_at: string;
   delivered_at: string | null;
+  payment_method: string;
+  country: string;
+  region_code: string | null;
+  customer_phone: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_postal_code: string;
+  courier_name: string;
+  tracking_number: string;
+  tracking_url: string;
+  bank_transaction_reference?: string | null;
   order_items: Array<{
     id: string;
     quantity: number;
@@ -68,6 +81,7 @@ type AccountState = {
   deletionRequests: DeletionRequest[];
   error: string;
 };
+type OrderDetail = { order: Order; items: Array<{ id: string; quantity: number; unit_price: number; subtotal: number; products: { name: string; image_url: string | null } | null }>; events: Array<{ id: string; from_status: string | null; to_status: string; payment_status: string | null; created_at: string }>; bank: { account_holder_name: string | null; bank_name: string | null; branch_name: string | null; account_number: string | null; instructions: string | null } | null };
 const emptyState: AccountState = {
   loading: true,
   userId: "",
@@ -87,6 +101,9 @@ export function AccountPage() {
   const [returning, setReturning] = useState<Order | null>(null);
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [details, setDetails] = useState<Record<string, OrderDetail>>({});
+  const [detailsBusy, setDetailsBusy] = useState<string | null>(null);
+  const [claimBusy, setClaimBusy] = useState(false);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -113,7 +130,7 @@ export function AccountPage() {
       client
         .from("orders")
         .select(
-          "id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,payment_fee,discount_amount,currency,created_at,delivered_at,order_items(id,quantity,returned_quantity,refunded_quantity,products(name)),return_requests(id,status)",
+          "id,order_number,order_status,payment_status,total_amount,subtotal_amount,shipping_fee,payment_fee,discount_amount,currency,created_at,delivered_at,payment_method,country,region_code,customer_phone,shipping_address,shipping_city,shipping_postal_code,courier_name,tracking_number,tracking_url,bank_transaction_reference,order_items(id,quantity,returned_quantity,refunded_quantity,products(name,image_url)),return_requests(id,status)",
         )
         .eq("customer_user_id", auth.user.id)
         .order("created_at", { ascending: false })
@@ -131,6 +148,7 @@ export function AccountPage() {
         .in("status", ["pending", "processing"])
         .order("requested_at", { ascending: false }),
     ]);
+    const loadError = profile.error || orders.error || addresses.error || deletionRequests.error;
     setState({
       loading: false,
       userId: auth.user.id,
@@ -141,19 +159,41 @@ export function AccountPage() {
       orders: (orders.data ?? []) as Order[],
       addresses: (addresses.data ?? []) as Address[],
       deletionRequests: (deletionRequests.data ?? []) as DeletionRequest[],
-      error:
-        profile.error ||
-        orders.error ||
-        addresses.error ||
-        deletionRequests.error
-          ? "Some account information could not be loaded."
-          : "",
+      error: loadError ? "We couldn’t load your orders. Please refresh and try again." : "",
     });
   };
 
   useEffect(() => {
     void load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleOrder = async (orderId: string) => {
+    if (details[orderId]) {
+      setDetails((value) => { const next = { ...value }; delete next[orderId]; return next; });
+      return;
+    }
+    setDetailsBusy(orderId);
+    const response = await fetch(`/api/account/orders/${orderId}`, { cache: "no-store" });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.order) setMessage("We couldn’t load this order. Please try again.");
+    else setDetails((value) => ({ ...value, [orderId]: body as OrderDetail }));
+    setDetailsBusy(null);
+  };
+
+  const claimGuestOrders = async () => {
+    setClaimBusy(true);
+    setMessage("");
+    const response = await fetch("/api/account/orders/claim", { method: "POST" });
+    const body = await response.json().catch(() => null);
+    setMessage(response.ok ? (body?.claimed ? `${body.claimed} eligible order${body.claimed === 1 ? "" : "s"} linked to your account.` : "No eligible guest orders were found.") : (body?.error ?? "We couldn’t link guest orders."));
+    if (response.ok && body?.claimed) await load();
+    setClaimBusy(false);
+  };
+
+  const statusLabel = (value: string, kind: "order" | "payment") => {
+    const labels: Record<string, string> = { pending: "Awaiting Payment", pending_payment: "Awaiting Payment", awaiting_bank_transfer: "Awaiting Payment", awaiting_bank_verification: "Awaiting Payment", confirmed: "Confirmed", paid: "Paid", processing: "Processing", packed: "Packed", shipped: "Shipped", out_for_delivery: "Out for Delivery", delivered: "Delivered", cancelled: "Cancelled", refunded: "Refunded", payment_due_on_delivery: "Unpaid", unpaid: "Unpaid", failed: "Failed", partially_refunded: "Partially Refunded" };
+    return labels[value] ?? (kind === "order" ? value.replaceAll("_", " ") : value.replaceAll("_", " "));
+  };
 
   const signOut = async () => {
     await getSupabaseBrowserClient()?.auth.signOut();
@@ -519,16 +559,15 @@ export function AccountPage() {
         </section>
       </div>
       <section className="surface-card mt-6 p-6 sm:p-8">
-        <Package className="h-6 w-6 text-yara-wine" />
-        <h2 className="mt-4 text-2xl">Order history</h2>
-        {state.orders.length ? (
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><Package className="h-6 w-6 text-yara-wine" /><h2 className="mt-4 text-2xl">Order history</h2><p className="mt-2 text-sm text-yara-taupe">Live order and payment information from YARA.</p></div><div className="flex gap-2"><button type="button" onClick={claimGuestOrders} disabled={claimBusy} className="btn-secondary"><RefreshCw className={`h-4 w-4 ${claimBusy ? "animate-spin" : ""}`} />{claimBusy ? "Checking…" : "Find guest orders"}</button><button type="button" onClick={() => void load()} className="glass-icon h-11 w-11" aria-label="Refresh orders"><RefreshCw className="h-4 w-4" /></button></div></div>
+        {state.error ? <div className="mt-6 rounded-2xl bg-amber-50 p-5 text-sm text-amber-900"><p>{state.error}</p><button type="button" onClick={() => void load()} className="mt-3 font-semibold underline">Try again</button></div> : state.orders.length ? (
           <div className="mt-5 grid gap-3">
             {state.orders.map((order) => (
               <article
                 key={order.id}
-                className="rounded-2xl border border-yara-rose p-4"
+                className="overflow-hidden rounded-2xl border border-yara-rose"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div role="button" tabIndex={0} onClick={() => void toggleOrder(order.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") void toggleOrder(order.id); }} className="w-full cursor-pointer p-4 text-left sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="font-mono text-xs font-bold text-yara-wine">
                       {order.order_number}
@@ -563,13 +602,7 @@ export function AccountPage() {
                     </span>
                   )}
                 </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="rounded-full bg-yara-rose px-3 py-1 capitalize">
-                    {order.order_status.replaceAll("_", " ")}
-                  </span>
-                  <span className="rounded-full bg-yara-blush px-3 py-1 capitalize">
-                    {order.payment_status.replaceAll("_", " ")}
-                  </span>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-yara-rose px-3 py-1">{statusLabel(order.order_status, "order")}</span><span className="rounded-full bg-yara-blush px-3 py-1">{statusLabel(order.payment_status, "payment")}</span><span className="ml-auto inline-flex items-center gap-1 font-semibold text-yara-wine">{detailsBusy === order.id ? "Loading…" : details[order.id] ? "Hide details" : "View details"}<ChevronDown className={`h-4 w-4 transition ${details[order.id] ? "rotate-180" : ""}`} /></span>
                   {order.return_requests?.[0] && (
                     <span className="rounded-full bg-amber-50 px-3 py-1 capitalize text-amber-900">
                       Return:{" "}
@@ -586,7 +619,8 @@ export function AccountPage() {
                         Request return
                       </button>
                     )}
-                </div>
+                </div></div>
+                {details[order.id] && <div className="border-t border-yara-rose bg-yara-ivory/50 p-4 text-sm sm:p-5"><div className="grid gap-3 text-xs text-yara-taupe sm:grid-cols-2 lg:grid-cols-4"><span>Subtotal: {money(order.subtotal_amount, order.currency)}</span><span>Delivery: {order.shipping_fee === 0 ? "Free" : money(order.shipping_fee, order.currency)}</span><span>Discount: {money(order.discount_amount, order.currency)}</span><span>Payment fee: {money(order.payment_fee, order.currency)}</span></div><div className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><div><h3 className="font-semibold text-yara-ink">Items</h3><div className="mt-3 grid gap-3">{details[order.id].items.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl bg-white p-3"><div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-yara-blush">{item.products?.image_url && <img src={item.products.image_url} alt="" className="h-full w-full object-cover" />}</div><div className="min-w-0 flex-1"><p className="truncate font-medium">{item.products?.name ?? "Product"}</p><p className="text-xs text-yara-taupe">Qty {item.quantity} · {money(item.unit_price, order.currency)} each</p></div><p className="font-semibold">{money(item.subtotal, order.currency)}</p></div>)}</div></div><div><h3 className="font-semibold text-yara-ink">Delivery &amp; payment</h3><p className="mt-3 leading-6 text-yara-taupe">{order.shipping_address}, {order.shipping_city} {order.shipping_postal_code}</p><p className="mt-2 capitalize text-yara-taupe">{order.payment_method.replaceAll("_", " ")} · {order.currency}</p>{order.payment_method === "cash_on_delivery" && order.payment_status !== "paid" && <p className="mt-3 rounded-xl bg-yara-blush p-3 text-xs">Pay the full amount when your order is delivered.</p>}{order.payment_method === "bank_transfer" && order.payment_status !== "paid" && details[order.id].bank && <div className="mt-3 rounded-xl bg-yara-blush p-3 text-xs leading-5"><p className="font-semibold text-yara-ink">Bank transfer instructions</p><p className="mt-1">{details[order.id].bank?.bank_name}, {details[order.id].bank?.branch_name}<br />{details[order.id].bank?.account_holder_name}<br />Account: {details[order.id].bank?.account_number}<br />Pay exactly {money(order.total_amount, order.currency)} using {order.order_number} as the reference.</p>{order.bank_transaction_reference && <p className="mt-1">Transaction reference: {order.bank_transaction_reference}</p>}</div>}{order.payment_status === "paid" && order.payment_method === "bank_transfer" && <p className="mt-3 rounded-xl bg-green-50 p-3 text-xs text-green-900">Payment confirmed.</p>}</div></div><div className="mt-5"><h3 className="font-semibold text-yara-ink">Status timeline</h3><div className="mt-3 grid gap-2">{details[order.id].events.length ? details[order.id].events.map((event) => <div key={event.id} className="flex gap-3 text-xs"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-yara-wine" /><p><span className="font-semibold">{statusLabel(event.to_status, "order")}</span><span className="ml-2 text-yara-taupe">{new Date(event.created_at).toLocaleString()}</span></p></div>) : <div className="flex gap-3 text-xs"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-yara-wine" /><p><span className="font-semibold">Order placed</span><span className="ml-2 text-yara-taupe">{new Date(order.created_at).toLocaleString()}</span></p></div>}</div></div>{order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center font-semibold text-yara-wine underline">Track shipment</a>}</div>}
               </article>
             ))}
           </div>
