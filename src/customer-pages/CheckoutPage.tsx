@@ -517,8 +517,7 @@ export function CheckoutPage() {
               )}
             {selectedPayment?.method === "cash_on_delivery" && (
               <p className="mt-5 rounded-2xl bg-yara-blush p-4 text-sm leading-6 text-yara-wine">
-                Your order has been confirmed. Please pay the full amount when
-                your order is delivered.
+                Pay the full amount when your order is delivered.
               </p>
             )}
           </section>

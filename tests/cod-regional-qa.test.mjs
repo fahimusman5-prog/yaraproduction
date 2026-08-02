@@ -110,6 +110,15 @@ test("checkout has accessible responsive controls and submission protection", as
   assert.match(methods, /Confirm Cash on Delivery Order/i);
 });
 
+test("COD pre-submit helper does not claim an order is already confirmed", async () => {
+  const page = await read("../src/customer-pages/CheckoutPage.tsx");
+  assert.match(page, /Pay the full amount when your order is delivered/);
+  assert.doesNotMatch(
+    page,
+    /Your order has been confirmed\. Please pay the full amount when[\s\S]*your order is delivered/,
+  );
+});
+
 test("root brand metadata and fallback states consistently use YARA", async () => {
   const [layout, founder, missing, loading, error, social, icon] =
     await Promise.all([
