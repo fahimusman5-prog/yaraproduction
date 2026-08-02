@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CustomerStorefront } from "@/modules/storefront/CustomerStorefront";
 import { getActiveSkinConcernBySlug } from "@/lib/skin-concerns";
+import { localizedAlternates } from "@/lib/seo";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: `${concern.name} Skincare | YARA`,
     description: concern.description || `Shop YARA products selected for ${concern.name}.`,
-    alternates: { canonical: `https://yaraproduct.com/en/skin-concerns/${concern.slug}` },
+    alternates: localizedAlternates(`/en/skin-concerns/${concern.slug}`),
   };
 }
 

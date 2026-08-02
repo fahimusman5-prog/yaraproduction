@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CustomerStorefront } from "@/modules/storefront/CustomerStorefront";
 import { getActiveSkinConcernBySlug } from "@/lib/skin-concerns";
 import { isLocale } from "@/lib/locales";
+import { localizedAlternates, SITE_ORIGIN } from "@/lib/seo";
 
 type PageProps = { params: Promise<{ locale: string; slug: string }> };
 
@@ -20,8 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${concern.name} Skincare | YARA`,
     description,
     alternates: {
-      canonical: `https://yaraproduct.com/${locale}/skin-concerns/${concern.slug}`,
-      languages: Object.fromEntries(["en", "si", "ta", "ar"].map((language) => [language, `https://yaraproduct.com/${language}/skin-concerns/${concern.slug}`])),
+      ...localizedAlternates(`/${locale}/skin-concerns/${concern.slug}`),
     },
   };
 }
