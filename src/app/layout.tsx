@@ -4,10 +4,9 @@ import "../index.css";
 import "./staff.css";
 
 export const metadata: Metadata = {
-  title: { default: "YARA Productions | Premium Skincare in Sri Lanka & UAE", template: "%s | YARA Productions" },
+  title: "YARA Productions | Premium Skincare in Sri Lanka & UAE",
   description: "Shop premium YARA Productions skincare, beauty and herbal products in Sri Lanka and the UAE. Explore face care, body care, hair care and bestselling beauty essentials.",
   metadataBase: new URL(SITE_ORIGIN),
-  alternates: { canonical: "/en" },
   openGraph: { type: "website", siteName: SITE_NAME, title: "YARA Productions | Premium Skincare in Sri Lanka & UAE", description: "Shop premium YARA Productions skincare, beauty and herbal products in Sri Lanka and the UAE.", url: `${SITE_ORIGIN}/en`, images: [{ url: `${SITE_ORIGIN}/opengraph-image`, alt: "YARA Productions skincare" }] },
   twitter: { card: "summary_large_image", title: "YARA Productions | Premium Skincare in Sri Lanka & UAE", description: "Shop premium YARA Productions skincare, beauty and herbal products in Sri Lanka and the UAE.", images: [`${SITE_ORIGIN}/opengraph-image`] },
   icons: {

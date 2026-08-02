@@ -19,9 +19,16 @@ export async function proxy(request: NextRequest) {
   });
 
   await supabase.auth.getClaims();
+
+  const productMatch = request.nextUrl.pathname.match(/^\/(en|si|ta|ar)\/product\/([^/]+)$/);
+  if (request.method === "GET" && productMatch) {
+    const { data, error } = await supabase.from("products").select("id").eq("slug", productMatch[2]).eq("status", "active").maybeSingle();
+    if (!error && !data) return new NextResponse("Not Found", { status: 404, headers: { "x-robots-tag": "noindex" } });
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/pos/:path*"],
+  matcher: ["/admin/:path*", "/pos/:path*", "/:locale/product/:slug"],
 };

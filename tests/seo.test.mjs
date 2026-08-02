@@ -36,8 +36,9 @@ test("product route emits product metadata, regional offers and breadcrumbs with
 });
 
 test("private and missing storefront paths are protected from indexing", async () => {
-  const [page, seo] = await Promise.all([read("../src/app/[[...storefront]]/page.tsx"), read("../src/lib/seo.ts")]);
+  const [page, proxy, seo] = await Promise.all([read("../src/app/[[...storefront]]/page.tsx"), read("../src/proxy.ts"), read("../src/lib/seo.ts")]);
   assert.match(page, /notFound\(\)/);
+  assert.match(proxy, /status: 404/);
   assert.match(page, /privatePages/);
   assert.match(seo, /index: false/);
 });
