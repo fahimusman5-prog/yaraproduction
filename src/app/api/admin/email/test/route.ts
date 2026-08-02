@@ -1,26 +1,42 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  inspectEmailConfiguration,
   getAdminNotificationEmail,
   sendTransactionalEmail,
 } from "@/lib/email";
 import { getStaffContext } from "@/lib/supabase/auth";
+import { consumeRequestRateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
-  destination: z.enum(["self", "admin"]).default("self"),
+  destination: z.enum(["customer", "admin", "self"]).default("customer"),
 });
+
+export async function GET(request: Request) {
+  const staff = await getStaffContext();
+  if (!staff || staff.profile.role !== "admin")
+    return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
+  const rateLimit = await consumeRequestRateLimit(request, "admin-email-diagnostic", 10, 600);
+  if (!rateLimit.allowed)
+    return NextResponse.json({ error: "Email diagnostics are temporarily unavailable." }, { status: 503 });
+  const { diagnostic } = inspectEmailConfiguration(process.env);
+  return NextResponse.json(diagnostic);
+}
 
 export async function POST(request: Request) {
   const staff = await getStaffContext();
   if (!staff || staff.profile.role !== "admin")
     return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
+  const rateLimit = await consumeRequestRateLimit(request, "admin-email-test", 5, 600);
+  if (!rateLimit.allowed)
+    return NextResponse.json({ error: "Email tests are temporarily unavailable." }, { status: 503 });
 
   const parsed = schema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid test destination." }, { status: 400 });
 
   const recipient =
-    parsed.data.destination === "self"
+    parsed.data.destination !== "admin"
       ? staff.email
       : getAdminNotificationEmail();
   if (!recipient)
@@ -30,7 +46,7 @@ export async function POST(request: Request) {
     );
 
   const result = await sendTransactionalEmail({
-    template: "order_processing",
+    template: parsed.data.destination === "admin" ? "new_order_admin" : "new_order_customer",
     recipient,
     dedupeKey: `admin_email_test:${staff.userId}:${crypto.randomUUID()}`,
     subject: "YARA transactional email test",
@@ -50,5 +66,10 @@ export async function POST(request: Request) {
       { error: `Email test was not sent (${result.status}).` },
       { status: 503 },
     );
-  return NextResponse.json({ status: "sent", providerEmailId: result.id });
+  return NextResponse.json({
+    status: "sent",
+    template: parsed.data.destination === "admin" ? "new_order_admin" : "new_order_customer",
+    providerEmailId: result.id,
+    eventId: result.eventId,
+  });
 }

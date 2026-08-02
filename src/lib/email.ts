@@ -9,6 +9,7 @@ import {
   readEmailConfiguration,
   renderEmail,
   renderEmailText,
+  inspectEmailConfiguration,
   type DeliveryAttempt,
   type DeliveryProvider,
   type EmailInput,
@@ -19,10 +20,12 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
 
+export { inspectEmailConfiguration };
+
 export type { EmailInput, EmailTemplate, OrderEmailData };
 
 type SendResult =
-  | { status: "sent"; id: string }
+  | { status: "sent"; id: string; eventId: string }
   | { status: "duplicate" | "unconfigured" | "invalid_recipient" | "failed" };
 
 function createResendProvider(apiKey: string): DeliveryProvider {
@@ -190,7 +193,7 @@ export async function sendTransactionalEmail(
       },
     });
     if (outcome.status === "sent")
-      return { status: "sent", id: outcome.id };
+      return { status: "sent", id: outcome.id, eventId };
     console.error(
       `[transactional-email] Delivery failed (${outcome.category}); event ${eventId}.`,
     );
@@ -233,13 +236,7 @@ export async function sendOrderTransactionalEmail(input: {
 }
 
 export function getAdminNotificationEmail() {
-  const email = normalizeEmail(
-    process.env.ADMIN_NOTIFICATION_EMAIL?.replace(
-      /^ADMIN_NOTIFICATION_EMAIL\\s*=\\s*/i,
-      "",
-    ) ?? "",
-  );
-  return isValidEmail(email) ? email : null;
+  return inspectEmailConfiguration(process.env).diagnostic.adminRecipient ?? null;
 }
 
 async function loadOrderEmailData(

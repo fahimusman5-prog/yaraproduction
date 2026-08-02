@@ -63,6 +63,46 @@ export type EmailConfiguration = {
   adminNotificationEmail: string;
 };
 
+export type EmailConfigurationDiagnostic = {
+  emailFromPresent: boolean;
+  emailFromRawLength: number;
+  emailFromTrimmedLength: number;
+  emailFromHasAssignmentPrefix: boolean;
+  emailFromStartsWithQuote: boolean;
+  emailFromEndsWithQuote: boolean;
+  emailFromHasNewline: boolean;
+  emailFromHasCarriageReturn: boolean;
+  emailFromHasAngleBrackets: boolean;
+  emailFromHasEquals: boolean;
+  emailFromValid: boolean;
+  emailFromFormat: "plain" | "display_name" | "invalid";
+  emailFromFailureCategory?:
+    | "missing_sender"
+    | "malformed_assignment"
+    | "unmatched_quotes"
+    | "newline_detected"
+    | "malformed_display_name"
+    | "invalid_mailbox"
+    | "invalid_domain";
+  senderDomain?: string;
+  canonicalSender?: string;
+  resendKeyPresent: boolean;
+  resendKeyRawLength: number;
+  resendKeyTrimmedLength: number;
+  resendKeyHasAssignmentPrefix: boolean;
+  resendKeyStartsWithQuote: boolean;
+  resendKeyEndsWithQuote: boolean;
+  resendKeyHasNewline: boolean;
+  resendKeyPrefixValid: boolean;
+  adminRecipientPresent: boolean;
+  adminRecipientValid: boolean;
+  adminRecipientHasAssignmentPrefix: boolean;
+  adminRecipient?: string;
+  replyToValid: boolean;
+  providerReady: boolean;
+  issues: string[];
+};
+
 export type ProviderFailureCategory =
   | "invalid_recipient"
   | "invalid_sender"
@@ -100,10 +140,33 @@ export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
-function normalizeConfiguredValue(value: string | undefined, key: string) {
+function configurationValue(value: string | undefined, key: string) {
   const trimmed = value?.trim() ?? "";
   const assignment = trimmed.match(new RegExp(`^${key}\\s*=\\s*`, "i"));
-  return assignment ? trimmed.slice(assignment[0].length).trim() : trimmed;
+  const withoutAssignment = assignment
+    ? trimmed.slice(assignment[0].length).trim()
+    : trimmed;
+  const startsWithQuote = withoutAssignment.startsWith("\"") || withoutAssignment.startsWith("'");
+  const endsWithQuote = withoutAssignment.endsWith("\"") || withoutAssignment.endsWith("'");
+  const matchingQuotes =
+    withoutAssignment.length >= 2 &&
+    ((withoutAssignment.startsWith("\"") && withoutAssignment.endsWith("\"")) ||
+      (withoutAssignment.startsWith("'") && withoutAssignment.endsWith("'")));
+  return {
+    raw: value ?? "",
+    trimmed,
+    value: matchingQuotes
+      ? withoutAssignment.slice(1, -1).trim()
+      : withoutAssignment,
+    hasAssignmentPrefix: Boolean(assignment),
+    startsWithQuote,
+    endsWithQuote,
+    hasUnmatchedQuotes: startsWithQuote !== endsWithQuote,
+    hasNewline: /\n/.test(withoutAssignment),
+    hasCarriageReturn: /\r/.test(withoutAssignment),
+    hasAngleBrackets: /[<>]/.test(withoutAssignment),
+    hasEquals: withoutAssignment.includes("="),
+  };
 }
 
 export function isValidEmail(value: string) {
@@ -112,43 +175,110 @@ export function isValidEmail(value: string) {
 }
 
 export function isValidSender(value: string) {
-  const trimmed = value.trim();
-  if (isValidEmail(trimmed)) return true;
-  const match = trimmed.match(senderPattern);
-  return Boolean(match && match[1]?.trim() && isValidEmail(match[2]));
+  return parseSender(value).valid;
+}
+
+function parseSender(value: string) {
+  const parsed = configurationValue(value, "EMAIL_FROM");
+  if (!parsed.value) return { valid: false, category: "missing_sender" as const };
+  if (parsed.hasNewline || parsed.hasCarriageReturn)
+    return { valid: false, category: "newline_detected" as const };
+  if (parsed.hasUnmatchedQuotes)
+    return { valid: false, category: "unmatched_quotes" as const };
+  if (isValidEmail(parsed.value)) {
+    return {
+      valid: true,
+      format: "plain" as const,
+      mailbox: normalizeEmail(parsed.value),
+      domain: normalizeEmail(parsed.value).split("@")[1],
+      canonical: normalizeEmail(parsed.value),
+    };
+  }
+  const match = parsed.value.match(senderPattern);
+  if (!match || !match[1]?.trim())
+    return {
+      valid: false,
+      category: parsed.value.includes("@") ? "invalid_mailbox" as const : "malformed_display_name" as const,
+    };
+  const mailbox = normalizeEmail(match[2]);
+  if (!isValidEmail(mailbox))
+    return { valid: false, category: "invalid_mailbox" as const };
+  return {
+    valid: true,
+    format: "display_name" as const,
+    mailbox,
+    domain: mailbox.split("@")[1],
+    canonical: `${match[1].trim()} <${mailbox}>`,
+  };
+}
+
+function safeMaskedSender(value: string | undefined) {
+  const parsed = parseSender(value ?? "");
+  if (!parsed.valid || !parsed.mailbox) return undefined;
+  const [local, domain] = parsed.mailbox.split("@");
+  return `${parsed.format === "display_name" ? "Y*** P*** " : ""}<${local[0] ?? "*"}***@${domain}>`;
+}
+
+export function inspectEmailConfiguration(
+  environment: NodeJS.ProcessEnv,
+): { diagnostic: EmailConfigurationDiagnostic; config: EmailConfiguration | null } {
+  const from = configurationValue(environment.EMAIL_FROM, "EMAIL_FROM");
+  const sender = parseSender(environment.EMAIL_FROM ?? "");
+  const apiKey = configurationValue(environment.RESEND_API_KEY, "RESEND_API_KEY");
+  const replyTo = configurationValue(environment.EMAIL_REPLY_TO, "EMAIL_REPLY_TO");
+  const admin = configurationValue(environment.ADMIN_NOTIFICATION_EMAIL, "ADMIN_NOTIFICATION_EMAIL");
+  const adminRecipient = normalizeEmail(admin.value);
+  const issues: string[] = [];
+  if (!apiKey.value) issues.push("RESEND_API_KEY is missing.");
+  else if (!apiKey.value.startsWith("re_")) issues.push("RESEND_API_KEY has an invalid prefix.");
+  if (!sender.valid) issues.push(`EMAIL_FROM is invalid (${sender.category}).`);
+  if (!replyTo.value || !isValidEmail(normalizeEmail(replyTo.value))) issues.push("EMAIL_REPLY_TO is invalid.");
+  if (!adminRecipient || !isValidEmail(adminRecipient)) issues.push("ADMIN_NOTIFICATION_EMAIL is invalid.");
+  const config = issues.length === 0
+    ? { apiKey: apiKey.value, from: sender.canonical!, replyTo: normalizeEmail(replyTo.value), adminNotificationEmail: adminRecipient }
+    : null;
+  return {
+    config,
+    diagnostic: {
+      emailFromPresent: Boolean(from.raw),
+      emailFromRawLength: from.raw.length,
+      emailFromTrimmedLength: from.trimmed.length,
+      emailFromHasAssignmentPrefix: from.hasAssignmentPrefix,
+      emailFromStartsWithQuote: from.startsWithQuote,
+      emailFromEndsWithQuote: from.endsWithQuote,
+      emailFromHasNewline: from.hasNewline,
+      emailFromHasCarriageReturn: from.hasCarriageReturn,
+      emailFromHasAngleBrackets: from.hasAngleBrackets,
+      emailFromHasEquals: from.hasEquals,
+      emailFromValid: sender.valid,
+      emailFromFormat: sender.valid ? sender.format! : "invalid",
+      emailFromFailureCategory: sender.valid ? undefined : sender.category,
+      senderDomain: sender.domain,
+      canonicalSender: safeMaskedSender(environment.EMAIL_FROM),
+      resendKeyPresent: Boolean(apiKey.raw),
+      resendKeyRawLength: apiKey.raw.length,
+      resendKeyTrimmedLength: apiKey.trimmed.length,
+      resendKeyHasAssignmentPrefix: apiKey.hasAssignmentPrefix,
+      resendKeyStartsWithQuote: apiKey.startsWithQuote,
+      resendKeyEndsWithQuote: apiKey.endsWithQuote,
+      resendKeyHasNewline: apiKey.hasNewline || apiKey.hasCarriageReturn,
+      resendKeyPrefixValid: apiKey.value.startsWith("re_"),
+      adminRecipientPresent: Boolean(admin.raw),
+      adminRecipientValid: Boolean(adminRecipient && isValidEmail(adminRecipient)),
+      adminRecipientHasAssignmentPrefix: admin.hasAssignmentPrefix,
+      adminRecipient: adminRecipient && isValidEmail(adminRecipient) ? adminRecipient : undefined,
+      replyToValid: Boolean(replyTo.value && isValidEmail(normalizeEmail(replyTo.value))),
+      providerReady: issues.length === 0,
+      issues,
+    },
+  };
 }
 
 export function readEmailConfiguration(
   environment: NodeJS.ProcessEnv,
 ): { config: EmailConfiguration | null; issues: string[] } {
-  const apiKey = normalizeConfiguredValue(environment.RESEND_API_KEY, "RESEND_API_KEY");
-  const from = normalizeConfiguredValue(environment.EMAIL_FROM, "EMAIL_FROM");
-  const replyTo = normalizeEmail(
-    normalizeConfiguredValue(environment.EMAIL_REPLY_TO, "EMAIL_REPLY_TO"),
-  );
-  const adminNotificationEmail = normalizeEmail(
-    normalizeConfiguredValue(
-      environment.ADMIN_NOTIFICATION_EMAIL,
-      "ADMIN_NOTIFICATION_EMAIL",
-    ),
-  );
-  const issues: string[] = [];
-  if (!apiKey) issues.push("RESEND_API_KEY is missing.");
-  if (!from) issues.push("EMAIL_FROM is missing.");
-  else if (!isValidSender(from)) issues.push("EMAIL_FROM is invalid.");
-  if (!replyTo) issues.push("EMAIL_REPLY_TO is missing.");
-  else if (!isValidEmail(replyTo)) issues.push("EMAIL_REPLY_TO is invalid.");
-  if (!adminNotificationEmail)
-    issues.push("ADMIN_NOTIFICATION_EMAIL is missing.");
-  else if (!isValidEmail(adminNotificationEmail))
-    issues.push("ADMIN_NOTIFICATION_EMAIL is invalid.");
-  return {
-    config:
-      issues.length === 0
-        ? { apiKey, from, replyTo, adminNotificationEmail }
-        : null,
-    issues,
-  };
+  const inspected = inspectEmailConfiguration(environment);
+  return { config: inspected.config, issues: inspected.diagnostic.issues };
 }
 
 export function classifyProviderFailure(error: unknown): {

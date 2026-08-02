@@ -7,6 +7,7 @@ import {
   isValidEmail,
   isValidSender,
   readEmailConfiguration,
+  inspectEmailConfiguration,
   renderEmail,
 } from "../src/lib/email-core.ts";
 
@@ -24,13 +25,13 @@ test("email configuration requires every server-side Resend variable", () => {
   assert.equal(missing.config, null);
   assert.deepEqual(missing.issues, [
     "RESEND_API_KEY is missing.",
-    "EMAIL_FROM is missing.",
-    "EMAIL_REPLY_TO is missing.",
-    "ADMIN_NOTIFICATION_EMAIL is missing.",
+    "EMAIL_FROM is invalid (missing_sender).",
+    "EMAIL_REPLY_TO is invalid.",
+    "ADMIN_NOTIFICATION_EMAIL is invalid.",
   ]);
 
   const configured = readEmailConfiguration({
-    RESEND_API_KEY: "test-only-key",
+    RESEND_API_KEY: "re_test-only-key",
     EMAIL_FROM: message.from,
     EMAIL_REPLY_TO: message.replyTo,
     ADMIN_NOTIFICATION_EMAIL: "admin@yaraproduct.com",
@@ -49,6 +50,21 @@ test("email configuration trims accidental assignment prefixes before validating
   assert.ok(configured.config);
   assert.equal(configured.config.from, "YARA Productions <orders@yaraproduct.com>");
   assert.equal(configured.config.adminNotificationEmail, "yaraproductweb@gmail.com");
+});
+
+test("email diagnostic reports safe sender shape without exposing secrets", () => {
+  const { diagnostic } = inspectEmailConfiguration({
+    RESEND_API_KEY: "re_test-only-key",
+    EMAIL_FROM: 'EMAIL_FROM="YARA Productions <orders@yaraproduct.com>"',
+    EMAIL_REPLY_TO: "care@yaraproduct.com",
+    ADMIN_NOTIFICATION_EMAIL: "admin_notification_email=yaraproductweb@gmail.com",
+  });
+  assert.equal(diagnostic.emailFromValid, true);
+  assert.equal(diagnostic.emailFromFormat, "display_name");
+  assert.equal(diagnostic.senderDomain, "yaraproduct.com");
+  assert.equal(diagnostic.canonicalSender, "Y*** P*** <o***@yaraproduct.com>");
+  assert.equal(diagnostic.adminRecipient, "yaraproductweb@gmail.com");
+  assert.equal("re_test-only-key" in diagnostic, false);
 });
 
 test("sender, reply-to and recipient validation rejects unsafe values", () => {
