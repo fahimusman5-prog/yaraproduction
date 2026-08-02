@@ -138,7 +138,7 @@ test("root brand metadata and fallback states consistently use YARA", async () =
       read("../src/app/opengraph-image.tsx"),
       read("../src/app/icon.tsx"),
     ]);
-  assert.match(layout, /YARA \| Luxury Skincare/);
+  assert.match(layout, /YARA Productions \| Premium Skincare/);
   assert.match(founder, /YARA Productions/);
   assert.doesNotMatch(founder, /name: "YARA Production"/);
   for (const source of [missing, loading, error, social, icon])
