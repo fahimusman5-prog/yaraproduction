@@ -175,7 +175,27 @@ export async function POST(request: Request) {
     }
     const sessionClient = await getSupabaseServerClient();
     const { data: claimsData } = sessionClient ? await sessionClient.auth.getClaims() : { data: null };
-    const customerUserId = claimsData?.claims?.sub;
+    const sessionUserId = claimsData?.claims?.sub;
+    let customerUserId: string | null = null;
+    if (sessionUserId) {
+      const profileResult = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", sessionUserId)
+        .maybeSingle();
+      if (profileResult.error) {
+        logSupabaseError("storefront-checkout", "resolve-customer-profile", profileResult.error, {
+          route: "/api/checkout",
+          table: "profiles",
+          userId: sessionUserId,
+        });
+        return NextResponse.json(
+          { error: "Unable to verify your customer account. Please try again." },
+          { status: 503 },
+        );
+      }
+      if (profileResult.data?.role === "customer") customerUserId = sessionUserId;
+    }
     const rpc = supabase.rpc.bind(supabase) as unknown as (
       name: string,
       args: Record<string, unknown>,
@@ -207,6 +227,8 @@ export async function POST(request: Request) {
       logSupabaseError("storefront-checkout", "create-order", error, {
         route: "/api/checkout",
         table: "orders",
+        requestId: request.headers.get("x-request-id") ?? undefined,
+        paymentMethod: parsed.data.paymentMethod,
       });
       const response = checkoutErrorResponse(error);
       return NextResponse.json({ error: response.message }, { status: response.status });

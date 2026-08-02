@@ -5,6 +5,8 @@ type SupabaseLikeError = Partial<Pick<PostgrestError, "code" | "message" | "deta
 export type SupabaseLogContext = {
   route?: string;
   table?: string;
+  requestId?: string;
+  paymentMethod?: string;
   userId?: string;
   productId?: string;
   reviewId?: string;
@@ -41,11 +43,16 @@ const safeDatabaseMessages = new Set([
 
 export function logSupabaseError(area: string, action: string, error: unknown, context: SupabaseLogContext = {}) {
   const supabaseError = (error ?? {}) as SupabaseLikeError;
+  const detailText = typeof (supabaseError as Record<string, unknown>)["details"] === "string"
+    ? (supabaseError as Record<string, unknown>)["details"] as string
+    : "";
+  const constraintMatch = detailText.match(/constraint\s+"?([a-zA-Z0-9_]+)"?/i);
   console.error({
     area,
     action,
     ...context,
     supabaseCode: supabaseError.code,
+    supabaseConstraint: constraintMatch?.[1],
     errorType:
       error instanceof Error
         ? error.name

@@ -119,6 +119,14 @@ test("COD pre-submit helper does not claim an order is already confirmed", async
   );
 });
 
+test("checkout links only customer profiles and does not pass staff identities as customers", async () => {
+  const route = await read("../src/app/api/checkout/route.ts");
+  assert.match(route, /\.from\("profiles"\)/);
+  assert.match(route, /\.select\("role"\)/);
+  assert.match(route, /profileResult\.data\?\.role === "customer"/);
+  assert.doesNotMatch(route, /const customerUserId = claimsData\?\.claims\?\.sub/);
+});
+
 test("root brand metadata and fallback states consistently use YARA", async () => {
   const [layout, founder, missing, loading, error, social, icon] =
     await Promise.all([
