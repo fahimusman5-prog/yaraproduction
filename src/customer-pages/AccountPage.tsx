@@ -105,6 +105,7 @@ export function AccountPage() {
   const [detailsBusy, setDetailsBusy] = useState<string | null>(null);
   const [claimBusy, setClaimBusy] = useState(false);
   const navigate = useNavigate();
+  const confirmed = new URLSearchParams(window.location.search).get("confirmed") === "true";
 
   const load = async () => {
     const client = getSupabaseBrowserClient();
@@ -428,6 +429,7 @@ export function AccountPage() {
     );
   return (
     <div className="page-shell py-12 sm:py-20">
+      {confirmed && <p role="status" className="mb-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">Your email has been confirmed.</p>}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow">Your YARA account</p>

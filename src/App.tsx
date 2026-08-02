@@ -1,6 +1,6 @@
 "use client";
 
-import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, HashRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { CartProvider } from "./context/CartContext";
 import { AboutPage } from "./customer-pages/AboutPage";
@@ -11,6 +11,7 @@ import { HomePage } from "./customer-pages/HomePage";
 import { LoginPage } from "./customer-pages/LoginPage";
 import { AccountPage } from "./customer-pages/AccountPage";
 import { ResetPasswordPage } from "./customer-pages/ResetPasswordPage";
+import { ConfirmationPage } from "./customer-pages/ConfirmationPage";
 import { ProductPage } from "./customer-pages/ProductPage";
 import { ShopPage } from "./customer-pages/ShopPage";
 import { SkinConcernPage } from "./customer-pages/SkinConcernPage";
@@ -43,6 +44,7 @@ function CountryGatedSite() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/auth/confirmation-error" element={<ConfirmationPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -76,6 +78,18 @@ function hasLocalePath() {
   return isLocale(window.location.pathname.split("/")[1]);
 }
 
+function AuthErrorFragmentHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const errorCode = params.get("error_code") ?? (params.get("error") === "access_denied" ? "access_denied" : null);
+    if (!errorCode) return;
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    navigate(`/auth/confirmation-error?code=${encodeURIComponent(errorCode)}`, { replace: true });
+  }, [navigate]);
+  return null;
+}
+
 export default function App() {
   const Router = window.location.protocol === "file:" ? HashRouter : BrowserRouter;
   const [locale] = useState(getInitialLocale);
@@ -96,6 +110,7 @@ export default function App() {
     <LocaleProvider locale={locale}>
       <CountryProvider>
         <Router {...routerProps}>
+          <AuthErrorFragmentHandler />
           <AnalyticsTracker />
           <CountryGatedSite />
         </Router>

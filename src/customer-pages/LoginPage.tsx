@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getSupabaseBrowserClient } from "../lib/supabase/browser";
 import { useI18n } from "../i18n";
 import { trackEvent } from "../lib/analytics";
+import { getAuthConfirmUrl, getSiteUrl } from "../lib/site-url";
 
 type Mode = "login" | "register" | "forgot";
 
@@ -31,13 +32,17 @@ export function LoginPage() {
     setMessage(null);
     try {
       if (mode === "forgot") {
-        const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/${locale}/reset-password` });
+        const origin = getSiteUrl();
+        if (!origin) throw new Error("Invalid application URL");
+        const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/${locale}/reset-password` });
         if (error) throw error;
         setMessage({ kind: "success", text: "If an account exists for that email, password-reset instructions have been sent." });
         return;
       }
       if (mode === "register") {
-        const { data: result, error } = await client.auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/${locale}/account` } });
+        const emailRedirectTo = getAuthConfirmUrl();
+        if (!emailRedirectTo) throw new Error("Invalid application URL");
+        const { data: result, error } = await client.auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo } });
         if (error) throw error;
         trackEvent("registration", { locale });
         if (result.session) navigate("/account", { replace: true });
