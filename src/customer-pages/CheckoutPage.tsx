@@ -1,4 +1,4 @@
-import { ArrowRight, Banknote, Copy, CreditCard, Landmark, LoaderCircle, LockKeyhole, MessageCircle, ShieldCheck, Sparkles, Truck, UserRound, WalletCards } from "lucide-react";
+import { ArrowRight, Banknote, Copy, CreditCard, Landmark, LoaderCircle, LockKeyhole, MessageCircle, ShieldCheck, Sparkles, Truck, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
@@ -108,7 +108,7 @@ export function CheckoutPage() {
         if (field && name !== "payment") field.value = value;
       }
       if (
-        ["card", "koko", "mintpay", "bank_transfer", "cash_on_delivery"].includes(
+        ["card", "koko", "bank_transfer", "cash_on_delivery"].includes(
           values.payment,
         )
       )
@@ -404,9 +404,7 @@ export function CheckoutPage() {
                       ? CreditCard
                       : method.method === "koko"
                         ? Sparkles
-                        : method.method === "mintpay"
-                          ? WalletCards
-                          : method.method === "bank_transfer"
+                        : method.method === "bank_transfer"
                             ? Landmark
                             : Banknote;
                   const selectable =

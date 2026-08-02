@@ -124,11 +124,14 @@ export async function POST(request: Request) {
         { error: "Koko is temporarily unavailable. Please select another option." },
         { status: 503 },
       );
+<<<<<<< Updated upstream
     if (parsed.data.paymentMethod === "mintpay")
       return NextResponse.json(
         { error: "MintPay is temporarily unavailable. Please select another option." },
         { status: 503 },
       );
+=======
+>>>>>>> Stashed changes
     const origin = getAppOrigin(request.url);
     if (!origin) {
       console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());

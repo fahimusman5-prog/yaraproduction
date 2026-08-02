@@ -1,6 +1,10 @@
 const placeholderPatterns = ["your-project", "your_key", "sb_secret_your_key", "sb_publishable_your_key"];
 type SupabaseConfig = { url: string; publishableKey: string };
 type SupabaseAdminConfig = { url: string; secretKey: string };
+const productionOrigins = new Set([
+  "https://www.yaraproduct.com",
+  "https://yaraproduct.com",
+]);
 
 function hasPlaceholder(value: string | undefined) {
   return !value || placeholderPatterns.some((pattern) => value.includes(pattern));
@@ -31,10 +35,10 @@ export function getAppUrlIssues() {
     issues.push("NEXT_PUBLIC_APP_URL must be a valid HTTP or HTTPS origin.");
   } else if (new URL(appUrl).pathname !== "/" || new URL(appUrl).search || new URL(appUrl).hash) {
     issues.push("NEXT_PUBLIC_APP_URL must be an origin without a path, query, or hash.");
-  } else if (process.env.VERCEL_ENV === "production" && appUrl !== "https://www.yaraproduct.com") {
-    issues.push("NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com in production.");
-  } else if (appUrl.includes("yaraproduct.com") && appUrl !== "https://www.yaraproduct.com") {
-    issues.push("NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com in production.");
+  } else if (process.env.VERCEL_ENV === "production" && !productionOrigins.has(appUrl)) {
+    issues.push("NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com or https://yaraproduct.com in production.");
+  } else if (appUrl.includes("yaraproduct.com") && !productionOrigins.has(appUrl)) {
+    issues.push("NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com or https://yaraproduct.com in production.");
   }
   return issues;
 }

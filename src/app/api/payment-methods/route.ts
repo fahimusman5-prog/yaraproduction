@@ -66,6 +66,7 @@ export async function GET(request: Request) {
             ? true
             : payHere.usdApproved && uaeUsdReady)
         : method === "koko"
+<<<<<<< Updated upstream
           ? false
           : method === "mintpay"
             ? false
@@ -77,6 +78,15 @@ export async function GET(request: Request) {
                 })
               : true;
     const enabled = providerAvailable;
+=======
+          ? Boolean(
+              process.env.KOKO_MERCHANT_ID?.trim() &&
+                process.env.KOKO_MERCHANT_SECRET?.trim() &&
+                process.env.KOKO_CHECKOUT_URL?.trim(),
+            )
+          : true;
+    const enabled = Boolean(row?.is_enabled);
+>>>>>>> Stashed changes
     return {
       method,
       ...PAYMENT_COPY[method],

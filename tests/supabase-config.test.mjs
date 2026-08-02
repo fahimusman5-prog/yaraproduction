@@ -111,6 +111,12 @@ test("uses only a validated application origin in production", async () => {
     assert.equal(getAppOrigin("https://preview.example.test/checkout"), "https://www.yaraproduct.com");
   });
   await withEnv({
+    NEXT_PUBLIC_APP_URL: "https://yaraproduct.com",
+    VERCEL_ENV: "production",
+  }, () => {
+    assert.equal(getAppOrigin("https://preview.example.test/checkout"), "https://yaraproduct.com");
+  });
+  await withEnv({
     NEXT_PUBLIC_APP_URL: "https://www.yaraproduct.com/checkout",
     VERCEL_ENV: "production",
   }, () => {

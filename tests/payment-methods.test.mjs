@@ -15,7 +15,6 @@ test("payment methods are separate and complete", () => {
   assert.deepEqual(PAYMENT_METHODS, [
     "card",
     "koko",
-    "mintpay",
     "bank_transfer",
     "cash_on_delivery",
   ]);
@@ -101,8 +100,13 @@ test("bank transfer and COD remain unpaid while online methods remain pending", 
 
 test("checkout rejects unavailable installment providers without fake success", async () => {
   const route = await readFile("src/app/api/checkout/route.ts", "utf8");
+<<<<<<< Updated upstream
   assert.match(route, /Koko is temporarily unavailable/);
   assert.match(route, /MintPay is temporarily unavailable/);
+=======
+  assert.match(route, /Koko payment is being activated/);
+  assert.doesNotMatch(route, /MintPay/);
+>>>>>>> Stashed changes
   assert.doesNotMatch(route, /paymentMethod === "koko"[\s\S]{0,200}redirectUrl/);
 });
 

@@ -73,7 +73,20 @@ const deliverySettingSchema = z
 const paymentSettingSchema = z
   .object({
     region_code: z.enum(["LK", "AE"]),
+<<<<<<< Updated upstream
     payment_method: z.literal("bank_transfer"),
+=======
+    payment_method: z.enum([
+      "card",
+      "koko",
+      "bank_transfer",
+      "cash_on_delivery",
+    ]),
+    processing_fee_percent: z.coerce.number().min(0).max(100),
+    minimum_order_amount: optionalNumber,
+    maximum_order_amount: optionalNumber,
+    is_enabled: z.enum(["true"]).optional(),
+>>>>>>> Stashed changes
     account_holder_name: z.string().trim().max(200).default(""),
     bank_name: z.string().trim().max(200).default(""),
     branch_name: z.string().trim().max(200).default(""),

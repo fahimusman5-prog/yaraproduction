@@ -1,7 +1,6 @@
 export const PAYMENT_METHODS = [
   "card",
   "koko",
-  "mintpay",
   "bank_transfer",
   "cash_on_delivery",
 ] as const;
@@ -72,11 +71,14 @@ export const PAYMENT_COPY: Record<
     description: "Pay in instalments with Koko",
     action: "Proceed to Payment",
   },
+<<<<<<< Updated upstream
   mintpay: {
     label: "MintPay",
     description: "Pay in instalments with MintPay",
     action: "Proceed to Payment",
   },
+=======
+>>>>>>> Stashed changes
   bank_transfer: {
     label: "Bank Transfer",
     description: "Transfer directly to our bank account",
