@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
+import { JsonLd, organizationSchema, SITE_NAME, SITE_ORIGIN, websiteSchema } from "@/lib/seo";
 import "../index.css";
 import "./staff.css";
 
 export const metadata: Metadata = {
-  title: "YARA | Luxury Skincare",
-  description: "YARA luxury skincare, commerce administration, and point of sale.",
-  metadataBase: new URL("https://www.yaraproduct.com"),
+  title: { default: "YARA Productions | Premium Skincare in Sri Lanka & UAE", template: "%s | YARA Productions" },
+  description: "Shop premium YARA Productions skincare, beauty and herbal products in Sri Lanka and the UAE. Explore face care, body care, hair care and bestselling beauty essentials.",
+  metadataBase: new URL(SITE_ORIGIN),
   alternates: { canonical: "/en" },
-  openGraph: {
-    type: "website",
-    siteName: "YARA",
-    title: "YARA | Luxury Skincare",
-    description: "Discover YARA luxury skincare.",
-    url: "https://www.yaraproduct.com/en",
-  },
-  twitter: { card: "summary_large_image", title: "YARA | Luxury Skincare", description: "Discover YARA luxury skincare." },
+  openGraph: { type: "website", siteName: SITE_NAME, title: "YARA Productions | Premium Skincare in Sri Lanka & UAE", description: "Shop premium YARA Productions skincare, beauty and herbal products in Sri Lanka and the UAE.", url: `${SITE_ORIGIN}/en`, images: [{ url: `${SITE_ORIGIN}/opengraph-image`, alt: "YARA Productions skincare" }] },
+  twitter: { card: "summary_large_image", title: "YARA Productions | Premium Skincare in Sri Lanka & UAE", description: "Shop premium YARA Productions skincare, beauty and herbal products in Sri Lanka and the UAE.", images: [`${SITE_ORIGIN}/opengraph-image`] },
   icons: {
     icon: "/icon",
     apple: "/icon",
@@ -23,9 +18,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+  return <html lang="en"><body><JsonLd data={organizationSchema()} /><JsonLd data={websiteSchema()} />{children}</body></html>;
 }

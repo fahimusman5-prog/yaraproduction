@@ -176,8 +176,8 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/70 bg-yara-ivory/85 shadow-[0_8px_30px_rgba(86,45,56,0.06)] backdrop-blur-xl">
       <div className="mobile-header-shell page-shell grid h-[72px] grid-cols-[auto_1fr_auto] items-center gap-3 lg:h-[82px]">
-        <Link to="/" className="mobile-header-logo h-14 w-20 shrink-0 overflow-hidden" aria-label="YARA">
-          <img src={yaraLogo.src} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
+          <Link to="/" className="mobile-header-logo h-14 w-20 shrink-0 overflow-hidden" aria-label="YARA Productions">
+            <img src={yaraLogo.src} alt="YARA Productions official logo" className="h-full w-full scale-[1.6] object-contain" />
         </Link>
 
         <nav className="hidden items-center justify-center gap-7 lg:flex xl:gap-9" aria-label={t("nav.mainNavigation")}>
@@ -254,8 +254,8 @@ function Footer() {
     <footer className="mt-20 rounded-t-[2.5rem] bg-[#fde8ee] pt-14 sm:mt-28 sm:pt-16">
       <div className="page-shell grid gap-10 pb-14 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
         <div>
-          <Link to="/" className="inline-block h-28 w-36 overflow-hidden" aria-label="YARA">
-            <img src={yaraLogo.src} alt="YARA official logo" className="h-full w-full scale-[1.6] object-contain" />
+          <Link to="/" className="inline-block h-28 w-36 overflow-hidden" aria-label="YARA Productions">
+            <img src={yaraLogo.src} alt="YARA Productions official logo" className="h-full w-full scale-[1.6] object-contain" />
           </Link>
           <p className="mt-5 max-w-xs text-sm font-light leading-7 text-yara-taupe">
             {t("layout.footerText")}
