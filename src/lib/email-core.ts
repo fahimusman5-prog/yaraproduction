@@ -100,6 +100,12 @@ export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+function normalizeConfiguredValue(value: string | undefined, key: string) {
+  const trimmed = value?.trim() ?? "";
+  const assignment = trimmed.match(new RegExp(`^${key}\\s*=\\s*`, "i"));
+  return assignment ? trimmed.slice(assignment[0].length).trim() : trimmed;
+}
+
 export function isValidEmail(value: string) {
   const normalized = normalizeEmail(value);
   return normalized.length <= 320 && emailPattern.test(normalized);
@@ -115,11 +121,16 @@ export function isValidSender(value: string) {
 export function readEmailConfiguration(
   environment: NodeJS.ProcessEnv,
 ): { config: EmailConfiguration | null; issues: string[] } {
-  const apiKey = environment.RESEND_API_KEY?.trim() ?? "";
-  const from = environment.EMAIL_FROM?.trim() ?? "";
-  const replyTo = normalizeEmail(environment.EMAIL_REPLY_TO ?? "");
+  const apiKey = normalizeConfiguredValue(environment.RESEND_API_KEY, "RESEND_API_KEY");
+  const from = normalizeConfiguredValue(environment.EMAIL_FROM, "EMAIL_FROM");
+  const replyTo = normalizeEmail(
+    normalizeConfiguredValue(environment.EMAIL_REPLY_TO, "EMAIL_REPLY_TO"),
+  );
   const adminNotificationEmail = normalizeEmail(
-    environment.ADMIN_NOTIFICATION_EMAIL ?? "",
+    normalizeConfiguredValue(
+      environment.ADMIN_NOTIFICATION_EMAIL,
+      "ADMIN_NOTIFICATION_EMAIL",
+    ),
   );
   const issues: string[] = [];
   if (!apiKey) issues.push("RESEND_API_KEY is missing.");
@@ -179,18 +190,20 @@ export async function deliverWithRetry(input: {
   onAttempt: (attempt: DeliveryAttempt) => Promise<void>;
   sleep?: (milliseconds: number) => Promise<void>;
   now?: () => Date;
+  attemptOffset?: number;
 }) {
   const sleep =
     input.sleep ??
     ((milliseconds: number) =>
       new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
   const now = input.now ?? (() => new Date());
+  const attemptOffset = input.attemptOffset ?? 0;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const attemptedAt = now().toISOString();
     try {
       const result = await input.provider.send(input.message);
       await input.onAttempt({
-        attempt,
+        attempt: attemptOffset + attempt,
         status: "sent",
         providerMessageId: result.id,
         retrying: false,
@@ -205,7 +218,7 @@ export async function deliverWithRetry(input: {
         ? new Date(now().getTime() + retryDelayMs(attempt + 1)).toISOString()
         : null;
       await input.onAttempt({
-        attempt,
+        attempt: attemptOffset + attempt,
         status: "failed",
         errorCategory: failure.category,
         retrying,

@@ -39,6 +39,18 @@ test("email configuration requires every server-side Resend variable", () => {
   assert.equal(configured.config.replyTo, "care@yaraproduct.com");
 });
 
+test("email configuration trims accidental assignment prefixes before validating", () => {
+  const configured = readEmailConfiguration({
+    RESEND_API_KEY: "RESEND_API_KEY=re_test-only-key",
+    EMAIL_FROM: "EMAIL_FROM=YARA Productions <orders@yaraproduct.com>",
+    EMAIL_REPLY_TO: "EMAIL_REPLY_TO=care@yaraproduct.com",
+    ADMIN_NOTIFICATION_EMAIL: "admin_notification_email=yaraproductweb@gmail.com",
+  });
+  assert.ok(configured.config);
+  assert.equal(configured.config.from, "YARA Productions <orders@yaraproduct.com>");
+  assert.equal(configured.config.adminNotificationEmail, "yaraproductweb@gmail.com");
+});
+
 test("sender, reply-to and recipient validation rejects unsafe values", () => {
   assert.equal(isValidSender(message.from), true);
   assert.equal(isValidSender("YARA Productions orders@yaraproduct.com"), false);

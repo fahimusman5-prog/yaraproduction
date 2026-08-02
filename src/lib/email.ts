@@ -60,7 +60,9 @@ export async function sendTransactionalEmail(
 
   try {
     const supabase = getSupabaseAdminClient();
-    const dedupeKey = emailDedupeKey({ ...input, recipient });
+    const dedupeKey =
+      emailDedupeKey({ ...input, recipient }) ??
+      `email:${input.template}:${recipient}:${crypto.randomUUID()}`;
     const inserted = await supabase
       .from("notification_events")
       .insert({
@@ -79,22 +81,55 @@ export async function sendTransactionalEmail(
       })
       .select("id")
       .maybeSingle();
-    if (inserted.error?.code === "23505")
-      return { status: "duplicate" as const };
-    if (inserted.error || !inserted.data) {
-      logSupabaseError(
-        "transactional-email",
-        "create-notification-event",
-        inserted.error,
-        {
-          table: "notification_events",
-          orderId: input.orderId ?? undefined,
-        },
-      );
-      return { status: "failed" };
+    let eventId: string;
+    let attemptOffset = 0;
+    if (inserted.error?.code === "23505") {
+      const existing = await supabase
+        .from("notification_events")
+        .select("id,status")
+        .eq("dedupe_key", dedupeKey)
+        .maybeSingle();
+      if (existing.error || !existing.data) return { status: "failed" };
+      const existingEvent = existing.data as { id: string; status: string };
+      if (!["failed", "skipped"].includes(existingEvent.status))
+        return { status: "duplicate" as const };
+      const attempts = await supabase
+        .from("notification_delivery_attempts")
+        .select("attempt_number")
+        .eq("notification_event_id", existingEvent.id)
+        .order("attempt_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (attempts.error) return { status: "failed" };
+      attemptOffset = Number((attempts.data as { attempt_number?: number } | null)?.attempt_number ?? 0);
+      const reopened = await supabase
+        .from("notification_events")
+        .update({
+          status: "pending",
+          error_category: null,
+          last_error: null,
+          failed_at: null,
+          next_attempt_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingEvent.id);
+      if (reopened.error) return { status: "failed" };
+      eventId = existingEvent.id;
+    } else {
+      if (inserted.error || !inserted.data) {
+        logSupabaseError(
+          "transactional-email",
+          "create-notification-event",
+          inserted.error,
+          {
+            table: "notification_events",
+            orderId: input.orderId ?? undefined,
+          },
+        );
+        return { status: "failed" };
+      }
+      eventId = (inserted.data as { id: string }).id;
     }
-
-    const eventId = (inserted.data as { id: string }).id;
     const { config, issues } = readEmailConfiguration(process.env);
     if (!config) {
       await updateEvent(eventId, {
@@ -121,6 +156,7 @@ export async function sendTransactionalEmail(
         html: renderEmail(input),
         text: renderEmailText(input),
       },
+      attemptOffset,
       async onAttempt(attempt) {
         await recordAttempt(eventId, attempt);
         await updateEvent(eventId, {
@@ -197,7 +233,12 @@ export async function sendOrderTransactionalEmail(input: {
 }
 
 export function getAdminNotificationEmail() {
-  const email = normalizeEmail(process.env.ADMIN_NOTIFICATION_EMAIL ?? "");
+  const email = normalizeEmail(
+    process.env.ADMIN_NOTIFICATION_EMAIL?.replace(
+      /^ADMIN_NOTIFICATION_EMAIL\\s*=\\s*/i,
+      "",
+    ) ?? "",
+  );
   return isValidEmail(email) ? email : null;
 }
 
