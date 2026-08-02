@@ -73,33 +73,34 @@ const deliverySettingSchema = z
 const paymentSettingSchema = z
   .object({
     region_code: z.enum(["LK", "AE"]),
-<<<<<<< Updated upstream
     payment_method: z.literal("bank_transfer"),
-=======
-    payment_method: z.enum([
-      "card",
-      "koko",
-      "bank_transfer",
-      "cash_on_delivery",
-    ]),
-    processing_fee_percent: z.coerce.number().min(0).max(100),
-    minimum_order_amount: optionalNumber,
-    maximum_order_amount: optionalNumber,
     is_enabled: z.enum(["true"]).optional(),
->>>>>>> Stashed changes
     account_holder_name: z.string().trim().max(200).default(""),
     bank_name: z.string().trim().max(200).default(""),
     branch_name: z.string().trim().max(200).default(""),
     account_number: z.string().trim().max(200).default(""),
+    iban: z.string().trim().max(100).default(""),
     swift_code: z.string().trim().max(100).default(""),
     instructions: z.string().trim().max(2000).default(""),
   })
   .superRefine((value, context) => {
-    if (!value.account_holder_name || !value.bank_name || !value.account_number)
+    if (
+      value.is_enabled === "true" &&
+      (!value.account_holder_name || !value.bank_name || !value.account_number)
+    )
       context.addIssue({
         code: "custom",
         message:
           "Account holder, bank name, and account number are required before enabling bank transfer.",
+      });
+    if (
+      value.is_enabled === "true" &&
+      value.region_code === "AE" &&
+      (!value.iban || !value.swift_code)
+    )
+      context.addIssue({
+        code: "custom",
+        message: "UAE bank transfer requires an IBAN and SWIFT/BIC before enabling.",
       });
   });
 
@@ -280,11 +281,12 @@ export async function updatePaymentMethodSettingAction(
     processing_fee_percent: 0,
     minimum_order_amount: null,
     maximum_order_amount: null,
-    is_enabled: true,
+    is_enabled: value.is_enabled === "true",
     account_holder_name: value.account_holder_name || null,
     bank_name: value.bank_name || null,
     branch_name: value.branch_name || null,
     account_number: value.account_number || null,
+    iban: value.iban || null,
     swift_code: value.swift_code || null,
     instructions: value.instructions || null,
     currency: expectedCurrency,

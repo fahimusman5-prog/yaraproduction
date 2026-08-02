@@ -10,6 +10,8 @@ import {
 
 const migrationPath =
   "supabase/migrations/20260729091821_complete_payment_method_system.sql";
+const launchPaymentMigrationPath =
+  "supabase/migrations/20260802120000_configure_regional_offline_payments.sql";
 
 test("payment methods are separate and complete", () => {
   assert.deepEqual(PAYMENT_METHODS, [
@@ -47,6 +49,24 @@ test("placeholder bank details never activate bank transfer", () => {
   );
 });
 
+test("launch payment configuration is regional and hides incomplete UAE banking", async () => {
+  const sql = await readFile(launchPaymentMigrationPath, "utf8");
+  assert.match(sql, /Yara International Trading Pvt Ltd/);
+  assert.match(sql, /200260069070/);
+  assert.match(sql, /Nations Trust Bank/);
+  assert.match(sql, /Peradeniya Branch/);
+  assert.match(sql, /region_code = 'LK'[\s\S]*?is_enabled = true/);
+  assert.match(sql, /set is_enabled = false[\s\S]*?region_code = 'AE'[\s\S]*?payment_method = 'bank_transfer'/);
+  assert.match(sql, /add column if not exists iban/);
+});
+
+test("payment methods API returns only validated active methods", async () => {
+  const api = await readFile("src/app/api/payment-methods/route.ts", "utf8");
+  assert.match(api, /\.filter\(\(method\) => method\.enabled && method\.providerAvailable\)/);
+  assert.match(api, /hasUsableBankTransferDetails/);
+  assert.doesNotMatch(api, /unavailableReason/);
+});
+
 test("processing fees use discounted subtotal plus one delivery charge", () => {
   assert.equal(calculateProcessingFee(10_000, 0, 500, 4), 420);
   assert.equal(calculateProcessingFee(10_000, 0, 500, 9), 945);
@@ -61,7 +81,7 @@ test("processing fees use discounted subtotal plus one delivery charge", () => {
         PAYMENT_METHOD_CONFIG[method].processingFeePercent,
       ]),
     ),
-    { card: 4, koko: 9, mintpay: 4, bank_transfer: 0, cash_on_delivery: 0 },
+    { card: 4, koko: 9, bank_transfer: 0, cash_on_delivery: 0 },
   );
 });
 
@@ -100,13 +120,8 @@ test("bank transfer and COD remain unpaid while online methods remain pending", 
 
 test("checkout rejects unavailable installment providers without fake success", async () => {
   const route = await readFile("src/app/api/checkout/route.ts", "utf8");
-<<<<<<< Updated upstream
   assert.match(route, /Koko is temporarily unavailable/);
-  assert.match(route, /MintPay is temporarily unavailable/);
-=======
-  assert.match(route, /Koko payment is being activated/);
   assert.doesNotMatch(route, /MintPay/);
->>>>>>> Stashed changes
   assert.doesNotMatch(route, /paymentMethod === "koko"[\s\S]{0,200}redirectUrl/);
 });
 

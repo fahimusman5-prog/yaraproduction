@@ -12,10 +12,12 @@ import { getPayHereConfig } from "@/lib/payhere";
 
 type SettingRow = {
   payment_method: PaymentMethod;
+  is_enabled: boolean;
   account_holder_name: string | null;
   bank_name: string | null;
   branch_name: string | null;
   account_number: string | null;
+  iban: string | null;
   swift_code: string | null;
   instructions: string | null;
 };
@@ -29,7 +31,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("payment_method_settings")
     .select(
-      "payment_method,account_holder_name,bank_name,branch_name,account_number,swift_code,instructions",
+      "payment_method,is_enabled,account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions",
     )
     .eq("region_code", regionCode);
   if (error)
@@ -59,34 +61,27 @@ export async function GET(request: Request) {
     const row = byMethod.get(method);
     const providerAvailable =
       method === "card"
-        ? payHere.enabled &&
+        ? Boolean(row?.is_enabled) &&
+          payHere.enabled &&
           payHere.merchantIdConfigured &&
           payHere.merchantSecretConfigured &&
           (country === "sri-lanka"
             ? true
             : payHere.usdApproved && uaeUsdReady)
         : method === "koko"
-<<<<<<< Updated upstream
           ? false
-          : method === "mintpay"
-            ? false
-            : method === "bank_transfer"
-              ? hasUsableBankTransferDetails({
-                  accountHolderName: row?.account_holder_name,
-                  bankName: row?.bank_name,
-                  accountNumber: row?.account_number,
-                })
-              : true;
+          : method === "bank_transfer"
+            ? Boolean(row?.is_enabled) &&
+              hasUsableBankTransferDetails({
+                accountHolderName: row?.account_holder_name,
+                bankName: row?.bank_name,
+                accountNumber: row?.account_number,
+                iban: row?.iban,
+                swiftCode: row?.swift_code,
+                country,
+              })
+            : Boolean(row?.is_enabled);
     const enabled = providerAvailable;
-=======
-          ? Boolean(
-              process.env.KOKO_MERCHANT_ID?.trim() &&
-                process.env.KOKO_MERCHANT_SECRET?.trim() &&
-                process.env.KOKO_CHECKOUT_URL?.trim(),
-            )
-          : true;
-    const enabled = Boolean(row?.is_enabled);
->>>>>>> Stashed changes
     return {
       method,
       ...PAYMENT_COPY[method],
@@ -94,12 +89,6 @@ export async function GET(request: Request) {
         PAYMENT_METHOD_CONFIG[method].processingFeePercent,
       enabled,
       providerAvailable,
-      unavailableReason:
-        !providerAvailable
-          ? method === "card" && country === "uae"
-            ? "Card payment is temporarily unavailable for UAE orders. Please select Cash on Delivery or Bank Transfer."
-            : "Temporarily unavailable"
-          : undefined,
       bankDetails:
         method === "bank_transfer" && row
           ? {
@@ -107,12 +96,13 @@ export async function GET(request: Request) {
               bankName: row.bank_name ?? "",
               branchName: row.branch_name ?? "",
               accountNumber: row.account_number ?? "",
+              iban: row.iban ?? "",
               swiftCode: row.swift_code ?? "",
               instructions: row.instructions ?? "",
             }
           : undefined,
     };
-  });
+  }).filter((method) => method.enabled && method.providerAvailable);
   return NextResponse.json(
     { methods },
     { headers: { "Cache-Control": "private, no-store" } },

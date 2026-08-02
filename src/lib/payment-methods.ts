@@ -13,7 +13,6 @@ export const PAYMENT_METHOD_CONFIG: Record<
 > = {
   card: { type: "online", processingFeePercent: 4 },
   koko: { type: "online", processingFeePercent: 9 },
-  mintpay: { type: "online", processingFeePercent: 4 },
   bank_transfer: { type: "offline", processingFeePercent: 0 },
   cash_on_delivery: { type: "offline", processingFeePercent: 0 },
 };
@@ -31,6 +30,7 @@ export type PublicPaymentMethod = {
     bankName: string;
     branchName: string;
     accountNumber: string;
+    iban: string;
     swiftCode: string;
     instructions: string;
   };
@@ -40,10 +40,15 @@ export function hasUsableBankTransferDetails(details: {
   accountHolderName?: string | null;
   bankName?: string | null;
   accountNumber?: string | null;
+  iban?: string | null;
+  swiftCode?: string | null;
+  country?: "sri-lanka" | "uae";
 }) {
   const holder = details.accountHolderName?.trim() ?? "";
   const bank = details.bankName?.trim() ?? "";
   const account = details.accountNumber?.trim() ?? "";
+  const iban = details.iban?.trim() ?? "";
+  const swiftCode = details.swiftCode?.trim() ?? "";
   const placeholderPattern =
     /\b(?:check|test|example|placeholder|dummy|sample|n\/?a|your account(?: number)?)\b/i;
   return (
@@ -53,7 +58,10 @@ export function hasUsableBankTransferDetails(details: {
     !placeholderPattern.test(holder) &&
     !placeholderPattern.test(bank) &&
     !placeholderPattern.test(account) &&
-    !/^0+$/.test(account.replace(/\s+/g, ""))
+    !placeholderPattern.test(iban) &&
+    !placeholderPattern.test(swiftCode) &&
+    !/^0+$/.test(account.replace(/\s+/g, "")) &&
+    (details.country !== "uae" || (iban.length >= 8 && swiftCode.length >= 8))
   );
 }
 
@@ -71,14 +79,6 @@ export const PAYMENT_COPY: Record<
     description: "Pay in instalments with Koko",
     action: "Proceed to Payment",
   },
-<<<<<<< Updated upstream
-  mintpay: {
-    label: "MintPay",
-    description: "Pay in instalments with MintPay",
-    action: "Proceed to Payment",
-  },
-=======
->>>>>>> Stashed changes
   bank_transfer: {
     label: "Bank Transfer",
     description: "Transfer directly to our bank account",

@@ -88,7 +88,7 @@ export default async function PaymentSuccessPage({
         </h1>
         <p className="mt-5 text-sm leading-7 text-yara-taupe">
           {cod
-            ? "Payment will be collected when your order is delivered."
+            ? "Your order has been confirmed. Please pay the full amount when your order is delivered."
             : bank
               ? "Please complete the bank transfer using your order number as the reference. We will confirm payment after verification."
               : "PayHere is confirming your payment. Your order may remain pending briefly while the secure notification arrives."}

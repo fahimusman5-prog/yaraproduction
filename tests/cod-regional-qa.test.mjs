@@ -13,7 +13,7 @@ test("Sri Lanka and UAE COD use isolated canonical currencies and shipping", asy
   );
   assert.match(shipping, /\('LK', 'LKR', 500/);
   assert.match(shipping, /\('AE', 'AED', 25/);
-  assert.match(migration, /when 'mintpay' then 4\s+else 0/);
+  assert.match(migration, /when 'card' then 4\s+when 'koko' then 9/);
   assert.match(migration, /new\.currency = 'LKR'/);
   assert.match(migration, /AED to two decimals/);
 });
@@ -92,7 +92,7 @@ test("COD notifications disclose due-on-delivery status and regional totals", as
 test("success-page refresh is read-only and preserves COD language", async () => {
   const page = await read("../src/app/payment/success/page.tsx");
   assert.doesNotMatch(page, /\.insert\(|\.update\(|create_payment_order/);
-  assert.match(page, /Payment will be collected when your order is delivered/);
+  assert.match(page, /Your order has been confirmed\. Please pay the full amount when your order is delivered/);
   assert.match(page, /payment_status\.replaceAll/);
   assert.match(page, /money\(order\.total_amount, order\.currency\)/);
 });

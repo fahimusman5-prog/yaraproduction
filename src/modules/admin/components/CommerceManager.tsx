@@ -604,30 +604,35 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
         </div>
       </div>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {[
-            ["account_holder_name", "Account holder"],
-            ["bank_name", "Bank name"],
-            ["branch_name", "Branch"],
-            ["account_number", "Account number"],
-            ["swift_code", "SWIFT code"],
-          ].map(([name, label]) => (
-            <label key={name}>
-              <span className="staff-label">{label}</span>
-              <input
-                name={name}
-                defaultValue={setting[name] ?? ""}
-                className="staff-input"
-              />
-            </label>
-          ))}
-          <label className="sm:col-span-2">
-            <span className="staff-label">Customer instructions</span>
-            <textarea
-              name="instructions"
-              defaultValue={setting.instructions ?? ""}
+        <label className="flex min-h-11 items-center gap-2 text-sm sm:col-span-2">
+          <input name="is_enabled" type="checkbox" value="true" defaultChecked={setting.is_enabled} />
+          Enabled for this region
+        </label>
+        {[
+          ["account_holder_name", "Account holder"],
+          ["bank_name", "Bank name"],
+          ["branch_name", "Branch"],
+          ["account_number", "Account number"],
+          ["iban", "IBAN"],
+          ["swift_code", "SWIFT code"],
+        ].map(([name, label]) => (
+          <label key={name}>
+            <span className="staff-label">{label}</span>
+            <input
+              name={name}
+              defaultValue={setting[name] ?? ""}
               className="staff-input"
             />
           </label>
+        ))}
+        <label className="sm:col-span-2">
+          <span className="staff-label">Customer instructions</span>
+          <textarea
+            name="instructions"
+            defaultValue={setting.instructions ?? ""}
+            className="staff-input"
+          />
+        </label>
       </div>
       <SubmitButton pendingLabel="Saving payment method…">
         Save bank details

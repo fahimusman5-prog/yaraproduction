@@ -124,14 +124,6 @@ export async function POST(request: Request) {
         { error: "Koko is temporarily unavailable. Please select another option." },
         { status: 503 },
       );
-<<<<<<< Updated upstream
-    if (parsed.data.paymentMethod === "mintpay")
-      return NextResponse.json(
-        { error: "MintPay is temporarily unavailable. Please select another option." },
-        { status: 503 },
-      );
-=======
->>>>>>> Stashed changes
     const origin = getAppOrigin(request.url);
     if (!origin) {
       console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());
@@ -146,7 +138,7 @@ export async function POST(request: Request) {
     if (parsed.data.paymentMethod === "bank_transfer") {
       const { data: bank, error: bankError } = await supabase
         .from("payment_method_settings")
-        .select("account_holder_name,bank_name,account_number")
+        .select("is_enabled,account_holder_name,bank_name,account_number,iban,swift_code")
         .eq(
           "region_code",
           parsed.data.country === "sri-lanka" ? "LK" : "AE",
@@ -154,16 +146,23 @@ export async function POST(request: Request) {
         .eq("payment_method", "bank_transfer")
         .maybeSingle();
       const bankDetails = bank as {
+        is_enabled?: boolean;
         account_holder_name?: string | null;
         bank_name?: string | null;
         account_number?: string | null;
+        iban?: string | null;
+        swift_code?: string | null;
       } | null;
       if (
         bankError ||
+        !bankDetails?.is_enabled ||
         !hasUsableBankTransferDetails({
           accountHolderName: bankDetails?.account_holder_name,
           bankName: bankDetails?.bank_name,
           accountNumber: bankDetails?.account_number,
+          iban: bankDetails?.iban,
+          swiftCode: bankDetails?.swift_code,
+          country: parsed.data.country,
         })
       )
         return NextResponse.json(
@@ -261,7 +260,7 @@ export async function POST(request: Request) {
         ? await supabase
             .from("payment_method_settings")
             .select(
-              "account_holder_name,bank_name,branch_name,account_number,swift_code,instructions",
+              "account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions",
             )
             .eq(
               "region_code",
@@ -276,6 +275,7 @@ export async function POST(request: Request) {
         bank_name?: string | null;
         branch_name?: string | null;
         account_number?: string | null;
+        iban?: string | null;
         swift_code?: string | null;
         instructions?: string | null;
       } | null;
@@ -289,6 +289,7 @@ export async function POST(request: Request) {
             ["Bank", bank?.bank_name ?? ""],
             ["Branch", bank?.branch_name ?? ""],
             ["Account number", bank?.account_number ?? ""],
+            ["IBAN", bank?.iban ?? ""],
             ["SWIFT", bank?.swift_code ?? ""],
             ["Instructions", bank?.instructions ?? ""],
           ].filter((entry) => entry[1]) as Array<[string, string]>)

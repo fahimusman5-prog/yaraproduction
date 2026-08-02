@@ -40,11 +40,7 @@ export async function getCommerceOperations() {
         ? supabase
             .from("payment_method_settings")
             .select("*")
-<<<<<<< Updated upstream
             .eq("payment_method", "bank_transfer")
-=======
-            .neq("payment_method", "mintpay")
->>>>>>> Stashed changes
             .order("region_code")
         : Promise.resolve({ data: [], error: null }),
       Promise.resolve({ data: [], error: null }),

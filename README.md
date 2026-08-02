@@ -70,9 +70,10 @@ The migrations include Data API grants, RLS, Storage policies, role enforcement,
 4. Set `NEXT_PUBLIC_APP_URL` to the canonical HTTPS production origin. PayHere posts verified notifications to `/api/payhere/notify`.
 5. Confirm the merchant account accepts LKR. UAE card checkout remains disabled until a verified AED-capable provider adapter is implemented.
 
-Koko and MintPay remain visibly unavailable until their official checkout and
-server-verification adapters are implemented and verified. Do not add merchant
-secrets to public environment variables.
+Koko remains hidden until its official checkout and server-verification adapter
+is implemented and verified. MintPay is retired from new checkout use; its
+historical order values remain readable. Do not add merchant secrets to public
+environment variables.
 
 For UAE PayHere checkout, obtain written confirmation that the merchant can
 accept USD, set `PAYHERE_USD_APPROVED=true`, and configure a current AED-to-USD

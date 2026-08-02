@@ -479,6 +479,7 @@ export function CheckoutPage() {
                       ["Bank", selectedPayment.bankDetails.bankName],
                       ["Branch", selectedPayment.bankDetails.branchName],
                       ["Account number", selectedPayment.bankDetails.accountNumber],
+                      ["IBAN", selectedPayment.bankDetails.iban],
                       ["SWIFT", selectedPayment.bankDetails.swiftCode],
                     ].filter(([, value]) => value).map(([label, value]) => (
                       <div key={label}>
@@ -516,8 +517,8 @@ export function CheckoutPage() {
               )}
             {selectedPayment?.method === "cash_on_delivery" && (
               <p className="mt-5 rounded-2xl bg-yara-blush p-4 text-sm leading-6 text-yara-wine">
-                Pay when your order is delivered. This order remains unpaid
-                until payment is collected.
+                Your order has been confirmed. Please pay the full amount when
+                your order is delivered.
               </p>
             )}
           </section>
