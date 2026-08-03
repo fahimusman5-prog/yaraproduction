@@ -114,7 +114,7 @@ test("UAE disclosure appears before the PayHere redirect", async () => {
   assert.match(page, /PayHere card charge/);
   assert.match(page, /1 AED = LKR/);
   assert.match(checkout, /conversion rate or international transaction charges/);
-  assert.match(page, /PROCEED TO LKR CARD PAYMENT/);
+  assert.match(page, /PROCEED TO SECURE CARD PAYMENT/);
 });
 
 test("exchange-rate administration is approval-gated and admin-only", async () => {

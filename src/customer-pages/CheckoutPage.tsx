@@ -454,7 +454,11 @@ export function CheckoutPage() {
                         {method.label}
                       </span>
                       <span className="mt-1 block text-xs leading-5 text-yara-taupe">
-                        {method.description}
+                        {method.method === "card"
+                          ? country === "sri-lanka"
+                            ? "Your card will be charged in LKR through PayHere."
+                            : "Your order remains priced in AED. The displayed LKR amount will be processed securely through PayHere."
+                          : method.description}
                       </span>
                       <span className="mt-2 block text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-yara-wine">
                         {method.processingFeePercent > 0
@@ -572,7 +576,7 @@ export function CheckoutPage() {
           {payHereSubmission ? (
             <div>
               <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-yara-taupe"><input type="checkbox" required className="mt-0.5 h-4 w-4 accent-yara-wine" /> I have reviewed the AED order total and the exact LKR PayHere charge above.</label>
-              <button type="button" onClick={redirectToPayHere} disabled={submitting} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? "Redirecting to PayHere…" : country === "uae" ? "PROCEED TO LKR CARD PAYMENT" : "PROCEED TO SECURE PAYMENT"}</button>
+              <button type="button" onClick={redirectToPayHere} disabled={submitting} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? "Redirecting to PayHere…" : "PROCEED TO SECURE CARD PAYMENT"}</button>
             </div>
           ) : (
             <button type="submit" disabled={submitting || !hasLiveCatalogItems || !delivery.configured || !delivery.enabled || total === null || !selectedPayment?.enabled || !selectedPayment.providerAvailable || unavailableProductIds.length > 0} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? (selectedPayment && selectedPayment.method !== "bank_transfer" && selectedPayment.method !== "cash_on_delivery" ? "Creating payment…" : "Confirming order…") : PAYMENT_COPY[payment].action}</button>

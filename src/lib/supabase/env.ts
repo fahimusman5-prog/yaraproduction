@@ -44,7 +44,7 @@ export function getAppUrlIssues() {
 }
 
 export function getAppOrigin(requestUrl?: string) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const appUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
   if (appUrl && getAppUrlIssues().length === 0) return new URL(appUrl).origin;
 
   const nonProduction = process.env.VERCEL_ENV

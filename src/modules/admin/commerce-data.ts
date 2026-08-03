@@ -1,6 +1,8 @@
 import "server-only";
 import { requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getPayHereConfig } from "@/lib/payhere";
+import { getAppUrlIssues } from "@/lib/supabase/env";
 
 export async function getCommerceOperations() {
   const staff = await requireStaff("/admin/commerce");
@@ -115,6 +117,36 @@ export async function getCommerceOperations() {
       signed_url: signedByPath.get(image.storage_path) ?? null,
     })),
   }));
+  const cardSettings = staff.profile.role === "admin"
+    ? await supabase
+        .from("payment_method_settings")
+        .select("region_code,is_enabled,payment_method,provider_name")
+        .eq("payment_method", "card")
+        .in("region_code", ["LK", "AE"])
+    : { data: [], error: null };
+  if (cardSettings.error)
+    throw new Error("PayHere configuration could not be loaded.");
+  const payHere = getPayHereConfig();
+  const now = Date.now();
+  const activeUaeRate = (exchangeRates.data ?? []).some((rate) => {
+    const row = rate as { source_currency?: string; target_currency?: string; active?: boolean; effective_from?: string; expires_at?: string | null };
+    return row.source_currency === "AED" && row.target_currency === "LKR" && row.active === true
+      && Boolean(row.effective_from) && new Date(row.effective_from!).getTime() <= now
+      && (!row.expires_at || new Date(row.expires_at).getTime() > now);
+  });
+  const cardByRegion = Object.fromEntries(
+    (cardSettings.data ?? []).map((row) => [String((row as { region_code: string }).region_code), Boolean((row as { is_enabled: boolean }).is_enabled)]),
+  ) as Record<string, boolean>;
+  const commonReady = payHere.enabled && payHere.merchantIdConfigured && payHere.merchantSecretConfigured && getAppUrlIssues().length === 0;
+  const reasons = [
+    !payHere.enabled ? "PAYHERE_ENABLED is false or missing." : null,
+    !payHere.merchantIdConfigured ? "PAYHERE_MERCHANT_ID is missing." : null,
+    !payHere.merchantSecretConfigured ? "PAYHERE_MERCHANT_SECRET is missing." : null,
+    getAppUrlIssues().length > 0 ? getAppUrlIssues()[0] : null,
+    !cardByRegion.LK ? "Sri Lanka card payment is disabled in payment_method_settings." : null,
+    !cardByRegion.AE ? "UAE card payment is disabled in payment_method_settings." : null,
+    !activeUaeRate ? "No active effective AED-to-LKR rate is available for UAE checkout." : null,
+  ].filter((reason): reason is string => Boolean(reason));
   return {
     zones: zones.data ?? [],
     deliverySettings: deliverySettings.data ?? [],
@@ -128,5 +160,19 @@ export async function getCommerceOperations() {
     returns: returnsWithEvidence,
     refunds: refunds.data ?? [],
     deletionRequests: deletionRequests.data ?? [],
+    payHereDiagnostic: {
+      enabled: payHere.enabled,
+      sandbox: payHere.sandbox,
+      merchantIdConfigured: payHere.merchantIdConfigured,
+      merchantSecretConfigured: payHere.merchantSecretConfigured,
+      siteUrlValid: getAppUrlIssues().length === 0,
+      cardByRegion,
+      activeUaeRate,
+      availableByRegion: {
+        LK: commonReady && Boolean(cardByRegion.LK),
+        AE: commonReady && Boolean(cardByRegion.AE) && activeUaeRate,
+      },
+      reasons,
+    },
   };
 }

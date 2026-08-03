@@ -30,6 +30,17 @@ type Props = {
   returns: any[];
   refunds: any[];
   deletionRequests: any[];
+  payHereDiagnostic: {
+    enabled: boolean;
+    sandbox: boolean;
+    merchantIdConfigured: boolean;
+    merchantSecretConfigured: boolean;
+    siteUrlValid: boolean;
+    cardByRegion: Record<string, boolean>;
+    activeUaeRate: boolean;
+    availableByRegion: { LK: boolean; AE: boolean };
+    reasons: string[];
+  };
 };
 
 export function CommerceManager({
@@ -43,6 +54,7 @@ export function CommerceManager({
   returns,
   refunds,
   deletionRequests,
+  payHereDiagnostic,
 }: Props) {
   const [couponState, couponAction] = useActionState(
     createCouponAction,
@@ -50,6 +62,7 @@ export function CommerceManager({
   );
   return (
     <div className="space-y-8">
+      <PayHereDiagnosticPanel diagnostic={payHereDiagnostic} />
       {deliverySettings.length > 0 && (
         <section className="staff-panel p-5 sm:p-6">
           <div className="max-w-3xl">
@@ -577,6 +590,31 @@ export function CommerceManager({
         ) : <p className="mt-4 text-sm text-slate-500">No account deletion requests need attention.</p>}
       </section>
     </div>
+  );
+}
+
+function PayHereDiagnosticPanel({ diagnostic }: { diagnostic: Props["payHereDiagnostic"] }) {
+  const checks = [
+    ["PayHere enabled", diagnostic.enabled],
+    ["Merchant ID configured", diagnostic.merchantIdConfigured],
+    ["Merchant Secret configured", diagnostic.merchantSecretConfigured],
+    ["Public site URL valid", diagnostic.siteUrlValid],
+    ["Sri Lanka card setting", Boolean(diagnostic.cardByRegion.LK)],
+    ["UAE card setting", Boolean(diagnostic.cardByRegion.AE)],
+    ["Active UAE AED→LKR rate", diagnostic.activeUaeRate],
+    ["Sri Lanka availability", diagnostic.availableByRegion.LK],
+    ["UAE availability", diagnostic.availableByRegion.AE],
+  ] as const;
+  return (
+    <section className="staff-panel p-5 sm:p-6">
+      <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">PayHere diagnostics</p>
+      <h2 className="mt-2 text-xl font-bold">Card-payment visibility and readiness</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-500">Safe configuration status only. Secrets and credential values are never displayed.</p>
+      <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {checks.map(([label, value]) => <div key={label} className="rounded-xl border border-[var(--staff-line)] bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className={`mt-1 text-sm font-semibold ${value ? "text-emerald-700" : "text-rose-700"}`}>{value ? "Yes" : "No"}</dd></div>)}
+      </dl>
+      {diagnostic.reasons.length > 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-semibold text-amber-900">Unavailable reasons</p><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-amber-900">{diagnostic.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
+    </section>
   );
 }
 
