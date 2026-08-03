@@ -7,18 +7,16 @@ const md5 = (value: string) => createHash("md5").update(value, "utf8").digest("h
 export type PayHereConfig = {
   enabled: boolean;
   sandbox: boolean;
-  usdApproved: boolean;
-  aedApproved: boolean;
   merchantIdConfigured: boolean;
   merchantSecretConfigured: boolean;
 };
 
 export function getPayHereConfig(): PayHereConfig {
   return {
-    enabled: process.env.PAYMENTS_ENABLED === "true",
+    enabled:
+      process.env.PAYHERE_ENABLED === "true" ||
+      process.env.PAYMENTS_ENABLED === "true",
     sandbox: process.env.PAYHERE_SANDBOX !== "false",
-    usdApproved: process.env.PAYHERE_USD_APPROVED === "true",
-    aedApproved: process.env.PAYHERE_AED_APPROVED === "true",
     merchantIdConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID?.trim()),
     merchantSecretConfigured: Boolean(
       process.env.PAYHERE_MERCHANT_SECRET?.trim(),

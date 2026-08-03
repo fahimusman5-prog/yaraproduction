@@ -10,7 +10,7 @@ import {
   setCouponActiveAction,
   updateDeliverySettingAction,
   updatePaymentMethodSettingAction,
-  updateAedUsdExchangeRateAction,
+  updateAedLkrExchangeRateAction,
   reviewReturnItemsAction,
   updateReturnAction,
 } from "../commerce-actions";
@@ -23,7 +23,6 @@ type Props = {
   deliverySettings: any[];
   paymentSettings: any[];
   exchangeRates: any[];
-  payHereUsdApproved: boolean;
   shippingAudit: any[];
   products: any[];
   categories: any[];
@@ -37,7 +36,6 @@ export function CommerceManager({
   deliverySettings,
   paymentSettings,
   exchangeRates,
-  payHereUsdApproved,
   shippingAudit,
   products,
   categories,
@@ -98,9 +96,9 @@ export function CommerceManager({
           </div>
         </section>
       )}
-      {payHereUsdApproved && (
+      {
         <ExchangeRateEditor rate={exchangeRates[0] ?? null} />
-      )}
+      }
       {/* Legacy zone and method controls were removed from the active admin
           interface. The preserved source below documents the historical UI
           while legacy database records remain available to old orders.
@@ -643,7 +641,7 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
 
 function ExchangeRateEditor({ rate }: { rate: any | null }) {
   const [state, action] = useActionState(
-    updateAedUsdExchangeRateAction,
+    updateAedLkrExchangeRateAction,
     initialActionState,
   );
   const localDateTime = (value: string | undefined, fallback: Date) => {
@@ -657,19 +655,18 @@ function ExchangeRateEditor({ rate }: { rate: any | null }) {
         <p className="text-xs font-bold uppercase tracking-[.12em] text-yara-wine">
           Approved foreign-currency checkout
         </p>
-        <h2 className="mt-2 text-xl font-bold">AED to USD PayHere rate</h2>
+      <h2 className="mt-2 text-xl font-bold">AED to LKR PayHere rate</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Define 1 AED in USD. New UAE payment attempts lock this rate and the
-          converted USD charge permanently.
+          Define 1 AED in LKR. New UAE payment attempts lock this rate and the
+          converted LKR charge permanently. Historical rate records are not overwritten.
         </p>
       </div>
       <form action={action} className="mt-6 max-w-2xl rounded-xl border border-[var(--staff-line)] p-4">
         <ActionMessage state={state} />
-        {rate?.id && <input type="hidden" name="id" value={rate.id} />}
         <div className="grid gap-4 sm:grid-cols-3">
           <label>
-            <span className="staff-label">1 AED = USD</span>
-            <input name="rate" type="number" min="0.05" max="1" step="0.00000001" defaultValue={rate?.rate ?? ""} required className="staff-input" />
+            <span className="staff-label">1 AED = LKR</span>
+            <input name="rate" type="number" min="0.00000001" max="1000" step="0.00000001" defaultValue={rate?.rate ?? ""} required className="staff-input" />
           </label>
           <label>
             <span className="staff-label">Effective from</span>
@@ -681,7 +678,7 @@ function ExchangeRateEditor({ rate }: { rate: any | null }) {
           </label>
         </div>
         <SubmitButton pendingLabel="Saving approved rate…">
-          Save AED to USD rate
+          Save AED to LKR rate
         </SubmitButton>
       </form>
     </section>

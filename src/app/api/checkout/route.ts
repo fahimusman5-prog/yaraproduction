@@ -96,19 +96,6 @@ export async function POST(request: Request) {
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
     const payHereConfig = getPayHereConfig();
-    if (
-      parsed.data.paymentMethod === "card" &&
-      parsed.data.country === "uae" &&
-      !payHereConfig.usdApproved
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Card payment is temporarily unavailable for UAE orders. Please select another option.",
-        },
-        { status: 503 },
-      );
-    }
     if (parsed.data.paymentMethod === "card" && !payHereConfig.enabled) {
       return NextResponse.json({ error: "Online payments are temporarily unavailable. Please choose another available ordering method." }, { status: 503 });
     }
@@ -388,8 +375,6 @@ export async function POST(request: Request) {
     const prepared = await rpc("prepare_payhere_payment_attempt", {
       p_order_id: order.order_id,
       p_environment: getPayHereEnvironment(),
-      p_allow_usd:
-        parsed.data.country === "uae" && payHereConfig.usdApproved,
     });
     if (prepared.error) {
       logSupabaseError(
@@ -414,17 +399,34 @@ export async function POST(request: Request) {
       provider_order_id: string;
       source_currency: "LKR" | "AED";
       source_amount: number;
-      charge_currency: "LKR" | "USD";
+      charge_currency: "LKR";
       charge_amount: number;
       locked_exchange_rate: number;
       exchange_rate_source: string;
       exchange_rate_effective_at: string;
+      exchange_rate_expires_at: string;
     } | null;
     if (!attempt)
       return NextResponse.json(
         { error: "Unable to prepare card payment." },
         { status: 500 },
       );
+    const orderTotalsResult = await supabase
+      .from("orders")
+      .select("subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount")
+      .eq("id", order.order_id)
+      .single();
+    if (orderTotalsResult.error || !orderTotalsResult.data)
+      return NextResponse.json({ error: "Unable to verify checkout totals." }, { status: 503 });
+    const orderTotals = orderTotalsResult.data as {
+      subtotal_amount: number;
+      discount_amount: number;
+      shipping_fee: number;
+      payment_fee: number;
+      total_amount: number;
+    };
+    if (attempt.charge_currency !== "LKR")
+      return NextResponse.json({ error: "PayHere is configured for LKR only." }, { status: 503 });
     const amount = Number(attempt.charge_amount).toFixed(2);
     const { merchantId, hash } = createPayHereHash(
       attempt.provider_order_id,
@@ -459,13 +461,19 @@ export async function POST(request: Request) {
           ? {
               sourceCurrency: "AED",
               sourceAmount: Number(attempt.source_amount),
-              chargeCurrency: "USD",
+              chargeCurrency: "LKR",
               chargeAmount: Number(attempt.charge_amount),
               exchangeRate: Number(attempt.locked_exchange_rate),
               rateSource: attempt.exchange_rate_source,
               rateEffectiveAt: attempt.exchange_rate_effective_at,
+              rateExpiresAt: attempt.exchange_rate_expires_at,
+              subtotal: Number(orderTotals.subtotal_amount),
+              discount: Number(orderTotals.discount_amount),
+              shipping: Number(orderTotals.shipping_fee),
+              processingFee: Number(orderTotals.payment_fee),
+              total: Number(orderTotals.total_amount),
               notice:
-                "PayHere will process this payment in USD. Your card issuer may apply its own foreign-currency or international transaction fee.",
+                "Your UAE order remains priced in AED. PayHere will process this payment in LKR using the displayed exchange rate. Your card provider may apply its own conversion rate or international transaction charges.",
             }
           : undefined,
     });

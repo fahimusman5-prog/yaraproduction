@@ -32,9 +32,8 @@ export async function getCommerceOperations() {
             .from("exchange_rates")
             .select("*")
             .eq("source_currency", "AED")
-            .eq("target_currency", "USD")
+            .eq("target_currency", "LKR")
             .order("effective_from", { ascending: false })
-            .limit(1)
         : Promise.resolve({ data: [], error: null }),
       staff.profile.role === "admin"
         ? supabase
@@ -121,7 +120,6 @@ export async function getCommerceOperations() {
     deliverySettings: deliverySettings.data ?? [],
     paymentSettings: paymentSettings.data ?? [],
     exchangeRates: exchangeRates.data ?? [],
-    payHereUsdApproved: process.env.PAYHERE_USD_APPROVED === "true",
     methods: methods.data ?? [],
     shippingAudit: shippingAudit.data ?? [],
     products: products.data ?? [],

@@ -105,13 +105,13 @@ export function getServerEnvIssues() {
   const payhereMerchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
   const payhereMerchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
 
-  if (paymentsEnabled && !payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing while PAYMENTS_ENABLED=true.");
-  if (paymentsEnabled && !payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing while PAYMENTS_ENABLED=true.");
+  const payHereEnabled = process.env.PAYHERE_ENABLED === "true" || paymentsEnabled;
+  if (payHereEnabled && !payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing while PayHere is enabled.");
+  if (payHereEnabled && !payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing while PayHere is enabled.");
   if (process.env.PAYMENTS_ENABLED && !["true", "false"].includes(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true or false.");
+  if (process.env.PAYHERE_ENABLED && !["true", "false"].includes(process.env.PAYHERE_ENABLED)) issues.push("PAYHERE_ENABLED must be true or false.");
   for (const name of [
     "PAYHERE_SANDBOX",
-    "PAYHERE_USD_APPROVED",
-    "PAYHERE_AED_APPROVED",
   ] as const)
     if (process.env[name] && !["true", "false"].includes(process.env[name]!))
       issues.push(`${name} must be true or false.`);

@@ -107,13 +107,13 @@ export async function POST(request: Request) {
         charge_amount?: number;
         locked_exchange_rate?: number;
       } | null;
-      if (attempt?.charge_currency === "USD")
+      if (attempt?.source_currency === "AED" && attempt?.charge_currency === "LKR")
         details.push(
           ["Commercial order total", `AED ${Number(attempt.source_amount).toFixed(2)}`],
-          ["PayHere charge", `USD ${Number(attempt.charge_amount).toFixed(2)}`],
+          ["PayHere charge", `LKR ${Number(attempt.charge_amount).toFixed(2)}`],
           [
             "Locked exchange rate",
-            `1 AED = USD ${Number(attempt.locked_exchange_rate).toFixed(8)}`,
+            `1 AED = LKR ${Number(attempt.locked_exchange_rate).toFixed(8)}`,
           ],
         );
       const deliveries = [

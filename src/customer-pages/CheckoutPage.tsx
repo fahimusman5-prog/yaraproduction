@@ -34,10 +34,18 @@ type PayHereSubmission = {
   chargeSummary: {
     sourceCurrency: "AED";
     sourceAmount: number;
-    chargeCurrency: "USD";
+    chargeCurrency: "LKR";
     chargeAmount: number;
     exchangeRate: number;
     notice: string;
+    rateSource?: string;
+    rateEffectiveAt?: string;
+    rateExpiresAt?: string;
+    subtotal?: number;
+    discount?: number;
+    shipping?: number;
+    processingFee?: number;
+    total?: number;
   };
 };
 
@@ -547,9 +555,13 @@ export function CheckoutPage() {
                 PayHere currency confirmation
               </p>
               <dl className="mt-3 grid gap-2">
+                <div className="flex justify-between gap-4"><dt>Product subtotal</dt><dd>AED {payHereSubmission.chargeSummary.subtotal?.toFixed(2)}</dd></div>
+                <div className="flex justify-between gap-4"><dt>Discount</dt><dd>−AED {payHereSubmission.chargeSummary.discount?.toFixed(2)}</dd></div>
+                <div className="flex justify-between gap-4"><dt>Shipping</dt><dd>AED {payHereSubmission.chargeSummary.shipping?.toFixed(2)}</dd></div>
+                <div className="flex justify-between gap-4"><dt>Card-processing fee</dt><dd>AED {payHereSubmission.chargeSummary.processingFee?.toFixed(2)}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Order total</dt><dd>AED {payHereSubmission.chargeSummary.sourceAmount.toFixed(2)}</dd></div>
-                <div className="flex justify-between gap-4"><dt>PayHere card charge</dt><dd>USD {payHereSubmission.chargeSummary.chargeAmount.toFixed(2)}</dd></div>
-                <div className="flex justify-between gap-4"><dt>Exchange rate</dt><dd>1 AED = USD {payHereSubmission.chargeSummary.exchangeRate.toFixed(8)}</dd></div>
+                <div className="flex justify-between gap-4"><dt>PayHere card charge</dt><dd>LKR {payHereSubmission.chargeSummary.chargeAmount.toFixed(2)}</dd></div>
+                <div className="flex justify-between gap-4"><dt>Exchange rate</dt><dd>1 AED = LKR {payHereSubmission.chargeSummary.exchangeRate.toFixed(8)}</dd></div>
               </dl>
               <p className="mt-3 text-xs leading-5 text-yara-taupe">
                 {payHereSubmission.chargeSummary.notice}
@@ -558,7 +570,10 @@ export function CheckoutPage() {
           )}
           <p className="mt-5 text-center text-xs leading-5 text-yara-taupe">By placing your order, you agree to YARA’s <Link to="/terms-and-conditions" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Terms and Conditions</Link> and acknowledge the <Link to="/privacy-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Privacy Policy</Link> and <Link to="/refund-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>.</p>
           {payHereSubmission ? (
-            <button type="button" onClick={redirectToPayHere} disabled={submitting} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? "Redirecting to PayHere…" : "Proceed to PayHere"}</button>
+            <div>
+              <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-yara-taupe"><input type="checkbox" required className="mt-0.5 h-4 w-4 accent-yara-wine" /> I have reviewed the AED order total and the exact LKR PayHere charge above.</label>
+              <button type="button" onClick={redirectToPayHere} disabled={submitting} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? "Redirecting to PayHere…" : country === "uae" ? "PROCEED TO LKR CARD PAYMENT" : "PROCEED TO SECURE PAYMENT"}</button>
+            </div>
           ) : (
             <button type="submit" disabled={submitting || !hasLiveCatalogItems || !delivery.configured || !delivery.enabled || total === null || !selectedPayment?.enabled || !selectedPayment.providerAvailable || unavailableProductIds.length > 0} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? (selectedPayment && selectedPayment.method !== "bank_transfer" && selectedPayment.method !== "cash_on_delivery" ? "Creating payment…" : "Confirming order…") : PAYMENT_COPY[payment].action}</button>
           )}

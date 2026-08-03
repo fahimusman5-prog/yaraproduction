@@ -44,19 +44,19 @@ export async function GET(request: Request) {
   );
   const payHere = getPayHereConfig();
   const rateResult =
-    country === "uae" && payHere.usdApproved
+    country === "uae"
       ? await admin
           .from("exchange_rates")
           .select("id")
           .eq("source_currency", "AED")
-          .eq("target_currency", "USD")
+          .eq("target_currency", "LKR")
           .eq("active", true)
           .lte("effective_from", new Date().toISOString())
           .gt("expires_at", new Date().toISOString())
           .limit(1)
           .maybeSingle()
       : null;
-  const uaeUsdReady = Boolean(rateResult?.data && !rateResult.error);
+  const uaeLkrReady = Boolean(rateResult?.data && !rateResult.error);
   const methods: PublicPaymentMethod[] = PAYMENT_METHODS.map((method) => {
     const row = byMethod.get(method);
     const providerAvailable =
@@ -67,7 +67,7 @@ export async function GET(request: Request) {
           payHere.merchantSecretConfigured &&
           (country === "sri-lanka"
             ? true
-            : payHere.usdApproved && uaeUsdReady)
+            : uaeLkrReady)
         : method === "koko"
           ? false
           : method === "bank_transfer"
