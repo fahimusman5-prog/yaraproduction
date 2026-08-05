@@ -12,6 +12,8 @@ const migrationPath =
   "supabase/migrations/20260729091821_complete_payment_method_system.sql";
 const launchPaymentMigrationPath =
   "supabase/migrations/20260802120000_configure_regional_offline_payments.sql";
+const uaeBankMigrationPath =
+  "supabase/migrations/20260805090000_configure_uae_bank_transfer.sql";
 
 test("payment methods are separate and complete", () => {
   assert.deepEqual(PAYMENT_METHODS, [
@@ -49,6 +51,22 @@ test("placeholder bank details never activate bank transfer", () => {
   );
 });
 
+test("regional bank validation accepts the supplied UAE IBAN without inventing SWIFT", () => {
+  assert.equal(hasUsableBankTransferDetails({ accountHolderName: "FATHIMA FAZEENA FAROOK", bankName: "Mashreq Bank", accountNumber: "019101283587", iban: "AE660330000019101283587", country: "uae" }), true);
+  assert.equal(hasUsableBankTransferDetails({ accountHolderName: "Yara International Trading Pvt Ltd", bankName: "Nations Trust Bank", accountNumber: "200260069070", country: "sri-lanka" }), true);
+});
+
+test("UAE bank migration is AED-only and keeps regional account data isolated", async () => {
+  const sql = await readFile(uaeBankMigrationPath, "utf8");
+  assert.match(sql, /region_code = 'AE'/);
+  assert.match(sql, /currency = 'AED'/);
+  assert.match(sql, /FATHIMA FAZEENA FAROOK/);
+  assert.match(sql, /Mashreq Bank/);
+  assert.match(sql, /019101283587/);
+  assert.match(sql, /AE660330000019101283587/);
+  assert.doesNotMatch(sql, /Yara International Trading|200260069070/);
+});
+
 test("launch payment configuration is regional and hides incomplete UAE banking", async () => {
   const sql = await readFile(launchPaymentMigrationPath, "utf8");
   assert.match(sql, /Yara International Trading Pvt Ltd/);
@@ -65,6 +83,19 @@ test("payment methods API returns only validated active methods", async () => {
   assert.match(api, /\.filter\(\(method\) => method\.enabled && method\.providerAvailable\)/);
   assert.match(api, /hasUsableBankTransferDetails/);
   assert.doesNotMatch(api, /unavailableReason/);
+});
+
+test("checkout and account instructions select bank settings by server-validated region", async () => {
+  const checkout = await readFile("src/app/api/checkout/route.ts", "utf8");
+  const account = await readFile("src/app/api/account/orders/[id]/route.ts", "utf8");
+  const success = await readFile("src/app/payment/success/page.tsx", "utf8");
+  const ui = await readFile("src/customer-pages/CheckoutPage.tsx", "utf8");
+  assert.match(checkout, /parsed\.data\.country === "sri-lanka" \? "LK" : "AE"/);
+  assert.match(account, /eq\("region_code", String\(order\.data\.region_code\)\)/);
+  assert.match(success, /eq\("region_code", order\.region_code\)/);
+  assert.match(ui, /navigator\.clipboard\.writeText/);
+  assert.match(ui, /Copied/);
+  assert.match(ui, /overflow-wrap:anywhere/);
 });
 
 test("processing fees use discounted subtotal plus one delivery charge", () => {
