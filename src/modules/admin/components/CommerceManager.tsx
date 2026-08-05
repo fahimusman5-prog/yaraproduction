@@ -359,7 +359,7 @@ export function CommerceManager({
                 {shippingAudit.map((entry) => (
                   <tr key={entry.id}>
                     <td className="capitalize">
-                      {entry.entity_type.replaceAll("_", " ")}
+                      {String(entry.entity_type ?? "Unknown entity").replaceAll("_", " ")}
                     </td>
                     <td className="capitalize">{entry.action}</td>
                     <td>{new Date(entry.created_at).toLocaleString()}</td>
@@ -631,7 +631,7 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-semibold capitalize">
-            {setting.payment_method.replaceAll("_", " ")}
+            {String(setting.payment_method ?? "Unknown payment method").replaceAll("_", " ")}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {setting.region_code} · {setting.currency}
@@ -1098,7 +1098,7 @@ function ReturnCard({ request }: { request: any }) {
           </p>
         </div>
         <span className="capitalize">
-          {request.status.replaceAll("_", " ")}
+          {String(request.status ?? "unknown").replaceAll("_", " ")}
         </span>
       </div>
       <div className="mt-4 grid gap-3">
