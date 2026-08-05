@@ -2,12 +2,14 @@ import Link from "next/link";
 import { z } from "zod";
 import { isValidOrderTrackingToken } from "@/lib/order-tracking";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getCataloguePath, resolveStorefrontLocale } from "@/lib/storefront-routes";
 
 type SearchParams = Promise<{
   order?: string;
   token?: string;
   cod?: string;
   bank?: string;
+  locale?: string;
 }>;
 
 function money(value: number, currency: string) {
@@ -22,7 +24,7 @@ export default async function PaymentSuccessPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const { order: orderId, token, cod, bank } = await searchParams;
+  const { order: orderId, token, cod, bank, locale } = await searchParams;
   let order:
     | {
         order_number: string;
@@ -179,7 +181,7 @@ export default async function PaymentSuccessPage({
             secure order link.
           </p>
         )}
-        <Link href="/shop" className="btn-primary mt-8">
+        <Link href={getCataloguePath(resolveStorefrontLocale(locale))} className="btn-primary mt-8">
           Continue shopping
         </Link>
       </section>
