@@ -96,11 +96,11 @@ const paymentSettingSchema = z
     if (
       value.is_enabled === "true" &&
       value.region_code === "AE" &&
-      (!value.iban || !value.swift_code)
+      !value.iban
     )
       context.addIssue({
         code: "custom",
-        message: "UAE bank transfer requires an IBAN and SWIFT/BIC before enabling.",
+        message: "UAE bank transfer requires an IBAN before enabling.",
       });
   });
 

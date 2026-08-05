@@ -21,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     admin.from("order_items").select("id,quantity,unit_price,subtotal,products(name,image_url)").eq("order_id", id),
     admin.from("order_events").select("id,from_status,to_status,payment_status,created_at").eq("order_id", id).order("created_at", { ascending: true }),
     order.data.payment_method === "bank_transfer" && order.data.payment_status !== "paid"
-      ? admin.from("payment_method_settings").select("account_holder_name,bank_name,branch_name,account_number,instructions").eq("region_code", String(order.data.region_code)).eq("payment_method", "bank_transfer").eq("is_enabled", true).maybeSingle()
+      ? admin.from("payment_method_settings").select("account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions").eq("region_code", String(order.data.region_code)).eq("payment_method", "bank_transfer").eq("is_enabled", true).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
   ]);
   if (items.error || events.error || bank.error) {

@@ -81,7 +81,7 @@ type AccountState = {
   deletionRequests: DeletionRequest[];
   error: string;
 };
-type OrderDetail = { order: Order; items: Array<{ id: string; quantity: number; unit_price: number; subtotal: number; products: { name: string; image_url: string | null } | null }>; events: Array<{ id: string; from_status: string | null; to_status: string; payment_status: string | null; created_at: string }>; bank: { account_holder_name: string | null; bank_name: string | null; branch_name: string | null; account_number: string | null; instructions: string | null } | null };
+type OrderDetail = { order: Order; items: Array<{ id: string; quantity: number; unit_price: number; subtotal: number; products: { name: string; image_url: string | null } | null }>; events: Array<{ id: string; from_status: string | null; to_status: string; payment_status: string | null; created_at: string }>; bank: { account_holder_name: string | null; bank_name: string | null; branch_name: string | null; account_number: string | null; iban: string | null; swift_code: string | null; instructions: string | null } | null };
 const emptyState: AccountState = {
   loading: true,
   userId: "",
