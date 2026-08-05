@@ -26,6 +26,7 @@ export default async function PaymentSuccessPage({
   let order:
     | {
         order_number: string;
+        region_code: "LK" | "AE";
         currency: string;
         subtotal_amount: number;
         discount_amount: number;
@@ -40,6 +41,7 @@ export default async function PaymentSuccessPage({
         shipping_postal_code: string;
       }
     | null = null;
+  let bankDetails: { account_holder_name: string | null; bank_name: string | null; branch_name: string | null; account_number: string | null; iban: string | null; swift_code: string | null; instructions: string | null } | null = null;
 
   if (
     orderId &&
@@ -49,7 +51,7 @@ export default async function PaymentSuccessPage({
     const result = await getSupabaseAdminClient()
       .from("orders")
       .select(
-        "order_number,currency,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,payment_method,payment_status,order_status,shipping_address,shipping_city,shipping_postal_code",
+        "order_number,region_code,currency,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,payment_method,payment_status,order_status,shipping_address,shipping_city,shipping_postal_code",
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -60,6 +62,7 @@ export default async function PaymentSuccessPage({
     )
       order = {
         order_number: String(data.order_number),
+        region_code: data.region_code === "AE" ? "AE" : "LK",
         currency: String(data.currency),
         subtotal_amount: Number(data.subtotal_amount),
         discount_amount: Number(data.discount_amount),
@@ -73,8 +76,19 @@ export default async function PaymentSuccessPage({
         shipping_city: String(data.shipping_city ?? ""),
         shipping_postal_code: String(data.shipping_postal_code ?? ""),
       };
+    if (order?.payment_method === "bank_transfer" && order.payment_status !== "paid") {
+      const bankResult = await getSupabaseAdminClient()
+        .from("payment_method_settings")
+        .select("account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions")
+        .eq("region_code", order.region_code)
+        .eq("payment_method", "bank_transfer")
+        .eq("is_enabled", true)
+        .maybeSingle();
+      bankDetails = bankResult.data as typeof bankDetails;
+    }
   }
 
+  const displayBank = bankDetails as Record<string, string | null> | null;
   return (
     <main className="grid min-h-dvh place-items-center bg-yara-ivory p-6 text-center text-yara-charcoal">
       <section className="surface-card w-full max-w-xl p-8 sm:p-12">
@@ -147,6 +161,15 @@ export default async function PaymentSuccessPage({
                     .join(", ")}
                 </dd>
               </div>
+            </dl>
+          </div>
+        )}
+        {order && bank && displayBank && (
+          <div className="mt-5 rounded-2xl border border-yara-rose bg-yara-blush/60 p-5 text-left text-sm">
+            <p className="font-semibold text-yara-wine">Bank Transfer — {order.region_code === "AE" ? "UAE" : "Sri Lanka"}</p>
+            <p className="mt-2 text-xs leading-5 text-yara-taupe">{displayBank.instructions ?? "Please use your Order ID as the payment reference whenever possible. Your order will be confirmed after payment verification."}</p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+              {[['Account holder', displayBank.account_holder_name], ['Bank', displayBank.bank_name], ['Branch', displayBank.branch_name], ['Account number', displayBank.account_number], ['IBAN', displayBank.iban], ['SWIFT', displayBank.swift_code]].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt className="text-[0.68rem] uppercase tracking-[.08em] text-yara-taupe">{label}</dt><dd className="mt-1 break-words font-medium [overflow-wrap:anywhere]">{value}</dd></div>)}
             </dl>
           </div>
         )}

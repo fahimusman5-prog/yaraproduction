@@ -65,6 +65,25 @@ test("return evidence is private, validated, signed for staff, and cleaned up on
   assert.match(data, /createSignedUrls\(evidencePaths, 15 \* 60\)/);
 });
 
+test("Commerce loader logs the exact failed operation without exposing database details", async () => {
+  const [data, log] = await Promise.all([
+    read("../src/modules/admin/commerce-data.ts"),
+    read("../src/lib/supabase/log.ts"),
+  ]);
+  assert.match(data, /logSupabaseError\("admin-commerce", `load-/);
+  assert.match(data, /route: "\/admin\/commerce"/);
+  assert.match(data, /requestId/);
+  assert.match(data, /bank-transfer-settings/);
+  assert.match(log, /console\.error\(\{[\s\S]*supabaseCode/);
+});
+
+test("stale Supabase refresh tokens are cleared by the auth proxy", async () => {
+  const proxy = await read("../src/proxy.ts");
+  assert.match(proxy, /refresh_token_not_found/);
+  assert.match(proxy, /startsWith\("sb-"\)/);
+  assert.match(proxy, /response\.cookies\.delete/);
+});
+
 test("item-level review and refund accounting cannot exceed eligible quantities or paid totals", async () => {
   const [migration, actions] = await Promise.all([
     read("../supabase/migrations/20260729071300_complete_private_return_evidence_and_item_refunds.sql"),

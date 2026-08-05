@@ -18,7 +18,15 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getClaims();
+  const { error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError?.code === "refresh_token_not_found") {
+    // Remove only Supabase auth cookies so an expired session can cleanly reach
+    // the login page instead of repeatedly failing every protected request.
+    for (const cookie of request.cookies.getAll()) {
+      if (cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"))
+        response.cookies.delete(cookie.name);
+    }
+  }
 
   const productMatch = request.nextUrl.pathname.match(/^\/(en|si|ta|ar)\/product\/([^/]+)$/);
   if (request.method === "GET" && productMatch) {
