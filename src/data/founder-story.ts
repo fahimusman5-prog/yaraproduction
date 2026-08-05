@@ -9,19 +9,26 @@ export type FounderAward = {
   };
 };
 
+export type EducationItem = {
+  name: string;
+  description: string;
+  icon: "book" | "leaf" | "sparkle" | "globe" | "certificate";
+  flag?: string;
+};
+
 export const founderStory = {
   seo: {
-    title: "Fazeena Farook — Founder of YARA | YARA",
+    title: "About Fazeena Farook | Founder of YARA Productions",
     description:
-      "Meet Fazeena Farook, who grew YARA from one handmade herbal soap into an internationally growing Ayurvedic beauty brand.",
+      "Discover Fazeena Farook’s journey of continuous learning, Ayurvedic study, entrepreneurship, and the growth of YARA Productions.",
   },
   hero: {
     label: "The woman behind YARA",
     titlePrefix: "From One",
     titleLead: "Handmade Soap",
-    titleAccent: "to a Global Beauty Brand",
+    titleAccent: "to a Growing Beauty Brand",
     description:
-      "Fazeena Farook built YARA from a home-based skincare idea into an internationally growing Ayurvedic beauty brand.",
+      "Fazeena Farook began YARA with a simple handcrafted herbal soap and grew it through continuous learning, customer trust, and dedicated work.",
     role: "Founder & Entrepreneur",
     name: "Fazeena Farook",
     image: {
@@ -30,9 +37,9 @@ export const founderStory = {
     },
   },
   stats: [
-    { value: "3,000+", label: "Monthly Orders" },
-    { value: "10+", label: "Countries" },
-    { value: "GMP & ISO", label: "Standards" },
+    { value: "1", label: "Handcrafted beginning" },
+    { value: "10+", label: "Countries reached" },
+    { value: "In progress", label: "Future vision" },
   ],
   journey: {
     label: "Her story in four steps",
@@ -41,29 +48,54 @@ export const founderStory = {
   milestones: [
     {
       number: "01",
-      label: "The Beginning",
+      label: "THE BEGINNING",
       description:
-        "Fazeena started YARA with one handcrafted herbal soap created to solve real skin concerns.",
+        "Fazeena began YARA with a single handcrafted herbal soap, created with the purpose of addressing genuine skincare concerns through carefully selected ingredients.",
     },
     {
       number: "02",
-      label: "Learning & Expertise",
+      label: "LEARNING & EXPERTISE",
       description:
-        "She travelled to Rajasthan to study Ayurveda, medicinal plants, and natural skincare formulation. She also studied Cosmetology at Kerala Ayurveda.",
+        "She expanded her knowledge through professional academies, Ayurvedic studies, international learning programmes, and specialised masterclass diplomas.",
     },
     {
       number: "03",
-      label: "From Home to Manufacturing",
+      label: "BUILDING THE BRAND",
       description:
-        "With knowledge, customer trust, and support from Aroma Flare Academy, she transformed YARA from a home-based business into a structured manufacturing brand with GMP and ISO standards.",
+        "Through continuous learning, customer trust, and years of dedication, she developed YARA from a small home-based venture into a growing beauty and wellness brand.",
     },
     {
       number: "04",
-      label: "Growing Beyond Borders",
+      label: "GROWING BEYOND BORDERS",
       description:
-        "Today, YARA serves customers in more than ten countries and manages over 3,000 monthly orders with a professional team.",
+        "Today, YARA continues to serve customers across multiple countries while expanding its product range, operations, and professional team.",
     },
   ],
+  education: {
+    label: "EDUCATION & PROFESSIONAL DEVELOPMENT",
+    title: "A Journey of Continuous Learning",
+    introduction:
+      "Fazeena Farook continuously expanded her knowledge through specialised studies, professional academies, international programmes, and masterclass diplomas related to beauty, skincare, wellness, and Ayurvedic practices.",
+    items: [
+      { name: "Novella Global", description: "Professional learning and skills development supporting her journey in beauty and entrepreneurship.", icon: "book" },
+      { name: "Sunflower Skills Academy", description: "Further professional training that strengthened her practical knowledge and industry skills.", icon: "certificate" },
+      { name: "Aromaflare Academy", description: "Additional studies supporting her knowledge of beauty, skincare, and product development.", icon: "sparkle" },
+      { name: "AIKA", description: "Specialised professional development undertaken as part of her continuous learning journey.", icon: "book" },
+      { name: "Kerala Ayurvedic Studies", description: "Study and exposure to traditional Ayurvedic principles, natural ingredients, and wellness practices.", icon: "leaf" },
+      { name: "Rajasthan – The Tree Ayurvedic", description: "Further learning related to Ayurveda, medicinal plants, and natural skincare traditions.", icon: "leaf" },
+      { name: "MIYC, Malaysia", flag: "🇲🇾", description: "International learning exposure that broadened her professional and entrepreneurial perspective.", icon: "globe" },
+      { name: "Masterclass Diplomas", description: "She continued developing her expertise by completing multiple professional masterclasses and diploma programmes.", icon: "certificate" },
+    ] satisfies EducationItem[],
+  },
+  manufacturing: {
+    label: "THE NEXT CHAPTER",
+    title: "Building for the Future",
+    description:
+      "YARA is preparing for its next stage of growth with plans for a larger, purpose-built manufacturing facility. The development is currently in progress and forms part of the brand’s long-term vision to expand production capacity, strengthen its operations, and serve more customers internationally.",
+    note:
+      "Further information about the facility, production standards, and certifications will be shared after the development and approval processes are completed.",
+    status: "Development in progress",
+  },
   brands: {
     label: "Brands under YARA",
     title: "Building Beyond Beauty",
@@ -91,16 +123,6 @@ export const founderStory = {
       { title: "Wonder Woman 2024" },
       { title: "Best Cosmetic Entrepreneurship Award 2025" },
     ] satisfies FounderAward[],
-  },
-  turningPoint: {
-    label: "A defining turning point",
-    title: "Aroma Flare Academy",
-    description:
-      "Aroma Flare Academy helped Fazeena strengthen her knowledge, structure her production process, and move YARA from a home-based business into professional manufacturing.",
-    image: {
-      src: "/images/home/science-backed-botanical-skincare.png",
-      alt: "Botanical skincare ingredients and formulation tools",
-    },
   },
   closing: {
     statement:
