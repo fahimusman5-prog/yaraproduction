@@ -61,7 +61,7 @@ export function hasUsableBankTransferDetails(details: {
     !placeholderPattern.test(iban) &&
     !placeholderPattern.test(swiftCode) &&
     !/^0+$/.test(account.replace(/\s+/g, "")) &&
-    (details.country !== "uae" || (iban.length >= 8 && swiftCode.length >= 8))
+    (details.country !== "uae" || iban.length >= 8)
   );
 }
 
@@ -81,7 +81,7 @@ export const PAYMENT_COPY: Record<
   },
   bank_transfer: {
     label: "Bank Transfer",
-    description: "Transfer directly to our bank account",
+    description: "Transfer securely using our regional bank account",
     action: "Confirm Bank Transfer Order",
   },
   cash_on_delivery: {
