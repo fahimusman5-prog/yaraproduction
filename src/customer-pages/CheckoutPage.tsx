@@ -64,6 +64,7 @@ export function CheckoutPage() {
   const [payHereSubmission, setPayHereSubmission] =
     useState<PayHereSubmission | null>(null);
   const [error, setError] = useState("");
+  const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState<{ code: string; discount: number } | null>(null);
@@ -81,6 +82,15 @@ export function CheckoutPage() {
   const selectedPayment = paymentMethods.find(
     (method) => method.method === payment,
   );
+  const copyBankDetail = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedBankField(label);
+      window.setTimeout(() => setCopiedBankField(null), 1800);
+    } catch {
+      setCopiedBankField(null);
+    }
+  };
   const deliveryFee =
     delivery.configured && delivery.enabled
       ? delivery.fee
@@ -482,8 +492,9 @@ export function CheckoutPage() {
                     Bank transfer details
                   </p>
                   <p className="mt-2 text-xs leading-5 text-yara-taupe">
-                    Please transfer the final payable amount to the account
-                    below. Use your order number as the payment reference.
+                    {country === "uae"
+                      ? "Complete your payment securely using the bank account details below. Once the transfer is completed, upload your payment receipt or share it with our support team so that we can verify your payment and begin processing your order."
+                      : "Please transfer the final payable amount to the account below. Use your order number as the payment reference."}
                   </p>
                   <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                     {[
@@ -497,14 +508,14 @@ export function CheckoutPage() {
                       <div key={label}>
                         <dt className="text-[0.68rem] uppercase tracking-[.08em] text-yara-taupe">{label}</dt>
                         <dd className="mt-1 flex items-center gap-2 font-medium">
-                          <span>{value}</span>
+                          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{value}</span>
                           <button
                             type="button"
-                            onClick={() => void navigator.clipboard.writeText(value)}
+                            onClick={() => void copyBankDetail(label, value)}
                             className="grid h-8 w-8 place-items-center rounded-lg text-yara-wine hover:bg-white"
                             aria-label={`Copy ${label}`}
                           >
-                            <Copy className="h-3.5 w-3.5" />
+                            {copiedBankField === label ? <span className="text-[0.6rem] font-bold uppercase">Copied</span> : <Copy className="h-3.5 w-3.5" />}
                           </button>
                         </dd>
                       </div>
@@ -513,6 +524,11 @@ export function CheckoutPage() {
                   {selectedPayment.bankDetails.instructions && (
                     <p className="mt-4 text-xs leading-5 text-yara-taupe">
                       {selectedPayment.bankDetails.instructions}
+                    </p>
+                  )}
+                  {country === "uae" && (
+                    <p className="mt-3 text-xs font-medium leading-5 text-yara-wine">
+                      Please use your Order ID as the payment reference whenever possible. Your order will be confirmed and processed after the payment has been verified.
                     </p>
                   )}
                   <label className="mt-5 block">
