@@ -3,10 +3,12 @@ import { requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getPayHereConfig } from "@/lib/payhere";
 import { getAppUrlIssues } from "@/lib/supabase/env";
+import { logSupabaseError } from "@/lib/supabase/log";
 
 export async function getCommerceOperations() {
   const staff = await requireStaff("/admin/commerce");
   const supabase = getSupabaseAdminClient();
+  const requestId = crypto.randomUUID();
   const [
     zones,
     deliverySettings,
@@ -89,10 +91,45 @@ export async function getCommerceOperations() {
     refunds,
     deletionRequests,
   ].find((result) => result.error);
-  if (failure?.error)
+  if (failure?.error) {
+    const failedIndex = [
+      zones,
+      deliverySettings,
+      paymentSettings,
+      exchangeRates,
+      methods,
+      shippingAudit,
+      products,
+      categories,
+      coupons,
+      returns,
+      refunds,
+      deletionRequests,
+    ].findIndex((result) => result === failure);
+    const operations = [
+      "zones",
+      "delivery-settings",
+      "bank-transfer-settings",
+      "aed-lkr-exchange-rates",
+      "payment-methods",
+      "shipping-audit-history",
+      "products",
+      "categories",
+      "coupons",
+      "returns",
+      "refunds",
+      "account-deletion-requests",
+    ];
+    logSupabaseError("admin-commerce", `load-${operations[failedIndex] ?? "unknown"}`, failure.error, {
+      route: "/admin/commerce",
+      table: operations[failedIndex],
+      requestId,
+      userId: staff.userId,
+    });
     throw new Error(
       "Commerce operations could not be loaded. Apply the latest migrations.",
     );
+  }
   const returnRows = (returns.data ?? []) as Array<{
     return_images?: Array<{ storage_path: string }>;
     [key: string]: unknown;
@@ -105,8 +142,15 @@ export async function getCommerceOperations() {
         .from("return-evidence")
         .createSignedUrls(evidencePaths, 15 * 60)
     : { data: [], error: null };
-  if (signedEvidence.error)
+  if (signedEvidence.error) {
+    logSupabaseError("admin-commerce", "sign-return-evidence", signedEvidence.error, {
+      route: "/admin/commerce",
+      table: "storage.objects",
+      requestId,
+      userId: staff.userId,
+    });
     throw new Error("Private return evidence could not be authorized.");
+  }
   const signedByPath = new Map(
     (signedEvidence.data ?? []).map((item) => [item.path, item.signedUrl]),
   );
@@ -124,8 +168,15 @@ export async function getCommerceOperations() {
         .eq("payment_method", "card")
         .in("region_code", ["LK", "AE"])
     : { data: [], error: null };
-  if (cardSettings.error)
+  if (cardSettings.error) {
+    logSupabaseError("admin-commerce", "load-card-settings", cardSettings.error, {
+      route: "/admin/commerce",
+      table: "payment_method_settings",
+      requestId,
+      userId: staff.userId,
+    });
     throw new Error("PayHere configuration could not be loaded.");
+  }
   const payHere = getPayHereConfig();
   const now = Date.now();
   const activeUaeRate = (exchangeRates.data ?? []).some((rate) => {
