@@ -37,6 +37,7 @@ const schema = z.object({
   idempotencyKey: z.string().uuid(),
   couponCode: z.string().trim().max(40).optional(),
   bankTransactionReference: z.string().trim().max(200).optional(),
+  locale: z.enum(["en", "si", "ta", "ar"]).default("en"),
 });
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
@@ -369,7 +370,7 @@ export async function POST(request: Request) {
     ) {
       const mode =
         parsed.data.paymentMethod === "cash_on_delivery" ? "cod" : "bank";
-      return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&${mode}=1` });
+      return NextResponse.json({ orderId: order.order_id, totalAmount: Number(order.total_amount), redirectUrl: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&locale=${parsed.data.locale}&${mode}=1` });
     }
 
     const prepared = await rpc("prepare_payhere_payment_attempt", {
@@ -440,8 +441,8 @@ export async function POST(request: Request) {
       action: getPayHereCheckoutUrl(),
       fields: {
         merchant_id: merchantId,
-        return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
-        cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}`,
+        return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&locale=${parsed.data.locale}`,
+        cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&locale=${parsed.data.locale}`,
         notify_url: `${origin}/api/payments/payhere/notify`,
         order_id: attempt.provider_order_id,
         items: `YARA order ${order.order_number}`,
