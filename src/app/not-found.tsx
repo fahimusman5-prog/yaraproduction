@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCataloguePath } from "@/lib/storefront-routes";
 
 export default function NotFound() {
   return (
@@ -12,7 +13,7 @@ export default function NotFound() {
           The page may have moved, but your YARA skincare journey can continue
           from our collection.
         </p>
-        <Link href="/shop" className="btn-primary mt-8">
+        <Link href={getCataloguePath()} className="btn-primary mt-8">
           Explore YARA
         </Link>
       </section>
