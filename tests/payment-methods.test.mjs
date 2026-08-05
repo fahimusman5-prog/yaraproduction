@@ -14,6 +14,8 @@ const launchPaymentMigrationPath =
   "supabase/migrations/20260802120000_configure_regional_offline_payments.sql";
 const uaeBankMigrationPath =
   "supabase/migrations/20260805090000_configure_uae_bank_transfer.sql";
+const uaeBankForwardMigrationPath =
+  "supabase/migrations/20260805120000_enable_uae_bank_transfer_payment_method.sql";
 
 test("payment methods are separate and complete", () => {
   assert.deepEqual(PAYMENT_METHODS, [
@@ -65,6 +67,14 @@ test("UAE bank migration is AED-only and keeps regional account data isolated", 
   assert.match(sql, /019101283587/);
   assert.match(sql, /AE660330000019101283587/);
   assert.doesNotMatch(sql, /Yara International Trading|200260069070/);
+});
+
+test("UAE bank configuration has an idempotent forward migration", async () => {
+  const sql = await readFile(uaeBankForwardMigrationPath, "utf8");
+  assert.match(sql, /insert into public\.payment_method_settings/);
+  assert.match(sql, /on conflict \(region_code, payment_method\) do update/);
+  assert.match(sql, /values \([\s\S]*'AE'[\s\S]*'AED'[\s\S]*'bank_transfer'/);
+  assert.doesNotMatch(sql, /region_code = 'LK'/);
 });
 
 test("launch payment configuration is regional and hides incomplete UAE banking", async () => {
