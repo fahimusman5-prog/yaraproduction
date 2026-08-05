@@ -285,7 +285,7 @@ export function CheckoutPage() {
           ? "/api/payments/payhere/initiate"
           : "/api/checkout";
       const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        country, paymentMethod: payment, termsAccepted: data.get("termsAccepted") === "on", idempotencyKey: idempotencyKeyRef.current, couponCode: coupon?.code, bankTransactionReference: data.get("bankTransactionReference") || undefined,
+        country, locale, paymentMethod: payment, termsAccepted: data.get("termsAccepted") === "on", idempotencyKey: idempotencyKeyRef.current, couponCode: coupon?.code, bankTransactionReference: data.get("bankTransactionReference") || undefined,
         customer: { name: `${data.get("firstName") ?? ""} ${data.get("lastName") ?? ""}`.trim(), email: data.get("email"), phone: data.get("phone"), address: data.get("address"), city: data.get("city"), postalCode: data.get("postalCode") },
         items: items.map(({ product, quantity }) => ({ product_id: product.id, quantity })),
       }) });
