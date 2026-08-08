@@ -18,11 +18,14 @@ test("card payment uses the canonical PayHere label and CTA", async () => {
 });
 
 test("PayHere visibility is gated by common configuration and UAE rate", async () => {
-  const route = await read("../src/app/api/payment-methods/route.ts");
+  const [route, resolver] = await Promise.all([
+    read("../src/app/api/payment-methods/route.ts"),
+    read("../src/lib/exchange-rates.ts"),
+  ]);
   assert.match(route, /payHere\.enabled/);
   assert.match(route, /payHere\.merchantIdConfigured/);
   assert.match(route, /payHere\.merchantSecretConfigured/);
-  assert.match(route, /target_currency/,);
+  assert.match(resolver, /target_currency/);
   assert.match(route, /uaeLkrReady/);
 });
 
