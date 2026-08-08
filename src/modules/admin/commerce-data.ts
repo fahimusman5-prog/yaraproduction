@@ -4,8 +4,11 @@ import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getPayHereConfig } from "@/lib/payhere";
 import { getAppUrlIssues } from "@/lib/supabase/env";
 import { logSupabaseError } from "@/lib/supabase/log";
+import { activeRateReasonMessage, resolveActiveAedLkrRate } from "@/lib/exchange-rates";
+import { unstable_noStore as noStore } from "next/cache";
 
 export async function getCommerceOperations() {
+  noStore();
   const staff = await requireStaff("/admin/commerce");
   const supabase = getSupabaseAdminClient();
   const requestId = crypto.randomUUID();
@@ -33,18 +36,19 @@ export async function getCommerceOperations() {
         : Promise.resolve({ data: [], error: null }),
       staff.profile.role === "admin"
         ? supabase
+            .from("payment_method_settings")
+            .select("*")
+            .eq("payment_method", "bank_transfer")
+            .order("region_code")
+        : Promise.resolve({ data: [], error: null }),
+      staff.profile.role === "admin"
+        ? supabase
             .from("exchange_rates")
             .select("*")
             .eq("source_currency", "AED")
             .eq("target_currency", "LKR")
             .order("effective_from", { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
-      staff.profile.role === "admin"
-        ? supabase
-            .from("payment_method_settings")
-            .select("*")
-            .eq("payment_method", "bank_transfer")
-            .order("region_code")
+            .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
       Promise.resolve({ data: [], error: null }),
       supabase
@@ -178,13 +182,23 @@ export async function getCommerceOperations() {
     throw new Error("PayHere configuration could not be loaded.");
   }
   const payHere = getPayHereConfig();
-  const now = Date.now();
-  const activeUaeRate = (exchangeRates.data ?? []).some((rate) => {
-    const row = rate as { source_currency?: string; target_currency?: string; active?: boolean; effective_from?: string; expires_at?: string | null };
-    return row.source_currency === "AED" && row.target_currency === "LKR" && row.active === true
-      && Boolean(row.effective_from) && new Date(row.effective_from!).getTime() <= now
-      && (!row.expires_at || new Date(row.expires_at).getTime() > now);
-  });
+  const rateResolution = await resolveActiveAedLkrRate(supabase);
+  const activeUaeRate = rateResolution.rate !== null;
+  const rateRows = (exchangeRates.data ?? []) as Array<Record<string, unknown>>;
+  const updaterIds = [...new Set(rateRows.map((row) => String(row.updated_by ?? "")).filter(Boolean))];
+  const updaterResult = updaterIds.length
+    ? await supabase.from("profiles").select("id,full_name,email").in("id", updaterIds)
+    : { data: [], error: null };
+  const updaterRows = (updaterResult.data ?? []) as Array<{ id: string; full_name?: string | null; email?: string | null }>;
+  const updaterById = new Map(updaterRows.map((row) => [String(row.id), row]));
+  const exchangeRatesWithUpdater = rateRows.map((row) => ({
+    ...row,
+    updated_by_name: updaterById.get(String(row.updated_by))?.full_name ?? null,
+    updated_by_email: updaterById.get(String(row.updated_by))?.email ?? null,
+  }));
+  const activeAedLkrRate = rateResolution.rate
+    ? { ...rateResolution.rate, ...exchangeRatesWithUpdater.find((row) => String((row as { id?: unknown }).id) === rateResolution.rate?.id) }
+    : null;
   const cardByRegion = Object.fromEntries(
     (cardSettings.data ?? []).map((row) => [String((row as { region_code: string }).region_code), Boolean((row as { is_enabled: boolean }).is_enabled)]),
   ) as Record<string, boolean>;
@@ -196,13 +210,14 @@ export async function getCommerceOperations() {
     getAppUrlIssues().length > 0 ? getAppUrlIssues()[0] : null,
     !cardByRegion.LK ? "Sri Lanka card payment is disabled in payment_method_settings." : null,
     !cardByRegion.AE ? "UAE card payment is disabled in payment_method_settings." : null,
-    !activeUaeRate ? "No active effective AED-to-LKR rate is available for UAE checkout." : null,
+    !activeUaeRate ? activeRateReasonMessage(rateResolution.reason) : null,
   ].filter((reason): reason is string => Boolean(reason));
   return {
     zones: zones.data ?? [],
     deliverySettings: deliverySettings.data ?? [],
     paymentSettings: paymentSettings.data ?? [],
-    exchangeRates: exchangeRates.data ?? [],
+    exchangeRates: exchangeRatesWithUpdater,
+    activeAedLkrRate,
     methods: methods.data ?? [],
     shippingAudit: shippingAudit.data ?? [],
     products: products.data ?? [],
@@ -219,6 +234,8 @@ export async function getCommerceOperations() {
       siteUrlValid: getAppUrlIssues().length === 0,
       cardByRegion,
       activeUaeRate,
+      rateReason: rateResolution.reason,
+      activeAedLkrRate,
       availableByRegion: {
         LK: commonReady && Boolean(cardByRegion.LK),
         AE: commonReady && Boolean(cardByRegion.AE) && activeUaeRate,

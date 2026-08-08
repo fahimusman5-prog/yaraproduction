@@ -23,6 +23,7 @@ type Props = {
   deliverySettings: any[];
   paymentSettings: any[];
   exchangeRates: any[];
+  activeAedLkrRate: any | null;
   shippingAudit: any[];
   products: any[];
   categories: any[];
@@ -38,6 +39,8 @@ type Props = {
     siteUrlValid: boolean;
     cardByRegion: Record<string, boolean>;
     activeUaeRate: boolean;
+    rateReason: string;
+    activeAedLkrRate: any | null;
     availableByRegion: { LK: boolean; AE: boolean };
     reasons: string[];
   };
@@ -47,6 +50,7 @@ export function CommerceManager({
   deliverySettings,
   paymentSettings,
   exchangeRates,
+  activeAedLkrRate,
   shippingAudit,
   products,
   categories,
@@ -110,7 +114,7 @@ export function CommerceManager({
         </section>
       )}
       {
-        <ExchangeRateEditor rate={exchangeRates[0] ?? null} />
+        <ExchangeRateEditor rate={activeAedLkrRate} rates={exchangeRates} />
       }
       {/* Legacy zone and method controls were removed from the active admin
           interface. The preserved source below documents the historical UI
@@ -613,6 +617,9 @@ function PayHereDiagnosticPanel({ diagnostic }: { diagnostic: Props["payHereDiag
       <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {checks.map(([label, value]) => <div key={label} className="rounded-xl border border-[var(--staff-line)] bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className={`mt-1 text-sm font-semibold ${value ? "text-emerald-700" : "text-rose-700"}`}>{value ? "Yes" : "No"}</dd></div>)}
       </dl>
+      <p className="mt-4 text-xs leading-5 text-slate-500">
+        Current rate: {diagnostic.activeAedLkrRate ? `1 AED = ${Number(diagnostic.activeAedLkrRate.rate).toFixed(2)} LKR` : "—"} · effective: {diagnostic.activeAedLkrRate?.effective_from ?? "—"} · expiry: {diagnostic.activeAedLkrRate?.expires_at ?? "No expiry"}
+      </p>
       {diagnostic.reasons.length > 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-semibold text-amber-900">Unavailable reasons</p><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-amber-900">{diagnostic.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
     </section>
   );
@@ -677,16 +684,28 @@ function PaymentSettingEditor({ setting }: { setting: any }) {
   );
 }
 
-function ExchangeRateEditor({ rate }: { rate: any | null }) {
+function ExchangeRateEditor({ rate, rates }: { rate: any | null; rates: any[] }) {
   const [state, action] = useActionState(
     updateAedLkrExchangeRateAction,
     initialActionState,
   );
   const localDateTime = (value: string | undefined, fallback: Date) => {
     const date = value ? new Date(value) : fallback;
-    const offset = date.getTimezoneOffset() * 60_000;
-    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Colombo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date);
+    const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+    return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
   };
+  const formatColombo = (value: string | null) => value
+    ? new Intl.DateTimeFormat("en-LK", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+    : "No expiry";
   return (
     <section className="staff-panel p-5 sm:p-6">
       <div className="max-w-3xl">
@@ -711,14 +730,25 @@ function ExchangeRateEditor({ rate }: { rate: any | null }) {
             <input name="effective_from" type="datetime-local" defaultValue={localDateTime(rate?.effective_from, new Date())} required className="staff-input" />
           </label>
           <label>
-            <span className="staff-label">Expires at</span>
-            <input name="expires_at" type="datetime-local" defaultValue={localDateTime(rate?.expires_at, new Date(Date.now() + 24 * 60 * 60 * 1000))} required className="staff-input" />
+            <span className="staff-label">Expires at (optional)</span>
+            <input name="expires_at" type="datetime-local" defaultValue={localDateTime(rate?.expires_at, new Date(Date.now() + 24 * 60 * 60 * 1000))} className="staff-input" />
           </label>
         </div>
         <SubmitButton pendingLabel="Saving approved rate…">
-          Save AED to LKR rate
-        </SubmitButton>
+        Save AED to LKR rate
+      </SubmitButton>
       </form>
+      <div className="mt-6 overflow-x-auto">
+        <h3 className="text-sm font-bold uppercase tracking-[.08em] text-yara-wine">AED→LKR rate history</h3>
+        <table className="staff-table mt-3 min-w-[760px]">
+          <thead><tr><th>Rate</th><th>Status</th><th>Effective from</th><th>Expires at</th><th>Created</th><th>Updated by</th></tr></thead>
+          <tbody>{rates.map((row) => {
+            const now = Date.now();
+            const status = !row.active ? "INACTIVE" : new Date(row.effective_from).getTime() > now ? "FUTURE" : row.expires_at && new Date(row.expires_at).getTime() <= now ? "EXPIRED" : "CURRENT";
+            return <tr key={row.id}><td>1 AED = {Number(row.rate).toFixed(2)} LKR</td><td>{status}</td><td>{formatColombo(row.effective_from)}</td><td>{formatColombo(row.expires_at)}</td><td>{formatColombo(row.created_at)}</td><td>{row.updated_by_email ?? row.updated_by ?? "—"}</td></tr>;
+          })}</tbody>
+        </table>
+      </div>
     </section>
   );
 }

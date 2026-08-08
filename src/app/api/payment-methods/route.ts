@@ -9,9 +9,11 @@ import {
   type PublicPaymentMethod,
 } from "@/lib/payment-methods";
 import { getPayHereConfig } from "@/lib/payhere";
+import { resolveActiveAedLkrRate } from "@/lib/exchange-rates";
 
 type SettingRow = {
   payment_method: PaymentMethod;
+  provider_name: string | null;
   is_enabled: boolean;
   account_holder_name: string | null;
   bank_name: string | null;
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("payment_method_settings")
     .select(
-      "payment_method,is_enabled,account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions",
+      "payment_method,provider_name,is_enabled,account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions",
     )
     .eq("region_code", regionCode);
   if (error)
@@ -43,25 +45,16 @@ export async function GET(request: Request) {
     ((data ?? []) as SettingRow[]).map((row) => [row.payment_method, row]),
   );
   const payHere = getPayHereConfig();
-  const rateResult =
-    country === "uae"
-      ? await admin
-          .from("exchange_rates")
-          .select("id")
-          .eq("source_currency", "AED")
-          .eq("target_currency", "LKR")
-          .eq("active", true)
-          .lte("effective_from", new Date().toISOString())
-          .gt("expires_at", new Date().toISOString())
-          .limit(1)
-          .maybeSingle()
-      : null;
-  const uaeLkrReady = Boolean(rateResult?.data && !rateResult.error);
+  const rateResolution = country === "uae"
+    ? await resolveActiveAedLkrRate(admin)
+    : null;
+  const uaeLkrReady = rateResolution?.rate !== null;
   const methods: PublicPaymentMethod[] = PAYMENT_METHODS.map((method) => {
     const row = byMethod.get(method);
     const providerAvailable =
       method === "card"
         ? Boolean(row?.is_enabled) &&
+          row?.provider_name === "payhere" &&
           payHere.enabled &&
           payHere.merchantIdConfigured &&
           payHere.merchantSecretConfigured &&

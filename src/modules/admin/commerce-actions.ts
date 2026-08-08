@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
+import { resolveActiveAedLkrRate } from "@/lib/exchange-rates";
+import { colomboDateTimeToUtc } from "@/lib/exchange-rate-time";
 import type { ActionState } from "./action-state";
 import { formObject } from "./input";
 import {
@@ -109,14 +111,8 @@ const exchangeRateSchema = z
     id: z.string().uuid().optional(),
     rate: z.coerce.number().positive().max(1000),
     effective_from: z.string().min(1),
-    expires_at: z.string().min(1),
-  })
-  .refine(
-    (value) =>
-      new Date(value.expires_at).getTime() >
-      new Date(value.effective_from).getTime(),
-    { message: "Expiry must be after the effective time." },
-  );
+    expires_at: z.preprocess((value) => value === "" ? null : value, z.string().min(1).nullable().optional()),
+  });
 
 function shippingZoneFields(data: z.infer<typeof zoneSchema>) {
   return {
@@ -329,31 +325,22 @@ export async function updateAedLkrExchangeRateAction(
       status: "error",
       message: "Historical exchange-rate records are immutable. Create a new rate instead.",
     };
-  const fields = {
-    source_currency: "AED",
-    target_currency: "LKR",
-    rate: parsed.data.rate,
-    effective_from: new Date(parsed.data.effective_from).toISOString(),
-    expires_at: new Date(parsed.data.expires_at).toISOString(),
-    active: true,
-    rate_source: "admin-approved",
-    updated_by: admin.userId,
-    updated_at: new Date().toISOString(),
-  };
+  const effectiveFrom = colomboDateTimeToUtc(parsed.data.effective_from);
+  const expiresAt = parsed.data.expires_at ? colomboDateTimeToUtc(parsed.data.expires_at) : null;
+  if (!effectiveFrom) return { status: "error", message: "Effective time must be a valid Sri Lanka date and time." };
+  if (parsed.data.expires_at && !expiresAt) return { status: "error", message: "Expiry must be a valid Sri Lanka date and time." };
+  if (expiresAt && expiresAt <= effectiveFrom) return { status: "error", message: "Expiry must be after the effective time." };
   const client = getSupabaseAdminClient();
-  const deactivated = await client
-    .from("exchange_rates")
-    .update({ active: false, updated_by: admin.userId, updated_at: new Date().toISOString() })
-    .eq("source_currency", "AED")
-    .eq("target_currency", "LKR")
-    .eq("active", true);
-  if (deactivated.error)
-    return { status: "error", message: "Unable to deactivate the previous AED to LKR rate." };
-  const saved = await client
-    .from("exchange_rates")
-    .insert(fields)
-    .select("id")
-    .maybeSingle();
+  const rpc = client.rpc.bind(client) as unknown as (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
+  const saved = await rpc("save_aed_lkr_exchange_rate", {
+    p_rate: parsed.data.rate,
+    p_effective_from: effectiveFrom.toISOString(),
+    p_expires_at: expiresAt?.toISOString() ?? null,
+    p_updated_by: admin.userId,
+  });
   if (saved.error || !saved.data) {
     logSupabaseError("admin-commerce", "save-aed-lkr-rate", saved.error, {
       route: "/admin/commerce",
@@ -365,9 +352,16 @@ export async function updateAedLkrExchangeRateAction(
       message: "Unable to save the approved AED to LKR rate.",
     };
   }
+  const verification = await resolveActiveAedLkrRate(client);
   revalidatePath("/admin/commerce");
   revalidatePath("/checkout");
-  return { status: "success", message: "AED to LKR rate saved." };
+  const savedRow = (Array.isArray(saved.data) ? saved.data[0] : saved.data) as { rate?: number; id?: string };
+  return {
+    status: "success",
+    message: verification.rate?.id === savedRow.id
+      ? `AED to LKR rate saved and active: 1 AED = ${Number(savedRow.rate).toFixed(2)} LKR.`
+      : "AED to LKR rate saved. It will become active at the effective time.",
+  };
 }
 
 export async function createShippingZoneAction(
