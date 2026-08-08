@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { isBooleanEnvValue, parseBooleanEnv } from "../src/lib/supabase/env.ts";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -10,11 +11,24 @@ test("card payment uses the canonical PayHere label and CTA", async () => {
     read("../src/customer-pages/CheckoutPage.tsx"),
   ]);
   assert.match(methods, /label: "Card Payment"/);
-  assert.match(methods, /description: "Pay securely through PayHere"/);
+  assert.match(methods, /description: "Pay securely online through PayHere"/);
   assert.match(methods, /PROCEED TO SECURE CARD PAYMENT/);
   assert.match(checkout, /payment === "card"/);
-  assert.match(checkout, /Your card will be charged in LKR through PayHere/);
-  assert.match(checkout, /displayed LKR amount will be processed securely through PayHere/);
+  assert.match(checkout, /Your card payment will be securely processed in LKR through PayHere/);
+  assert.match(checkout, /displayed AED→LKR conversion/);
+});
+
+test("PayHere environment booleans normalize production values safely", () => {
+  assert.equal(parseBooleanEnv("true"), true);
+  assert.equal(parseBooleanEnv(" TRUE "), true);
+  assert.equal(parseBooleanEnv("1"), true);
+  assert.equal(parseBooleanEnv("false"), false);
+  assert.equal(parseBooleanEnv("FALSE"), false);
+  assert.equal(parseBooleanEnv("0"), false);
+  assert.equal(parseBooleanEnv("unexpected"), false);
+  assert.equal(isBooleanEnvValue("TRUE"), true);
+  assert.equal(isBooleanEnvValue("0"), true);
+  assert.equal(isBooleanEnvValue("unexpected"), false);
 });
 
 test("PayHere visibility is gated by common configuration and UAE rate", async () => {
@@ -51,4 +65,5 @@ test("database enablement keeps runtime gates in place", async () => {
   assert.match(migration, /payment_method = 'card'/);
   assert.match(migration, /region_code in \('LK', 'AE'\)/);
   assert.match(route, /Boolean\(row\?\.is_enabled\)/);
+  assert.match(route, /method === "card"/);
 });

@@ -466,8 +466,8 @@ export function CheckoutPage() {
                       <span className="mt-1 block text-xs leading-5 text-yara-taupe">
                         {method.method === "card"
                           ? country === "sri-lanka"
-                            ? "Your card will be charged in LKR through PayHere."
-                            : "Your order remains priced in AED. The displayed LKR amount will be processed securely through PayHere."
+                            ? "Your card payment will be securely processed in LKR through PayHere."
+                            : "Your order remains priced in AED. Your PayHere card payment will be processed in LKR using the displayed AED→LKR conversion."
                           : method.description}
                       </span>
                       <span className="mt-2 block text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-yara-wine">

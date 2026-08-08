@@ -1,4 +1,18 @@
 const placeholderPatterns = ["your-project", "your_key", "sb_secret_your_key", "sb_publishable_your_key"];
+const TRUE_BOOLEAN_VALUES = new Set(["true", "1"]);
+const FALSE_BOOLEAN_VALUES = new Set(["false", "0"]);
+
+export function parseBooleanEnv(value: string | undefined, fallback = false) {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized && TRUE_BOOLEAN_VALUES.has(normalized)) return true;
+  if (normalized && FALSE_BOOLEAN_VALUES.has(normalized)) return false;
+  return fallback;
+}
+
+export function isBooleanEnvValue(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase();
+  return Boolean(normalized && (TRUE_BOOLEAN_VALUES.has(normalized) || FALSE_BOOLEAN_VALUES.has(normalized)));
+}
 type SupabaseConfig = { url: string; publishableKey: string };
 type SupabaseAdminConfig = { url: string; secretKey: string };
 const productionOrigins = new Set([
@@ -101,20 +115,20 @@ export function getSupabaseAdminConfig(): SupabaseAdminConfig | null {
 
 export function getServerEnvIssues() {
   const issues = [...new Set([...getSupabaseConfigIssues(), ...getSupabaseAdminConfigIssues(), ...getAppUrlIssues()])];
-  const paymentsEnabled = process.env.PAYMENTS_ENABLED === "true";
+  const paymentsEnabled = parseBooleanEnv(process.env.PAYMENTS_ENABLED);
   const payhereMerchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
   const payhereMerchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
 
-  const payHereEnabled = process.env.PAYHERE_ENABLED === "true" || paymentsEnabled;
+  const payHereEnabled = parseBooleanEnv(process.env.PAYHERE_ENABLED) || paymentsEnabled;
   if (payHereEnabled && !payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing while PayHere is enabled.");
   if (payHereEnabled && !payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing while PayHere is enabled.");
-  if (process.env.PAYMENTS_ENABLED && !["true", "false"].includes(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true or false.");
-  if (process.env.PAYHERE_ENABLED && !["true", "false"].includes(process.env.PAYHERE_ENABLED)) issues.push("PAYHERE_ENABLED must be true or false.");
+  if (process.env.PAYMENTS_ENABLED && !isBooleanEnvValue(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true, false, 1, or 0.");
+  if (process.env.PAYHERE_ENABLED && !isBooleanEnvValue(process.env.PAYHERE_ENABLED)) issues.push("PAYHERE_ENABLED must be true, false, 1, or 0.");
   for (const name of [
     "PAYHERE_SANDBOX",
   ] as const)
-    if (process.env[name] && !["true", "false"].includes(process.env[name]!))
-      issues.push(`${name} must be true or false.`);
+    if (process.env[name] && !isBooleanEnvValue(process.env[name]))
+      issues.push(`${name} must be true, false, 1, or 0.`);
   const emailVariables = [
     "RESEND_API_KEY",
     "EMAIL_FROM",

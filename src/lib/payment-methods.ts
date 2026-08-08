@@ -71,7 +71,7 @@ export const PAYMENT_COPY: Record<
 > = {
   card: {
     label: "Card Payment",
-    description: "Pay securely through PayHere",
+    description: "Pay securely online through PayHere",
     action: "PROCEED TO SECURE CARD PAYMENT",
   },
   koko: {

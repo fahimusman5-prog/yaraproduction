@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, timingSafeEqual } from "node:crypto";
+import { parseBooleanEnv } from "@/lib/supabase/env";
 
 const md5 = (value: string) => createHash("md5").update(value, "utf8").digest("hex").toUpperCase();
 
@@ -14,9 +15,9 @@ export type PayHereConfig = {
 export function getPayHereConfig(): PayHereConfig {
   return {
     enabled:
-      process.env.PAYHERE_ENABLED === "true" ||
-      process.env.PAYMENTS_ENABLED === "true",
-    sandbox: process.env.PAYHERE_SANDBOX !== "false",
+      parseBooleanEnv(process.env.PAYHERE_ENABLED) ||
+      parseBooleanEnv(process.env.PAYMENTS_ENABLED),
+    sandbox: parseBooleanEnv(process.env.PAYHERE_SANDBOX, true),
     merchantIdConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID?.trim()),
     merchantSecretConfigured: Boolean(
       process.env.PAYHERE_MERCHANT_SECRET?.trim(),
