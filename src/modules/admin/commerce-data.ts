@@ -185,8 +185,17 @@ export async function getCommerceOperations() {
       && Boolean(row.effective_from) && new Date(row.effective_from!).getTime() <= now
       && (!row.expires_at || new Date(row.expires_at).getTime() > now);
   });
+  const activeUaeRateRow = (exchangeRates.data ?? []).find((rate) => {
+    const row = rate as { source_currency?: string; target_currency?: string; active?: boolean; effective_from?: string; expires_at?: string | null };
+    return row.source_currency === "AED" && row.target_currency === "LKR" && row.active === true
+      && Boolean(row.effective_from) && new Date(row.effective_from!).getTime() <= now
+      && (!row.expires_at || new Date(row.expires_at).getTime() > now);
+  }) as { rate?: number; effective_from?: string; expires_at?: string | null } | undefined;
   const cardByRegion = Object.fromEntries(
     (cardSettings.data ?? []).map((row) => [String((row as { region_code: string }).region_code), Boolean((row as { is_enabled: boolean }).is_enabled)]),
+  ) as Record<string, boolean>;
+  const payHereByRegion = Object.fromEntries(
+    (cardSettings.data ?? []).map((row) => [String((row as { region_code: string }).region_code), (row as { provider_name?: string }).provider_name === "payhere"]),
   ) as Record<string, boolean>;
   const commonReady = payHere.enabled && payHere.merchantIdConfigured && payHere.merchantSecretConfigured && getAppUrlIssues().length === 0;
   const reasons = [
@@ -194,9 +203,9 @@ export async function getCommerceOperations() {
     !payHere.merchantIdConfigured ? "PAYHERE_MERCHANT_ID is missing." : null,
     !payHere.merchantSecretConfigured ? "PAYHERE_MERCHANT_SECRET is missing." : null,
     getAppUrlIssues().length > 0 ? getAppUrlIssues()[0] : null,
-    !cardByRegion.LK ? "Sri Lanka card payment is disabled in payment_method_settings." : null,
+    !(cardSettings.data ?? []).some((row) => (row as { region_code?: string; provider_name?: string }).region_code === "LK" && (row as { is_enabled?: boolean }).is_enabled === true && (row as { provider_name?: string }).provider_name === "payhere") ? "Sri Lanka card payment is disabled or not configured for PayHere in payment_method_settings." : null,
     !cardByRegion.AE ? "UAE card payment is disabled in payment_method_settings." : null,
-    !activeUaeRate ? "No active effective AED-to-LKR rate is available for UAE checkout." : null,
+    !activeUaeRate ? "No active AED→LKR exchange rate." : null,
   ].filter((reason): reason is string => Boolean(reason));
   return {
     zones: zones.data ?? [],
@@ -218,7 +227,11 @@ export async function getCommerceOperations() {
       merchantSecretConfigured: payHere.merchantSecretConfigured,
       siteUrlValid: getAppUrlIssues().length === 0,
       cardByRegion,
+      payHereByRegion,
       activeUaeRate,
+      uaeRate: activeUaeRateRow?.rate ?? null,
+      uaeRateEffectiveAt: activeUaeRateRow?.effective_from ?? null,
+      uaeRateExpiresAt: activeUaeRateRow?.expires_at ?? null,
       availableByRegion: {
         LK: commonReady && Boolean(cardByRegion.LK),
         AE: commonReady && Boolean(cardByRegion.AE) && activeUaeRate,

@@ -11,12 +11,19 @@ export type PayHereConfig = {
   merchantSecretConfigured: boolean;
 };
 
+function readBoolean(value: string | undefined, defaultValue = false) {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1") return true;
+  if (normalized === "false" || normalized === "0") return false;
+  return defaultValue;
+}
+
 export function getPayHereConfig(): PayHereConfig {
   return {
     enabled:
-      process.env.PAYHERE_ENABLED === "true" ||
-      process.env.PAYMENTS_ENABLED === "true",
-    sandbox: process.env.PAYHERE_SANDBOX !== "false",
+      readBoolean(process.env.PAYHERE_ENABLED) ||
+      readBoolean(process.env.PAYMENTS_ENABLED),
+    sandbox: readBoolean(process.env.PAYHERE_SANDBOX, true),
     merchantIdConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID?.trim()),
     merchantSecretConfigured: Boolean(
       process.env.PAYHERE_MERCHANT_SECRET?.trim(),

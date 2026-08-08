@@ -12,6 +12,7 @@ import { getPayHereConfig } from "@/lib/payhere";
 
 type SettingRow = {
   payment_method: PaymentMethod;
+  provider_name: string | null;
   is_enabled: boolean;
   account_holder_name: string | null;
   bank_name: string | null;
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("payment_method_settings")
     .select(
-      "payment_method,is_enabled,account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions",
+      "payment_method,provider_name,is_enabled,account_holder_name,bank_name,branch_name,account_number,iban,swift_code,instructions",
     )
     .eq("region_code", regionCode);
   if (error)
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
           .eq("target_currency", "LKR")
           .eq("active", true)
           .lte("effective_from", new Date().toISOString())
-          .gt("expires_at", new Date().toISOString())
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
           .limit(1)
           .maybeSingle()
       : null;
@@ -62,6 +63,7 @@ export async function GET(request: Request) {
     const providerAvailable =
       method === "card"
         ? Boolean(row?.is_enabled) &&
+          row?.provider_name === "payhere" &&
           payHere.enabled &&
           payHere.merchantIdConfigured &&
           payHere.merchantSecretConfigured &&

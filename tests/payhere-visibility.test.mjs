@@ -26,10 +26,18 @@ test("PayHere visibility is gated by common configuration and UAE rate", async (
   assert.match(route, /uaeLkrReady/);
 });
 
+test("PayHere environment flags are normalized as server-side strings", async () => {
+  const payhere = await read("../src/lib/payhere.ts");
+  assert.match(payhere, /value\?\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(payhere, /normalized === "true" \|\| normalized === "1"/);
+  assert.match(payhere, /readBoolean\(process\.env\.PAYHERE_SANDBOX, true\)/);
+});
+
 test("production origin supports NEXT_PUBLIC_SITE_URL", async () => {
   const env = await read("../src/lib/supabase/env.ts");
   assert.match(env, /NEXT_PUBLIC_SITE_URL \?\? process\.env\.NEXT_PUBLIC_APP_URL/);
   assert.match(env, /const appUrl = \(process\.env\.NEXT_PUBLIC_SITE_URL \?\? process\.env\.NEXT_PUBLIC_APP_URL\)/);
+  assert.match(env, /VERCEL_PROJECT_PRODUCTION_URL/);
 });
 
 test("admin PayHere diagnostics never include secret values", async () => {
@@ -38,6 +46,7 @@ test("admin PayHere diagnostics never include secret values", async () => {
     read("../src/modules/admin/components/CommerceManager.tsx"),
   ]);
   assert.match(data, /merchantSecretConfigured/);
+  assert.match(data, /No active AED→LKR exchange rate/);
   assert.match(manager, /Secrets and credential values are never displayed/);
   assert.doesNotMatch(manager, /PAYHERE_MERCHANT_SECRET\s*[:=][^,}]+/);
 });

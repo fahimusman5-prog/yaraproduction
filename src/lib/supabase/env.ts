@@ -5,6 +5,7 @@ const productionOrigins = new Set([
   "https://www.yaraproduct.com",
   "https://yaraproduct.com",
 ]);
+const canonicalProductionOrigin = "https://yaraproduct.com";
 
 function hasPlaceholder(value: string | undefined) {
   return !value || placeholderPatterns.some((pattern) => value.includes(pattern));
@@ -29,22 +30,29 @@ function getSupabaseUrlIssue(url: string | undefined) {
 export function getAppUrlIssues() {
   const issues: string[] = [];
   const appUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
-  if (!appUrl) {
+  const resolvedUrl = appUrl || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}` : undefined);
+  if (!resolvedUrl) {
     issues.push("NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL is missing.");
-  } else if (!isHttpUrl(appUrl)) {
+  } else if (!isHttpUrl(resolvedUrl)) {
     issues.push("NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL must be a valid HTTP or HTTPS origin.");
-  } else if (new URL(appUrl).pathname !== "/" || new URL(appUrl).search || new URL(appUrl).hash) {
+  } else if (new URL(resolvedUrl).pathname !== "/" || new URL(resolvedUrl).search || new URL(resolvedUrl).hash) {
     issues.push("NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL must be an origin without a path, query, or hash.");
-  } else if (process.env.VERCEL_ENV === "production" && !productionOrigins.has(appUrl)) {
+  } else if (process.env.VERCEL_ENV === "production" && !productionOrigins.has(new URL(resolvedUrl).origin)) {
     issues.push("NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com or https://yaraproduct.com in production.");
-  } else if (appUrl.includes("yaraproduct.com") && !productionOrigins.has(appUrl)) {
+  } else if (resolvedUrl.includes("yaraproduct.com") && !productionOrigins.has(new URL(resolvedUrl).origin)) {
     issues.push("NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL must be https://www.yaraproduct.com or https://yaraproduct.com in production.");
   }
   return issues;
 }
 
 export function getAppOrigin(requestUrl?: string) {
-  const appUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
+  const configuredUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL)?.trim();
+  const fallbackUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`
+    : process.env.VERCEL_ENV === "production"
+      ? canonicalProductionOrigin
+      : undefined;
+  const appUrl = configuredUrl || fallbackUrl;
   if (appUrl && getAppUrlIssues().length === 0) return new URL(appUrl).origin;
 
   const nonProduction = process.env.VERCEL_ENV
@@ -101,20 +109,21 @@ export function getSupabaseAdminConfig(): SupabaseAdminConfig | null {
 
 export function getServerEnvIssues() {
   const issues = [...new Set([...getSupabaseConfigIssues(), ...getSupabaseAdminConfigIssues(), ...getAppUrlIssues()])];
-  const paymentsEnabled = process.env.PAYMENTS_ENABLED === "true";
+  const parseBoolean = (value: string | undefined) => ["true", "1"].includes(value?.trim().toLowerCase() ?? "");
+  const paymentsEnabled = parseBoolean(process.env.PAYMENTS_ENABLED);
   const payhereMerchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
   const payhereMerchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
 
-  const payHereEnabled = process.env.PAYHERE_ENABLED === "true" || paymentsEnabled;
+  const payHereEnabled = parseBoolean(process.env.PAYHERE_ENABLED) || paymentsEnabled;
   if (payHereEnabled && !payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing while PayHere is enabled.");
   if (payHereEnabled && !payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing while PayHere is enabled.");
-  if (process.env.PAYMENTS_ENABLED && !["true", "false"].includes(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true or false.");
-  if (process.env.PAYHERE_ENABLED && !["true", "false"].includes(process.env.PAYHERE_ENABLED)) issues.push("PAYHERE_ENABLED must be true or false.");
+  if (process.env.PAYMENTS_ENABLED && !["true", "false", "1", "0"].includes(process.env.PAYMENTS_ENABLED.trim().toLowerCase())) issues.push("PAYMENTS_ENABLED must be true, false, 1, or 0.");
+  if (process.env.PAYHERE_ENABLED && !["true", "false", "1", "0"].includes(process.env.PAYHERE_ENABLED.trim().toLowerCase())) issues.push("PAYHERE_ENABLED must be true, false, 1, or 0.");
   for (const name of [
     "PAYHERE_SANDBOX",
   ] as const)
-    if (process.env[name] && !["true", "false"].includes(process.env[name]!))
-      issues.push(`${name} must be true or false.`);
+    if (process.env[name] && !["true", "false", "1", "0"].includes(process.env[name]!.trim().toLowerCase()))
+      issues.push(`${name} must be true, false, 1, or 0.`);
   const emailVariables = [
     "RESEND_API_KEY",
     "EMAIL_FROM",

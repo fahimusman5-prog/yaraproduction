@@ -368,9 +368,8 @@ export async function getReportsData() {
     supabase
       .from("orders")
       .select("*")
-      .eq("payment_status", "paid")
-      .neq("order_status", "cancelled")
-      .order("created_at"),
+      .order("created_at", { ascending: false })
+      .limit(5_000),
     supabase.from("pos_sales").select("*").order("created_at"),
     supabase
       .from("pos_sale_items")
@@ -378,10 +377,10 @@ export async function getReportsData() {
     supabase
       .from("order_items")
       .select(
-        "quantity,subtotal,products(name,sku),orders!inner(payment_status,order_status)",
+        "*,products(name,sku,image_url,categories(name),product_skin_concerns(skin_concerns(name)))",
       )
-      .eq("orders.payment_status", "paid")
-      .neq("orders.order_status", "cancelled"),
+      .order("created_at", { ascending: false })
+      .limit(10_000),
   ]);
   if (orders.error) {
     failLoad("admin-reports", "select-orders", orders.error, {
@@ -412,9 +411,14 @@ export async function getReportsData() {
     });
   }
   type SalesItem = {
+    id?: string;
+    order_id?: string;
+    product_id?: string;
     quantity: number;
+    unit_price?: number;
     subtotal: number;
-    products: { name: string; sku: string } | null;
+    discount_amount?: number;
+    products: { name: string; sku: string; image_url?: string | null; categories?: { name: string } | null } | null;
   };
   return {
     orders: (orders.data ?? []) as Order[],
