@@ -30,6 +30,18 @@ The existing `PAYMENTS_ENABLED` variable remains supported for compatibility;
 credentials and the business-approved rate are ready. COD and bank transfer
 remain independently configurable.
 
+Vercel environment values are strings. The server accepts `true`, `TRUE`, or
+`1` for enabled flags (and `false`, `FALSE`, or `0` for disabled flags). Set
+the variables in the **Production** environment and redeploy; Preview values
+do not change the live site. The Merchant Secret is server-only and must never
+be renamed with a `NEXT_PUBLIC_` prefix.
+
+PayHere Live setup is domain-specific: Merchant Portal → Integrations → Add
+Domain/App → add `yaraproduct.com` → request approval → copy the Merchant
+Secret issued for that approved domain/app. Sandbox and Live Merchant IDs and
+secrets are separate; do not mix them. Confirm the production origin is
+`https://yaraproduct.com` and that PayHere allows the notify URL below.
+
 ## Rate management
 
 An administrator creates an AED→LKR rate in Admin → Commerce. New rates are

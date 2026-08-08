@@ -37,7 +37,11 @@ type Props = {
     merchantSecretConfigured: boolean;
     siteUrlValid: boolean;
     cardByRegion: Record<string, boolean>;
+    payHereByRegion: Record<string, boolean>;
     activeUaeRate: boolean;
+    uaeRate: number | null;
+    uaeRateEffectiveAt: string | null;
+    uaeRateExpiresAt: string | null;
     availableByRegion: { LK: boolean; AE: boolean };
     reasons: string[];
   };
@@ -600,7 +604,9 @@ function PayHereDiagnosticPanel({ diagnostic }: { diagnostic: Props["payHereDiag
     ["Merchant Secret configured", diagnostic.merchantSecretConfigured],
     ["Public site URL valid", diagnostic.siteUrlValid],
     ["Sri Lanka card setting", Boolean(diagnostic.cardByRegion.LK)],
+    ["Sri Lanka provider is PayHere", Boolean(diagnostic.payHereByRegion.LK)],
     ["UAE card setting", Boolean(diagnostic.cardByRegion.AE)],
+    ["UAE provider is PayHere", Boolean(diagnostic.payHereByRegion.AE)],
     ["Active UAE AED→LKR rate", diagnostic.activeUaeRate],
     ["Sri Lanka availability", diagnostic.availableByRegion.LK],
     ["UAE availability", diagnostic.availableByRegion.AE],
@@ -613,6 +619,9 @@ function PayHereDiagnosticPanel({ diagnostic }: { diagnostic: Props["payHereDiag
       <dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {checks.map(([label, value]) => <div key={label} className="rounded-xl border border-[var(--staff-line)] bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className={`mt-1 text-sm font-semibold ${value ? "text-emerald-700" : "text-rose-700"}`}>{value ? "Yes" : "No"}</dd></div>)}
       </dl>
+      <p className="mt-4 text-xs leading-5 text-slate-500">
+        UAE rate: {diagnostic.uaeRate === null ? "—" : diagnostic.uaeRate} · effective: {diagnostic.uaeRateEffectiveAt ?? "—"} · expiry: {diagnostic.uaeRateExpiresAt ?? "none"}
+      </p>
       {diagnostic.reasons.length > 0 && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-semibold text-amber-900">Unavailable reasons</p><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-amber-900">{diagnostic.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
     </section>
   );

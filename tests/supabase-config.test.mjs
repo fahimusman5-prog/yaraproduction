@@ -15,9 +15,13 @@ const managedKeys = [
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SECRET_KEY",
   "NEXT_PUBLIC_APP_URL",
+  "NEXT_PUBLIC_SITE_URL",
+  "VERCEL_PROJECT_PRODUCTION_URL",
   "PAYHERE_MERCHANT_ID",
   "PAYHERE_MERCHANT_SECRET",
   "PAYMENTS_ENABLED",
+  "PAYHERE_ENABLED",
+  "PAYHERE_SANDBOX",
   "EMAIL_REPLY_TO",
   "ADMIN_NOTIFICATION_EMAIL",
   "RESEND_API_KEY",
@@ -127,6 +131,15 @@ test("uses only a validated application origin in production", async () => {
     VERCEL_ENV: "production",
   }, () => {
     assert.equal(getAppOrigin("https://preview.example.test/checkout"), null);
+  });
+});
+
+test("resolves the canonical production origin when Vercel supplies the project URL", async () => {
+  await withEnv({
+    VERCEL_ENV: "production",
+    VERCEL_PROJECT_PRODUCTION_URL: "yaraproduct.com",
+  }, () => {
+    assert.equal(getAppOrigin("https://preview.example.test/checkout"), "https://yaraproduct.com");
   });
 });
 
