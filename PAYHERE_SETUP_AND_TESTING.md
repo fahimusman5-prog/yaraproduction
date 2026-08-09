@@ -25,6 +25,12 @@ PAYHERE_MERCHANT_SECRET=
 NEXT_PUBLIC_SITE_URL=https://www.yaraproduct.com
 ```
 
+`PAYHERE_SANDBOX` is the only mode selector. Set it to `false` in Vercel
+Production for approved live credentials, which selects
+`https://www.payhere.lk/pay/checkout`. Set it to `true` only with sandbox
+credentials, which selects `https://sandbox.payhere.lk/pay/checkout`.
+`PAYHERE_MODE` is not required or read by the application.
+
 `PAYHERE_ENABLED=false` is an emergency provider kill switch. It does not hide
 the regionally enabled Card Payment option; checkout reports the controlled
 configuration error and COD/bank transfer remain independently configurable.

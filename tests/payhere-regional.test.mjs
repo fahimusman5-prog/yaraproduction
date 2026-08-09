@@ -7,6 +7,19 @@ const migrationPath =
   "../supabase/migrations/20260803060146_payhere_aed_lkr_only.sql";
 const paymentFinalizationMigrationPath =
   "../supabase/migrations/20260729170000_finalize_payhere_regional_currency.sql";
+const initializationFixMigrationPath =
+  "../supabase/migrations/20260809173917_fix_payhere_checkout_initialization_ambiguity.sql";
+
+test("PayHere order creation qualifies PL/pgSQL-conflicting columns", async () => {
+  const sql = await read(initializationFixMigrationPath);
+  assert.match(
+    sql,
+    /from public\.order_items as oi\s+where oi\.order_id = v_order\.id\s+order by oi\.product_id/,
+  );
+  assert.doesNotMatch(sql, /where order_id = v_order\.id/);
+  assert.match(sql, /where er\.source_currency = 'AED'/);
+  assert.match(sql, /and er\.target_currency = 'LKR'/);
+});
 
 test("Sri Lanka PayHere remains LKR with identity exchange rate", async () => {
   const sql = await read(migrationPath);
@@ -71,12 +84,31 @@ test("payment attempt permanently snapshots source, charge, and rate data", asyn
 
 test("PayHere hash uses the stored charge amount and currency", async () => {
   const checkout = await read("../src/app/api/checkout/route.ts");
-  assert.match(checkout, /const amount = Number\(attempt\.charge_amount\)\.toFixed\(2\)/);
+  assert.match(checkout, /const amount = chargeAmount\.toFixed\(2\)/);
   assert.match(
     checkout,
     /createPayHereHash\(\s*attempt\.provider_order_id,\s*amount,\s*attempt\.charge_currency/,
   );
   assert.match(checkout, /currency: attempt\.charge_currency/);
+});
+
+test("PayHere initiation emits safe structured failure diagnostics", async () => {
+  const checkout = await read("../src/app/api/checkout/route.ts");
+  for (const code of [
+    "PAYHERE_CONFIG_MISSING",
+    "PAYHERE_HASH_FAILED",
+    "ORDER_CREATION_FAILED",
+    "INVALID_AMOUNT",
+    "INVALID_CURRENCY",
+    "INVALID_CALLBACK_URL",
+    "PAYHERE_INIT_FAILED",
+  ]) {
+    assert.match(checkout, new RegExp(`"${code}"`));
+  }
+  assert.match(checkout, /merchantIdConfigured:/);
+  assert.match(checkout, /merchantSecretConfigured:/);
+  assert.doesNotMatch(checkout, /merchantSecret:\s*process\.env/);
+  assert.doesNotMatch(checkout, /PAYHERE_MERCHANT_SECRET:\s*process\.env/);
 });
 
 test("callback verifies the stored attempt amount and currency", async () => {

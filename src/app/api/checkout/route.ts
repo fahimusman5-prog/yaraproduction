@@ -42,13 +42,63 @@ const schema = z.object({
 
 type CheckoutDatabaseError = { code?: string; message?: string; details?: string; hint?: string };
 
+type CheckoutFailureCode =
+  | "CHECKOUT_CONFIG_MISSING"
+  | "INVALID_CALLBACK_URL"
+  | "INVALID_AMOUNT"
+  | "INVALID_CURRENCY"
+  | "ORDER_CREATION_FAILED"
+  | "PAYHERE_CONFIG_MISSING"
+  | "PAYHERE_HASH_FAILED"
+  | "PAYHERE_INIT_FAILED";
+
+type CheckoutFailureContext = {
+  route: "/api/checkout" | "/api/payments/payhere/initiate";
+  phase: string;
+  requestId?: string;
+  paymentMethod?: string;
+  payHereMode?: "sandbox" | "live";
+  payHereEnabled?: boolean;
+  merchantIdConfigured?: boolean;
+  merchantSecretConfigured?: boolean;
+  appUrlIssues?: string[];
+};
+
+function logCheckoutFailure(
+  errorCode: CheckoutFailureCode,
+  error: unknown,
+  context: CheckoutFailureContext,
+) {
+  const databaseError = (error ?? {}) as CheckoutDatabaseError;
+  console.error({
+    area: "storefront-checkout",
+    errorCode,
+    ...context,
+    supabaseCode: databaseError.code,
+    errorType:
+      error instanceof Error
+        ? error.name
+        : databaseError.code
+          ? "SupabaseError"
+          : "UnknownError",
+  });
+}
+
+function checkoutFailureResponse(
+  errorCode: CheckoutFailureCode,
+  message: string,
+  status: number,
+) {
+  return NextResponse.json({ error: message, errorCode }, { status });
+}
+
 function checkoutErrorResponse(error: CheckoutDatabaseError) {
   const message = error.message ?? "";
   if (message === "A product is unavailable") {
-    return { message: "A product in your cart is no longer available.", status: 409 };
+    return { message: "A product in your cart is no longer available.", status: 409, errorCode: "ORDER_CREATION_FAILED" as const };
   }
   if (message.startsWith("Insufficient stock for ")) {
-    return { message, status: 409 };
+    return { message, status: 409, errorCode: "ORDER_CREATION_FAILED" as const };
   }
   if (
     message.includes("not available in your region") ||
@@ -56,13 +106,13 @@ function checkoutErrorResponse(error: CheckoutDatabaseError) {
     message.startsWith("Delivery is temporarily unavailable") ||
     message.startsWith("Delivery currency does not match")
   ) {
-    return { message, status: 409 };
+    return { message, status: 409, errorCode: "ORDER_CREATION_FAILED" as const };
   }
   if (message === "Idempotency key is already in use.") {
-    return { message: "This checkout request conflicts with an earlier order. Refresh the checkout and try again.", status: 409 };
+    return { message: "This checkout request conflicts with an earlier order. Refresh the checkout and try again.", status: 409, errorCode: "ORDER_CREATION_FAILED" as const };
   }
   if (message.startsWith("Coupon ") || message.startsWith("Order does not meet") || message === "Idempotent retry must use the original coupon.") {
-    return { message, status: 409 };
+    return { message, status: 409, errorCode: "ORDER_CREATION_FAILED" as const };
   }
   const schemaUnavailable = ["42P01", "42703", "PGRST200", "PGRST205"].includes(error.code ?? "");
   return {
@@ -70,6 +120,7 @@ function checkoutErrorResponse(error: CheckoutDatabaseError) {
       schemaUnavailable: "Checkout is temporarily unavailable.",
     }),
     status: schemaUnavailable ? 503 : 500,
+    errorCode: "ORDER_CREATION_FAILED" as const,
   };
 }
 
@@ -96,16 +147,51 @@ export async function POST(request: Request) {
       );
     const parsed = schema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid checkout." }, { status: 400 });
+    const checkoutRoute = parsed.data.paymentMethod === "card"
+      ? "/api/payments/payhere/initiate" as const
+      : "/api/checkout" as const;
+    const requestIdHeader = request.headers.get("x-request-id") ?? "";
+    const requestId = /^[A-Za-z0-9._:-]{1,128}$/.test(requestIdHeader)
+      ? requestIdHeader
+      : undefined;
     const payHereConfig = getPayHereConfig();
     if (parsed.data.paymentMethod === "card" && !payHereConfig.enabled) {
-      return NextResponse.json({ error: "Online payments are temporarily unavailable. Please choose another available ordering method." }, { status: 503 });
+      logCheckoutFailure("PAYHERE_CONFIG_MISSING", null, {
+        route: checkoutRoute,
+        phase: "configuration",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+        payHereMode: getPayHereEnvironment(),
+        payHereEnabled: payHereConfig.enabled,
+        merchantIdConfigured: payHereConfig.merchantIdConfigured,
+        merchantSecretConfigured: payHereConfig.merchantSecretConfigured,
+      });
+      return checkoutFailureResponse(
+        "PAYHERE_CONFIG_MISSING",
+        "Online payments are temporarily unavailable. Please choose another available ordering method.",
+        503,
+      );
     }
     if (
       parsed.data.paymentMethod === "card" &&
       (!payHereConfig.merchantIdConfigured ||
         !payHereConfig.merchantSecretConfigured)
     ) {
-      return NextResponse.json({ error: "Online payments are not configured yet." }, { status: 503 });
+      logCheckoutFailure("PAYHERE_CONFIG_MISSING", null, {
+        route: checkoutRoute,
+        phase: "configuration",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+        payHereMode: getPayHereEnvironment(),
+        payHereEnabled: payHereConfig.enabled,
+        merchantIdConfigured: payHereConfig.merchantIdConfigured,
+        merchantSecretConfigured: payHereConfig.merchantSecretConfigured,
+      });
+      return checkoutFailureResponse(
+        "PAYHERE_CONFIG_MISSING",
+        "Online payments are not configured yet.",
+        503,
+      );
     }
     if (parsed.data.paymentMethod === "koko")
       return NextResponse.json(
@@ -114,12 +200,31 @@ export async function POST(request: Request) {
       );
     const origin = getAppOrigin(request.url);
     if (!origin) {
-      console.error("[storefront-checkout] Invalid application origin", getAppUrlIssues());
-      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+      logCheckoutFailure("INVALID_CALLBACK_URL", null, {
+        route: checkoutRoute,
+        phase: "callback_url_validation",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+        appUrlIssues: getAppUrlIssues(),
+      });
+      return checkoutFailureResponse(
+        "INVALID_CALLBACK_URL",
+        "Checkout is temporarily unavailable.",
+        503,
+      );
     }
     if (!process.env.ORDER_TRACKING_SECRET?.trim()) {
-      console.error("[storefront-checkout] ORDER_TRACKING_SECRET is not configured.");
-      return NextResponse.json({ error: "Checkout is temporarily unavailable." }, { status: 503 });
+      logCheckoutFailure("CHECKOUT_CONFIG_MISSING", null, {
+        route: checkoutRoute,
+        phase: "tracking_configuration",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+      });
+      return checkoutFailureResponse(
+        "CHECKOUT_CONFIG_MISSING",
+        "Checkout is temporarily unavailable.",
+        503,
+      );
     }
 
     const supabase = getSupabaseAdminClient();
@@ -212,14 +317,18 @@ export async function POST(request: Request) {
       },
     });
     if (error) {
-      logSupabaseError("storefront-checkout", "create-order", error, {
-        route: "/api/checkout",
-        table: "orders",
-        requestId: request.headers.get("x-request-id") ?? undefined,
+      logCheckoutFailure("ORDER_CREATION_FAILED", error, {
+        route: checkoutRoute,
+        phase: "order_creation",
+        requestId,
         paymentMethod: parsed.data.paymentMethod,
       });
       const response = checkoutErrorResponse(error);
-      return NextResponse.json({ error: response.message }, { status: response.status });
+      return checkoutFailureResponse(
+        response.errorCode,
+        response.message,
+        response.status,
+      );
     }
     const order = (Array.isArray(data) ? data[0] : data) as { order_id: string; order_number: string; total_amount: number; currency: "LKR" | "AED"; created: boolean } | null;
     if (!order) {
@@ -227,7 +336,11 @@ export async function POST(request: Request) {
         route: "/api/checkout",
         table: "orders",
       });
-      return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
+      return checkoutFailureResponse(
+        "ORDER_CREATION_FAILED",
+        "Unable to start checkout.",
+        500,
+      );
     }
     if (order.created) {
       if (
@@ -378,20 +491,23 @@ export async function POST(request: Request) {
       p_environment: getPayHereEnvironment(),
     });
     if (prepared.error) {
-      logSupabaseError(
-        "storefront-checkout",
-        "prepare-payhere-attempt",
+      logCheckoutFailure(
+        "PAYHERE_INIT_FAILED",
         prepared.error,
-        { route: "/api/payments/payhere/initiate", table: "payment_attempts" },
-      );
-      return NextResponse.json(
         {
-          error:
-            parsed.data.country === "uae"
-              ? "Card payment is temporarily unavailable for UAE orders. Please select Cash on Delivery or Bank Transfer."
-              : "Card payment is temporarily unavailable. Please select another option.",
+          route: "/api/payments/payhere/initiate",
+          phase: "payment_attempt_preparation",
+          requestId,
+          paymentMethod: parsed.data.paymentMethod,
+          payHereMode: getPayHereEnvironment(),
         },
-        { status: 503 },
+      );
+      return checkoutFailureResponse(
+        "PAYHERE_INIT_FAILED",
+        parsed.data.country === "uae"
+          ? "Card payment is temporarily unavailable for UAE orders. Please select Cash on Delivery or Bank Transfer."
+          : "Card payment is temporarily unavailable. Please select another option.",
+        503,
       );
     }
     const attempt = (
@@ -407,18 +523,38 @@ export async function POST(request: Request) {
       exchange_rate_effective_at: string;
       exchange_rate_expires_at: string;
     } | null;
-    if (!attempt)
-      return NextResponse.json(
-        { error: "Unable to prepare card payment." },
-        { status: 500 },
+    if (!attempt) {
+      logCheckoutFailure("PAYHERE_INIT_FAILED", null, {
+        route: "/api/payments/payhere/initiate",
+        phase: "payment_attempt_result",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+        payHereMode: getPayHereEnvironment(),
+      });
+      return checkoutFailureResponse(
+        "PAYHERE_INIT_FAILED",
+        "Unable to prepare card payment.",
+        500,
       );
+    }
     const orderTotalsResult = await supabase
       .from("orders")
       .select("subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount")
       .eq("id", order.order_id)
       .single();
-    if (orderTotalsResult.error || !orderTotalsResult.data)
-      return NextResponse.json({ error: "Unable to verify checkout totals." }, { status: 503 });
+    if (orderTotalsResult.error || !orderTotalsResult.data) {
+      logCheckoutFailure("INVALID_AMOUNT", orderTotalsResult.error, {
+        route: "/api/payments/payhere/initiate",
+        phase: "order_total_verification",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+      });
+      return checkoutFailureResponse(
+        "INVALID_AMOUNT",
+        "Unable to verify checkout totals.",
+        503,
+      );
+    }
     const orderTotals = orderTotalsResult.data as {
       subtotal_amount: number;
       discount_amount: number;
@@ -426,21 +562,78 @@ export async function POST(request: Request) {
       payment_fee: number;
       total_amount: number;
     };
-    if (attempt.charge_currency !== "LKR")
-      return NextResponse.json({ error: "PayHere is configured for LKR only." }, { status: 503 });
-    const amount = Number(attempt.charge_amount).toFixed(2);
-    const { merchantId, hash } = createPayHereHash(
-      attempt.provider_order_id,
-      amount,
-      attempt.charge_currency,
-    );
+    if (attempt.charge_currency !== "LKR") {
+      logCheckoutFailure("INVALID_CURRENCY", null, {
+        route: "/api/payments/payhere/initiate",
+        phase: "payment_contract_validation",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+      });
+      return checkoutFailureResponse(
+        "INVALID_CURRENCY",
+        "PayHere is configured for LKR only.",
+        503,
+      );
+    }
+    const sourceAmount = Number(attempt.source_amount);
+    const chargeAmount = Number(attempt.charge_amount);
+    const orderTotal = Number(orderTotals.total_amount);
+    const exchangeRate = Number(attempt.locked_exchange_rate);
+    const expectedCharge = attempt.source_currency === "LKR"
+      ? orderTotal
+      : Math.round(orderTotal * exchangeRate);
+    if (
+      !Number.isFinite(sourceAmount) ||
+      !Number.isFinite(chargeAmount) ||
+      !Number.isFinite(orderTotal) ||
+      !Number.isFinite(exchangeRate) ||
+      sourceAmount <= 0 ||
+      chargeAmount <= 0 ||
+      orderTotal <= 0 ||
+      Math.abs(sourceAmount - orderTotal) > 0.005 ||
+      Math.abs(chargeAmount - expectedCharge) > 0.005
+    ) {
+      logCheckoutFailure("INVALID_AMOUNT", null, {
+        route: "/api/payments/payhere/initiate",
+        phase: "payment_contract_validation",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+      });
+      return checkoutFailureResponse(
+        "INVALID_AMOUNT",
+        "Unable to verify the card payment amount.",
+        503,
+      );
+    }
+    const amount = chargeAmount.toFixed(2);
+    let payHereSignature: { merchantId: string; hash: string };
+    try {
+      payHereSignature = createPayHereHash(
+        attempt.provider_order_id,
+        amount,
+        attempt.charge_currency,
+      );
+    } catch (error) {
+      logCheckoutFailure("PAYHERE_HASH_FAILED", error, {
+        route: "/api/payments/payhere/initiate",
+        phase: "hash_generation",
+        requestId,
+        paymentMethod: parsed.data.paymentMethod,
+        payHereMode: getPayHereEnvironment(),
+      });
+      return checkoutFailureResponse(
+        "PAYHERE_HASH_FAILED",
+        "Card payment could not be prepared securely. Please try again or choose another payment method.",
+        503,
+      );
+    }
     const [firstName, ...rest] = parsed.data.customer.name.split(/\s+/);
     return NextResponse.json({
       orderId: order.order_id,
       totalAmount: Number(order.total_amount),
       action: getPayHereCheckoutUrl(),
       fields: {
-        merchant_id: merchantId,
+        merchant_id: payHereSignature.merchantId,
         return_url: `${origin}/payment/success?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&locale=${parsed.data.locale}`,
         cancel_url: `${origin}/payment/failure?order=${order.order_id}&token=${encodeURIComponent(trackingToken)}&locale=${parsed.data.locale}`,
         notify_url: `${origin}/api/payments/payhere/notify`,
@@ -455,7 +648,7 @@ export async function POST(request: Request) {
         address: parsed.data.customer.address,
         city: parsed.data.customer.city,
         country: parsed.data.country === "sri-lanka" ? "Sri Lanka" : "United Arab Emirates",
-        hash,
+        hash: payHereSignature.hash,
       },
       chargeSummary:
         attempt.source_currency === "AED"
@@ -479,7 +672,21 @@ export async function POST(request: Request) {
           : undefined,
     });
   } catch (error) {
-    logSupabaseError("storefront-checkout", "initiate-checkout", error, { route: "/api/checkout" });
-    return NextResponse.json({ error: "Unable to start checkout." }, { status: 500 });
+    const payHereRequest = new URL(request.url).pathname ===
+      "/api/payments/payhere/initiate";
+    const errorCode = payHereRequest
+      ? "PAYHERE_INIT_FAILED" as const
+      : "ORDER_CREATION_FAILED" as const;
+    logCheckoutFailure(errorCode, error, {
+      route: payHereRequest
+        ? "/api/payments/payhere/initiate"
+        : "/api/checkout",
+      phase: "unhandled_checkout_error",
+    });
+    return checkoutFailureResponse(
+      errorCode,
+      "Unable to start checkout.",
+      500,
+    );
   }
 }
