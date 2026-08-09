@@ -211,6 +211,18 @@ test("prepared PayHere confirmation freezes order-defining checkout inputs", asy
   assert.doesNotMatch(page, /onChange=\{\(event\) => \{[\s\S]*?setPayHereFlow\(createReadyPayHereFlow\(\)\)/);
 });
 
+test("acknowledgement captures the checkbox value before the React state updater", async () => {
+  const page = await readFile("src/customer-pages/CheckoutPage.tsx", "utf8");
+  assert.match(
+    page,
+    /const acknowledged = event\.currentTarget\.checked; setPayHereFlow\(\(current\) => setPayHereAcknowledged\(current, acknowledged\)\)/,
+  );
+  assert.doesNotMatch(
+    page,
+    /setPayHereFlow\(\(current\) => setPayHereAcknowledged\(current, event\.currentTarget\.checked\)\)/,
+  );
+});
+
 test("cart clearing waits until the browser leaves for PayHere", async () => {
   const page = await readFile("src/customer-pages/CheckoutPage.tsx", "utf8");
   assert.match(page, /window\.addEventListener\("pagehide", clearCartOnDeparture/);
