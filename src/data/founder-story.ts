@@ -9,18 +9,19 @@ export type FounderAward = {
   };
 };
 
-export type EducationItem = {
+export type SupportingEducationItem = {
+  number: string;
   name: string;
+  focus: string;
   description: string;
-  icon: "book" | "leaf" | "sparkle" | "globe" | "certificate";
-  flag?: string;
+  country?: string;
 };
 
 export const founderStory = {
   seo: {
     title: "About Fazeena Farook | Founder of YARA Productions",
     description:
-      "Discover Fazeena Farook’s journey of continuous learning, Ayurvedic study, entrepreneurship, and the growth of YARA Productions.",
+      "Explore Fazeena Farook’s international professional learning across cosmetology, Ayurvedic preparation, herbal formulation, and advanced cosmetic technology.",
   },
   hero: {
     label: "The woman behind YARA",
@@ -56,7 +57,7 @@ export const founderStory = {
       number: "02",
       label: "LEARNING & EXPERTISE",
       description:
-        "She expanded her knowledge through professional academies, Ayurvedic studies, international learning programmes, and specialised masterclass diplomas.",
+        "She expanded her knowledge through professional academies, Ayurvedic studies, international learning programmes, and specialised Master / Class Diplomas.",
     },
     {
       number: "03",
@@ -73,19 +74,152 @@ export const founderStory = {
   ],
   education: {
     label: "EDUCATION & PROFESSIONAL DEVELOPMENT",
-    title: "A Journey of Continuous Learning",
+    title: "A Journey of International Learning, Formulation & Innovation",
     introduction:
-      "Fazeena Farook continuously expanded her knowledge through specialised studies, professional academies, international programmes, and masterclass diplomas related to beauty, skincare, wellness, and Ayurvedic practices.",
-    items: [
-      { name: "Novella Global", description: "Professional learning and skills development supporting her journey in beauty and entrepreneurship.", icon: "book" },
-      { name: "Sunflower Skills Academy", description: "Further professional training that strengthened her practical knowledge and industry skills.", icon: "certificate" },
-      { name: "Aromaflare Academy", description: "Additional studies supporting her knowledge of beauty, skincare, and product development.", icon: "sparkle" },
-      { name: "AIKA", description: "Specialised professional development undertaken as part of her continuous learning journey.", icon: "book" },
-      { name: "Kerala Ayurvedic Studies", description: "Study and exposure to traditional Ayurvedic principles, natural ingredients, and wellness practices.", icon: "leaf" },
-      { name: "Rajasthan – The Tree Ayurvedic", description: "Further learning related to Ayurveda, medicinal plants, and natural skincare traditions.", icon: "leaf" },
-      { name: "MIYC, Malaysia", flag: "🇲🇾", description: "International learning exposure that broadened her professional and entrepreneurial perspective.", icon: "globe" },
-      { name: "Masterclass Diplomas", description: "She continued developing her expertise by completing multiple professional masterclasses and diploma programmes.", icon: "certificate" },
-    ] satisfies EducationItem[],
+      "Fazeena Farook’s professional development spans cosmetology, Ayurvedic preparation, herbal formulation, cosmetic science, pharmaceutical-related studies, advanced cosmetic manufacturing technologies, and specialised Master / Class Diploma programmes completed or pursued across multiple countries. Her continuing education brings together practical formulation knowledge, scientific understanding, traditional herbal methods, and modern cosmetic technology, with relevant learning applied within YARA’s formulation and product-development process.",
+    disciplines: [
+      {
+        number: "01",
+        title: "Cosmetology & cosmetic science",
+        description: "Professional beauty practice, skin and cosmetic-care principles, product understanding, and contemporary cosmetic technology.",
+      },
+      {
+        number: "02",
+        title: "Ayurvedic preparation & botanicals",
+        description: "Traditional herbal knowledge examined through preparation, extraction, ingredient handling, and manufacturing practice.",
+      },
+      {
+        number: "03",
+        title: "Formulation & manufacturing methodology",
+        description: "Applied learning in ingredient functionality, formulation development, production sequencing, and product performance.",
+      },
+    ],
+    portfolio: {
+      label: "INTERNATIONAL LEARNING PORTFOLIO",
+      title: "Knowledge built across disciplines and borders",
+      description:
+        "Her education is presented as an evolving professional practice: foundational beauty studies, specialised herbal preparation, advanced cosmetic technology, and the practical translation of learning into YARA product development.",
+    },
+    university: {
+      number: "01",
+      country: "MALAYSIA",
+      institution: "University of Cyberjaya, Malaysia",
+      subtitle: "Continuing Advanced Diploma / Master Class Studies — Advanced Cosmetic Technology",
+      status: "Currently pursuing",
+      faculty: "Pharmaceutical-related faculty",
+      paragraphs: [
+        "Through continuing advanced studies associated with the pharmaceutical-related faculty at the University of Cyberjaya, Fazeena is expanding her knowledge of modern cosmetic technology and formulation.",
+        "Her current studies cover advanced approaches to shampoo development, lipstick and colour-cosmetic technology, cosmetic formulation, formulation development, ingredient functionality, product performance, advanced cosmetic manufacturing concepts, and contemporary production methods across a range of cosmetic categories.",
+      ],
+      focusAreas: [
+        "Advanced shampoo technology",
+        "Cosmetic formulation & formulation development",
+        "Lipstick & colour-cosmetic technology",
+        "Ingredient functionality & product performance",
+        "Advanced cosmetic manufacturing concepts",
+        "Contemporary cosmetic production methods",
+      ],
+    },
+    rajasthan: {
+      number: "02",
+      country: "INDIA",
+      title: "Rajasthan, India — Specialised Herbal Soap Formulation",
+      focus: "Herbal soap formulation & manufacturing",
+      institution: "The Tree Ayurvedic",
+      paragraphs: [
+        "In Rajasthan, India, Fazeena undertook specialised learning in herbal soap formulation and manufacturing. The programme introduced distinctive formulation methods that bring traditional herbal knowledge together with practical production techniques.",
+        "She later brought this learning into YARA’s product-development process, adapting it within the development philosophy behind YARA treatment soaps for its customers. This specialised knowledge now informs YARA’s approach to treatment-soap formulation.",
+      ],
+      confidentialNote:
+        "Certain formulation details remain confidential as part of YARA’s internal product-development knowledge.",
+    },
+    kerala: {
+      number: "03",
+      country: "INDIA",
+      title: "Kerala, India — Ayurvedic Decoctions & Herbal Manufacturing",
+      focus: "Manufacturing-oriented Ayurvedic study",
+      paragraphs: [
+        "Her studies in Kerala extended beyond introductory Ayurvedic knowledge into the preparation and manufacturing of traditional herbal decoctions. She developed practical understanding of botanical preparation methods, extraction and preparation principles, ingredient handling, formulation sequencing, and the production processes used to transform herbs into usable Ayurvedic preparations.",
+        "This manufacturing-oriented knowledge later contributed to how traditional herbal concepts are evaluated and incorporated into YARA’s product-development process.",
+      ],
+      methods: [
+        "Botanical preparation methods",
+        "Herbal decoction manufacturing",
+        "Extraction & preparation principles",
+        "Ingredient handling & formulation sequencing",
+      ],
+    },
+    professionalLearning: {
+      label: "CONTINUING PROFESSIONAL EDUCATION",
+      title: "A wider portfolio of professional learning",
+      description:
+        "Alongside the major study areas above, Fazeena has continued to develop her practice through cosmetology studies, professional academies, international learning exposure, and specialised training programmes.",
+      miyc: {
+        country: "MALAYSIA",
+        name: "MIYC, Malaysia",
+        focus: "Cosmetology Studies",
+        description:
+          "Professional study in cosmetology with exposure to modern beauty science, skin and cosmetic-care principles, product understanding, and professional treatment knowledge. This learning strengthened the practical foundation through which she evaluates beauty practices and cosmetic products.",
+      },
+      institutions: [
+        {
+          number: "01",
+          name: "Novella Global",
+          focus: "Professional learning",
+          description: "Professional learning and skills development supporting her continuing journey in beauty and entrepreneurship.",
+        },
+        {
+          number: "02",
+          name: "Sunflower Skills Academy",
+          focus: "Skills development",
+          description: "Skills-focused professional training that strengthened practical capability and supported her wider learning journey.",
+        },
+        {
+          number: "03",
+          name: "Aromaflare Academy",
+          focus: "Beauty & skincare studies",
+          description: "Further study connected with beauty, skincare, and product-development knowledge.",
+        },
+        {
+          number: "04",
+          name: "AIKA",
+          focus: "Professional development",
+          description: "Specialised professional development undertaken as part of her continuing education.",
+        },
+      ] satisfies SupportingEducationItem[],
+      masterDiplomas: {
+        title: "Master / Class Diplomas & Specialised Professional Training",
+        description:
+          "Her continued professional development includes specialised Master / Class Diploma programmes and advanced training designed to deepen her understanding of cosmetology, cosmetic formulation, herbal preparation, professional beauty practice, and modern manufacturing techniques.",
+        areas: [
+          "Cosmetology",
+          "Cosmetic formulation",
+          "Herbal preparation",
+          "Professional beauty practice",
+          "Modern manufacturing techniques",
+        ],
+      },
+    },
+    synthesis: {
+      label: "FROM KNOWLEDGE TO FORMULATION",
+      title: "Bringing Modern Cosmetic Science and Herbal Knowledge Together",
+      image: {
+        src: "/images/home/science-backed-botanical-skincare.png",
+        alt: "Botanical ingredients arranged with cosmetic formulation vessels and a glass dropper",
+      },
+      paragraphs: [
+        "Fazeena Farook’s learning journey has taken her across different institutions, disciplines, and countries, allowing her to study both traditional herbal preparation and modern cosmetic technology.",
+        "From Ayurvedic decoctions and specialised herbal formulation methods in India to cosmetology and advanced cosmetic technology studies in Malaysia, her approach has been shaped by two complementary worlds: traditional botanical knowledge and contemporary cosmetic science.",
+        "Rather than treating these disciplines separately, she applies the knowledge gained through her studies to YARA’s product-development philosophy — evaluating traditional ingredients through a modern formulation perspective and combining practical manufacturing knowledge with contemporary cosmetic technologies.",
+        "This continuous learning process supports YARA’s goal of developing products that combine heritage-inspired ingredients, modern formulation thinking, quality, practicality, and meaningful value for customers.",
+      ],
+      progression: [
+        "International education",
+        "Specialised formulation knowledge",
+        "Practical implementation",
+        "YARA product development",
+      ],
+    },
   },
   manufacturing: {
     label: "THE NEXT CHAPTER",

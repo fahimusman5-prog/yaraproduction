@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createElement } from "react";
+import { founderStory } from "../data/founder-story";
 import { footerSocialLinks } from "./social-links";
 
 export const SITE_ORIGIN = "https://www.yaraproduct.com";
@@ -25,7 +26,7 @@ const pageNames: Record<string, Record<SeoLocale, { title: string; description: 
     ar: { title: "تسوق منتجات YARA للعناية بالبشرة", description: "اكتشف منتجات YARA Productions للعناية بالبشرة والجمال مع خيارات التوصيل." },
   },
   about: {
-    en: { title: "About Fazeena Farook | Founder of YARA Productions", description: "Discover Fazeena Farook’s journey of continuous learning, Ayurvedic study, entrepreneurship, and the growth of YARA Productions." },
+    en: founderStory.seo,
     si: { title: "YARA Productions ගැන", description: "YARA Productions හි නවීන සම රැකවරණය සහ ස්වයං රැකවරණය පිළිබඳ දැනගන්න." },
     ta: { title: "YARA Productions பற்றி", description: "YARA Productions மற்றும் எங்கள் தோல் பராமரிப்பு அணுகுமுறையைப் பற்றி அறியுங்கள்." },
     ar: { title: "عن YARA Productions", description: "تعرف على YARA Productions ونهجنا في العناية بالبشرة والجمال." },
