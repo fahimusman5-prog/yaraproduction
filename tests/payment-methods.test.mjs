@@ -88,11 +88,12 @@ test("launch payment configuration is regional and hides incomplete UAE banking"
   assert.match(sql, /add column if not exists iban/);
 });
 
-test("payment methods API returns only validated active methods", async () => {
+test("payment methods API keeps enabled card visible while validating offline methods", async () => {
   const api = await readFile("src/app/api/payment-methods/route.ts", "utf8");
-  assert.match(api, /\.filter\(\(method\) => method\.enabled && method\.providerAvailable\)/);
+  assert.match(api, /const enabled = method === "card" \? regionalCardEnabled : providerAvailable/);
+  assert.match(api, /\.filter\(\(method\) => method\.enabled\)/);
   assert.match(api, /hasUsableBankTransferDetails/);
-  assert.doesNotMatch(api, /unavailableReason/);
+  assert.match(api, /unavailableReason/);
 });
 
 test("checkout and account instructions select bank settings by server-validated region", async () => {

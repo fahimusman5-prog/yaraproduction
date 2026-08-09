@@ -51,16 +51,16 @@ export async function GET(request: Request) {
   const uaeLkrReady = rateResolution?.rate !== null;
   const methods: PublicPaymentMethod[] = PAYMENT_METHODS.map((method) => {
     const row = byMethod.get(method);
+    const regionalCardEnabled =
+      Boolean(row?.is_enabled) &&
+      row?.provider_name === "payhere" &&
+      (country === "sri-lanka" ? true : uaeLkrReady);
     const providerAvailable =
       method === "card"
-        ? Boolean(row?.is_enabled) &&
-          row?.provider_name === "payhere" &&
+        ? regionalCardEnabled &&
           payHere.enabled &&
           payHere.merchantIdConfigured &&
-          payHere.merchantSecretConfigured &&
-          (country === "sri-lanka"
-            ? true
-            : uaeLkrReady)
+          payHere.merchantSecretConfigured
         : method === "koko"
           ? false
           : method === "bank_transfer"
@@ -74,7 +74,19 @@ export async function GET(request: Request) {
                 country,
               })
             : Boolean(row?.is_enabled);
-    const enabled = providerAvailable;
+    // Visibility follows the regional business setting. Provider credentials
+    // affect readiness and initiation, never whether the card option exists.
+    const enabled = method === "card" ? regionalCardEnabled : providerAvailable;
+    const unavailableReason =
+      method === "card" && !providerAvailable
+        ? !payHere.enabled
+          ? "Online card payments are temporarily disabled."
+          : !payHere.merchantIdConfigured || !payHere.merchantSecretConfigured
+            ? "PayHere credentials are being finalized."
+            : country === "uae" && !uaeLkrReady
+              ? "A valid AED to LKR exchange rate is required for UAE card payments."
+              : undefined
+        : undefined;
     return {
       method,
       ...PAYMENT_COPY[method],
@@ -82,6 +94,7 @@ export async function GET(request: Request) {
         PAYMENT_METHOD_CONFIG[method].processingFeePercent,
       enabled,
       providerAvailable,
+      unavailableReason,
       bankDetails:
         method === "bank_transfer" && row
           ? {
@@ -95,7 +108,7 @@ export async function GET(request: Request) {
             }
           : undefined,
     };
-  }).filter((method) => method.enabled && method.providerAvailable);
+  }).filter((method) => method.enabled);
   return NextResponse.json(
     { methods },
     { headers: { "Cache-Control": "private, no-store" } },

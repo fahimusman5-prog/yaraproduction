@@ -85,6 +85,7 @@ export default async function StorefrontPage({ params }: StorefrontPageProps) {
     if (privatePages.has(locale ?? "")) return <CustomerStorefront />;
     notFound();
   }
+  if (privatePages.has(path)) return <CustomerStorefront />;
   if (path && !publicPages.has(path)) notFound();
   return <CustomerStorefront />;
 }

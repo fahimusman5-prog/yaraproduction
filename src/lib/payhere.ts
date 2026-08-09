@@ -14,9 +14,9 @@ export type PayHereConfig = {
 
 export function getPayHereConfig(): PayHereConfig {
   return {
-    enabled:
-      parseBooleanEnv(process.env.PAYHERE_ENABLED) ||
-      parseBooleanEnv(process.env.PAYMENTS_ENABLED),
+    // The regional payment-method row controls whether Card Payment is shown.
+    // This flag is an explicit provider kill switch, not a visibility gate.
+    enabled: parseBooleanEnv(process.env.PAYHERE_ENABLED, true),
     sandbox: parseBooleanEnv(process.env.PAYHERE_SANDBOX, true),
     merchantIdConfigured: Boolean(process.env.PAYHERE_MERCHANT_ID?.trim()),
     merchantSecretConfigured: Boolean(

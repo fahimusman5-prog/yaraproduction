@@ -18,17 +18,16 @@ Set these server-side in local `.env.local` and Vercel. Never use
 `NEXT_PUBLIC_` for private values.
 
 ```text
-PAYHERE_ENABLED=false
+PAYHERE_ENABLED=true
 PAYHERE_SANDBOX=true
 PAYHERE_MERCHANT_ID=
 PAYHERE_MERCHANT_SECRET=
 NEXT_PUBLIC_SITE_URL=https://www.yaraproduct.com
 ```
 
-The existing `PAYMENTS_ENABLED` variable remains supported for compatibility;
-`PAYHERE_ENABLED=true` is the preferred switch. Leave PayHere disabled until
-credentials and the business-approved rate are ready. COD and bank transfer
-remain independently configurable.
+`PAYHERE_ENABLED=false` is an emergency provider kill switch. It does not hide
+the regionally enabled Card Payment option; checkout reports the controlled
+configuration error and COD/bank transfer remain independently configurable.
 
 ## Rate management
 
@@ -54,14 +53,14 @@ Browser returns never mark an order paid.
 Apply `supabase/migrations/20260803060146_payhere_aed_lkr_only.sql` using the
 approved Supabase migration workflow. It deactivates legacy active USD rates
 without deleting historical records and installs the LKR-only preparation
-function. Then deploy/redeploy with PayHere disabled until the environment and
-rate are configured.
+function.
 
 ## Testing checklist
 
 1. Run `npm run typecheck`, `npm test`, and `npm run build`.
-2. With PayHere disabled or credentials absent, confirm card is unavailable
-   with a safe message and COD/bank transfer remain usable.
+2. With PayHere disabled or credentials absent, confirm Card Payment remains
+   visible, initiation returns a safe configuration error, and COD/bank
+   transfer remain usable.
 3. In sandbox, test one Sri Lankan order and one UAE order. Confirm the UAE
    disclosure shows AED subtotal, discount, shipping, processing fee, total,
    rate, and exact LKR charge before redirect.

@@ -115,14 +115,12 @@ export function getSupabaseAdminConfig(): SupabaseAdminConfig | null {
 
 export function getServerEnvIssues() {
   const issues = [...new Set([...getSupabaseConfigIssues(), ...getSupabaseAdminConfigIssues(), ...getAppUrlIssues()])];
-  const paymentsEnabled = parseBooleanEnv(process.env.PAYMENTS_ENABLED);
   const payhereMerchantId = process.env.PAYHERE_MERCHANT_ID?.trim();
   const payhereMerchantSecret = process.env.PAYHERE_MERCHANT_SECRET?.trim();
 
-  const payHereEnabled = parseBooleanEnv(process.env.PAYHERE_ENABLED) || paymentsEnabled;
+  const payHereEnabled = parseBooleanEnv(process.env.PAYHERE_ENABLED, true);
   if (payHereEnabled && !payhereMerchantId) issues.push("PAYHERE_MERCHANT_ID is missing while PayHere is enabled.");
   if (payHereEnabled && !payhereMerchantSecret) issues.push("PAYHERE_MERCHANT_SECRET is missing while PayHere is enabled.");
-  if (process.env.PAYMENTS_ENABLED && !isBooleanEnvValue(process.env.PAYMENTS_ENABLED)) issues.push("PAYMENTS_ENABLED must be true, false, 1, or 0.");
   if (process.env.PAYHERE_ENABLED && !isBooleanEnvValue(process.env.PAYHERE_ENABLED)) issues.push("PAYHERE_ENABLED must be true, false, 1, or 0.");
   for (const name of [
     "PAYHERE_SANDBOX",

@@ -156,14 +156,16 @@ export function CheckoutPage() {
         if (!active) return;
         setPaymentMethods(payload.methods);
         const firstAvailable = payload.methods.find(
-          (method) => method.enabled && method.providerAvailable,
+          (method) =>
+            method.enabled &&
+            (method.method === "card" || method.providerAvailable),
         );
         if (
           !payload.methods.some(
             (method) =>
               method.method === payment &&
               method.enabled &&
-              method.providerAvailable,
+              (method.method === "card" || method.providerAvailable),
           ) &&
           firstAvailable
         )
@@ -427,7 +429,7 @@ export function CheckoutPage() {
                             : Banknote;
                   const selectable =
                     method.enabled &&
-                    method.providerAvailable &&
+                    (method.method === "card" || method.providerAvailable) &&
                     delivery.configured &&
                     delivery.enabled;
                   return (

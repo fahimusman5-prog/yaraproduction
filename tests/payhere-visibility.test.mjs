@@ -31,14 +31,15 @@ test("PayHere environment booleans normalize production values safely", () => {
   assert.equal(isBooleanEnvValue("unexpected"), false);
 });
 
-test("PayHere visibility is gated by common configuration and UAE rate", async () => {
+test("PayHere visibility follows the regional setting, not missing credentials", async () => {
   const [route, resolver] = await Promise.all([
     read("../src/app/api/payment-methods/route.ts"),
     read("../src/lib/exchange-rates.ts"),
   ]);
-  assert.match(route, /payHere\.enabled/);
-  assert.match(route, /payHere\.merchantIdConfigured/);
-  assert.match(route, /payHere\.merchantSecretConfigured/);
+  assert.match(route, /const regionalCardEnabled/);
+  assert.match(route, /const enabled = method === "card" \? regionalCardEnabled : providerAvailable/);
+  assert.match(route, /credentials are being finalized/);
+  assert.match(route, /\.filter\(\(method\) => method\.enabled\)/);
   assert.match(resolver, /target_currency/);
   assert.match(route, /uaeLkrReady/);
 });
@@ -59,11 +60,12 @@ test("admin PayHere diagnostics never include secret values", async () => {
   assert.doesNotMatch(manager, /PAYHERE_MERCHANT_SECRET\s*[:=][^,}]+/);
 });
 
-test("database enablement keeps runtime gates in place", async () => {
+test("database enablement keeps runtime readiness gates in place", async () => {
   const migration = await read("../supabase/migrations/20260803061448_enable_regional_payhere_card.sql");
   const route = await read("../src/app/api/payment-methods/route.ts");
   assert.match(migration, /payment_method = 'card'/);
   assert.match(migration, /region_code in \('LK', 'AE'\)/);
   assert.match(route, /Boolean\(row\?\.is_enabled\)/);
   assert.match(route, /method === "card"/);
+  assert.match(route, /providerAvailable/);
 });

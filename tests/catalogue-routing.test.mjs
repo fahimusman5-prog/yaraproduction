@@ -37,3 +37,8 @@ test("the Next catch-all still exposes every locale shop page", async () => {
   assert.match(page, /publicPages = new Set\(\["", "shop"/);
   for (const locale of ["en", "si", "ta", "ar"]) assert.match(page, /isLocale\(locale\)/);
 });
+
+test("localized private checkout paths remain inside the storefront shell", async () => {
+  const page = await read("../src/app/[[...storefront]]/page.tsx");
+  assert.match(page, /if \(privatePages\.has\(path\)\) return <CustomerStorefront \/>/);
+});
