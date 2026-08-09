@@ -88,6 +88,7 @@ test("callback verifies the stored attempt amount and currency", async () => {
   assert.match(route, /application\/x-www-form-urlencoded/);
   assert.match(sql, /v_attempt\.charge_amount <> p_amount/);
   assert.match(sql, /v_attempt\.charge_currency <> p_currency/);
+  assert.match(route, /try \{[\s\S]*verifyPayHereNotification\([\s\S]*catch \{/);
 });
 
 test("PayHere statuses remain safe and callback processing is idempotent", async () => {

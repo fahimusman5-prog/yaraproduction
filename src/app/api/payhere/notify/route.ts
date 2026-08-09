@@ -15,7 +15,15 @@ export async function POST(request: Request) {
     return new Response("Form encoding required", { status: 415 });
   const form = await request.formData();
   const values = Object.fromEntries([...form.entries()].map(([key, value]) => [key, String(value)]));
-  if (!verifyPayHereNotification(values)) return new Response("Invalid signature", { status: 401 });
+  let verified = false;
+  try {
+    verified = verifyPayHereNotification(values);
+  } catch {
+    // Missing/misconfigured credentials must reject callbacks safely rather
+    // than surfacing an unhandled server error.
+    verified = false;
+  }
+  if (!verified) return new Response("Invalid signature", { status: 401 });
 
   const statusCode = Number(values.status_code);
   const amount = values.payhere_amount;
