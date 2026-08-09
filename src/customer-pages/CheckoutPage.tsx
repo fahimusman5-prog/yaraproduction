@@ -19,6 +19,19 @@ import {
   type PaymentMethod,
   type PublicPaymentMethod,
 } from "../lib/payment-methods";
+import { formatPayHereAmount } from "../lib/payhere-amount";
+import {
+  PAYHERE_ACKNOWLEDGEMENT_FIELD,
+  acquireCheckoutLock,
+  beginPayHerePreparation,
+  beginPayHereRedirect,
+  createReadyPayHereFlow,
+  recoverPayHereRedirect,
+  releaseCheckoutLock,
+  requirePayHereConfirmation,
+  setPayHereAcknowledged,
+  submitPayHereHostedForm,
+} from "../lib/payhere-checkout-flow";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type SavedAddress = { id: string; label: string; recipient_name: string; phone: string; address: string; address_line_2: string; city: string; postal_code: string; country: "sri-lanka" | "uae"; is_default: boolean };
@@ -28,26 +41,14 @@ type DeliveryState = {
   fee: number | null;
   currency: "LKR" | "AED" | null;
 };
-type PayHereSubmission = {
-  action: string;
-  fields: Record<string, string>;
-  chargeSummary: {
-    sourceCurrency: "AED";
-    sourceAmount: number;
-    chargeCurrency: "LKR";
-    chargeAmount: number;
-    exchangeRate: number;
-    notice: string;
-    rateSource?: string;
-    rateEffectiveAt?: string;
-    rateExpiresAt?: string;
-    subtotal?: number;
-    discount?: number;
-    shipping?: number;
-    processingFee?: number;
-    total?: number;
-  };
-};
+function logPayHereDevelopmentEvent(
+  event: string,
+  details: Record<string, string | number | boolean | undefined>,
+) {
+  if (process.env.NODE_ENV !== "production") {
+    console.info(`[checkout:payhere] ${event}`, details);
+  }
+}
 
 export function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
@@ -55,14 +56,15 @@ export function CheckoutPage() {
   const { locale, t } = useI18n();
   const formRef = useRef<HTMLFormElement>(null);
   const idempotencyKeyRef = useRef<string>(crypto.randomUUID());
+  const checkoutRequestInFlightRef = useRef(false);
+  const payHereRedirectStartedRef = useRef(false);
   const [payment, setPayment] = useState<PaymentMethod>("cash_on_delivery");
   const [paymentMethods, setPaymentMethods] = useState<PublicPaymentMethod[]>(
     [],
   );
   const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [payHereSubmission, setPayHereSubmission] =
-    useState<PayHereSubmission | null>(null);
+  const [payHereFlow, setPayHereFlow] = useState(createReadyPayHereFlow);
   const [error, setError] = useState("");
   const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
@@ -82,6 +84,10 @@ export function CheckoutPage() {
   const selectedPayment = paymentMethods.find(
     (method) => method.method === payment,
   );
+  const payHereSubmission = payHereFlow.submission;
+  const payHereAcknowledged =
+    payHereFlow.phase === "confirmed" || payHereFlow.phase === "redirecting";
+  const checkoutDetailsLocked = submitting || Boolean(payHereSubmission);
   const copyBankDetail = async (label: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -140,7 +146,8 @@ export function CheckoutPage() {
 
   useEffect(() => {
     if (!country) return;
-    setPayHereSubmission(null);
+    payHereRedirectStartedRef.current = false;
+    setPayHereFlow(createReadyPayHereFlow());
     let active = true;
     setPaymentMethodsLoading(true);
     void fetch(
@@ -267,14 +274,38 @@ export function CheckoutPage() {
     sessionStorage.setItem("yara-checkout-policy-draft", JSON.stringify(values));
   };
 
+  const submitToPayHere = (
+    submission: Parameters<typeof submitPayHereHostedForm>[1],
+  ) => {
+    const clearCartOnDeparture = () => {
+      localStorage.setItem("yara-cart", "[]");
+      clearCart();
+    };
+    window.addEventListener("pagehide", clearCartOnDeparture, { once: true });
+    try {
+      return submitPayHereHostedForm(document, submission);
+    } catch (reason) {
+      window.removeEventListener("pagehide", clearCartOnDeparture);
+      throw reason;
+    }
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!country || submitting) return;
+    if (!country || submitting || checkoutRequestInFlightRef.current) return;
     if (!hasLiveCatalogItems) {
       setError(t("checkout.catalogUnavailable"));
       return;
     }
+    if (!acquireCheckoutLock(checkoutRequestInFlightRef)) return;
     setSubmitting(true); setError("");
+    if (payment === "card") {
+      setPayHereFlow(beginPayHerePreparation());
+      logPayHereDevelopmentEvent("submit_started", {
+        region: country === "sri-lanka" ? "LK" : "AE",
+        storeCurrency: country === "sri-lanka" ? "LKR" : "AED",
+      });
+    }
     trackEvent("begin_checkout", {
       country,
       currency: country === "sri-lanka" ? "LKR" : "AED",
@@ -297,37 +328,73 @@ export function CheckoutPage() {
       if (payment === "cash_on_delivery") trackEvent("cod_order_completed", { country, currency: country === "sri-lanka" ? "LKR" : "AED", value: Number(result.totalAmount ?? total ?? 0), order_id: result.orderId });
       if (result.redirectUrl) { clearCart(); window.location.assign(result.redirectUrl); return; }
       if (result.chargeSummary) {
-        setPayHereSubmission({
+        setPayHereFlow(requirePayHereConfirmation({
+          orderId: result.orderId,
           action: result.action,
           fields: result.fields,
           chargeSummary: result.chargeSummary,
+        }));
+        logPayHereDevelopmentEvent("payload_created", {
+          orderId: result.orderId,
+          region: country === "sri-lanka" ? "LK" : "AE",
+          storeCurrency: result.chargeSummary.sourceCurrency,
+          payHereCurrency: result.chargeSummary.chargeCurrency,
+          convertedAmount: result.chargeSummary.chargeAmount,
         });
+        releaseCheckoutLock(checkoutRequestInFlightRef);
         setSubmitting(false);
         return;
       }
-      clearCart();
-      const form = document.createElement("form"); form.method = "POST"; form.action = result.action;
-      Object.entries(result.fields as Record<string, string>).forEach(([name, value]) => { const input = document.createElement("input"); input.type = "hidden"; input.name = name; input.value = value; form.appendChild(input); });
-      document.body.appendChild(form); form.submit();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("checkout.error")); setSubmitting(false); }
+      submitToPayHere({
+        action: result.action,
+        fields: result.fields as Record<string, string>,
+      });
+    } catch (reason) {
+      releaseCheckoutLock(checkoutRequestInFlightRef);
+      if (payment === "card") {
+        setPayHereFlow(createReadyPayHereFlow());
+        logPayHereDevelopmentEvent("preparation_failed", {
+          region: country === "sri-lanka" ? "LK" : "AE",
+          technicalError:
+            reason instanceof Error ? reason.message : "Unknown checkout error",
+        });
+      }
+      setError(reason instanceof Error ? reason.message : t("checkout.error"));
+      setSubmitting(false);
+    }
   };
 
   const redirectToPayHere = () => {
-    if (!payHereSubmission || submitting) return;
+    const redirectingFlow = beginPayHereRedirect(payHereFlow);
+    if (
+      !redirectingFlow ||
+      submitting ||
+      !acquireCheckoutLock(payHereRedirectStartedRef)
+    ) return;
+    setPayHereFlow(redirectingFlow);
     setSubmitting(true);
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = payHereSubmission.action;
-    Object.entries(payHereSubmission.fields).forEach(([name, value]) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
-    });
-    document.body.appendChild(form);
-    clearCart();
-    form.submit();
+    setError("");
+    try {
+      logPayHereDevelopmentEvent("redirect_starting", {
+        orderId: redirectingFlow.submission.orderId,
+        region: "AE",
+        storeCurrency: redirectingFlow.submission.chargeSummary.sourceCurrency,
+        payHereCurrency: redirectingFlow.submission.chargeSummary.chargeCurrency,
+        convertedAmount:
+          redirectingFlow.submission.chargeSummary.chargeAmount,
+      });
+      submitToPayHere(redirectingFlow.submission);
+    } catch (reason) {
+      releaseCheckoutLock(payHereRedirectStartedRef);
+      setPayHereFlow((current) => recoverPayHereRedirect(current));
+      setSubmitting(false);
+      setError("Unable to open secure card payment. Please try again.");
+      logPayHereDevelopmentEvent("redirect_failed", {
+        orderId: redirectingFlow.submission.orderId,
+        technicalError:
+          reason instanceof Error ? reason.message : "Unknown redirect error",
+      });
+    }
   };
 
   const handleWhatsAppOrder = () => {
@@ -375,12 +442,12 @@ export function CheckoutPage() {
       <form
         ref={formRef}
         onSubmit={handleSubmit}
-        onChange={() => {
-          if (payHereSubmission) setPayHereSubmission(null);
-        }}
         className="mt-10 grid items-start gap-6 lg:grid-cols-[1fr_390px] xl:gap-10"
       >
-        <div className="space-y-6">
+        <fieldset
+          disabled={checkoutDetailsLocked}
+          className="min-w-0 space-y-6 border-0 p-0"
+        >
           <section className="surface-card p-6 sm:p-8">
             <h2 className="flex items-center gap-3 text-2xl sm:text-3xl"><span className="grid h-10 w-10 place-items-center rounded-full bg-yara-rose text-yara-wine"><UserRound className="h-4 w-4" /></span> {t("checkout.contact")}</h2>
             <label className="mt-7 block"><span className="field-label">{t("layout.emailAddress")}</span><input type="email" name="email" required autoComplete="email" placeholder={t("checkout.emailPlaceholder")} className="field" /></label>
@@ -456,7 +523,8 @@ export function CheckoutPage() {
                           checked={payment === method.method}
                           onChange={() => {
                             setPayment(method.method);
-                            setPayHereSubmission(null);
+                            releaseCheckoutLock(payHereRedirectStartedRef);
+                            setPayHereFlow(createReadyPayHereFlow());
                           }}
                           disabled={!selectable}
                           className="mt-1 h-4 w-4 accent-yara-wine"
@@ -551,7 +619,7 @@ export function CheckoutPage() {
               </p>
             )}
           </section>
-        </div>
+        </fieldset>
 
         <aside className="surface-card p-6 sm:p-8 lg:sticky lg:top-28">
           <h2 className="text-3xl">{t("common.orderSummary")}</h2>
@@ -562,12 +630,12 @@ export function CheckoutPage() {
               <div key={product.id} className="flex gap-3"><img src={product.image} alt="" className="h-16 w-16 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium uppercase tracking-[0.07em]">{displayProduct.name}</p><p className="mt-1 text-xs text-yara-taupe">{product.size} · {t("common.quantity")}: {quantity}</p></div><RegionalProductPrice product={product} country={country} quantity={quantity} className="flex shrink-0 flex-col items-end" sellingClassName="text-sm leading-tight text-yara-wine" originalClassName="mt-0.5 text-[0.68rem] leading-tight text-yara-taupe" /></div>
             );})}
           </div>
-          <div className="mt-6 rounded-2xl bg-yara-blush p-4"><label><span className="field-label">Coupon</span><span className="flex gap-2"><input value={couponInput} onChange={(event) => setCouponInput(event.target.value.toUpperCase())} maxLength={40} className="field min-w-0 uppercase" placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={checkingCoupon || !couponInput.trim()} className="btn-secondary shrink-0">{checkingCoupon ? "Checking…" : "Apply"}</button></span></label>{couponMessage && <p role="status" className="mt-2 text-xs text-yara-taupe">{couponMessage}</p>}{coupon && <button type="button" onClick={() => { setCoupon(null); setCouponInput(""); setCouponMessage("Coupon removed."); }} className="mt-2 min-h-11 text-xs font-semibold text-yara-wine underline">Remove coupon</button>}</div>
+          <div className="mt-6 rounded-2xl bg-yara-blush p-4"><label><span className="field-label">Coupon</span><span className="flex gap-2"><input value={couponInput} onChange={(event) => setCouponInput(event.target.value.toUpperCase())} maxLength={40} disabled={checkoutDetailsLocked} className="field min-w-0 uppercase" placeholder="Coupon code" /><button type="button" onClick={applyCoupon} disabled={checkoutDetailsLocked || checkingCoupon || !couponInput.trim()} className="btn-secondary shrink-0">{checkingCoupon ? "Checking…" : "Apply"}</button></span></label>{couponMessage && <p role="status" className="mt-2 text-xs text-yara-taupe">{couponMessage}</p>}{coupon && <button type="button" onClick={() => { setCoupon(null); setCouponInput(""); setCouponMessage("Coupon removed."); }} disabled={checkoutDetailsLocked} className="mt-2 min-h-11 text-xs font-semibold text-yara-wine underline disabled:cursor-not-allowed disabled:opacity-50">Remove coupon</button>}</div>
           <div className="mt-6 border-y border-yara-rose py-5 text-sm"><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{t("common.subtotal")}</span><span>{country && formatPrice(subtotal, country)}</span></div>{coupon && <div className="flex justify-between py-1.5 text-emerald-800"><span>Discount ({coupon.code})</span><span>−{country && formatPrice(coupon.discount, country)}</span></div>}<div className="flex justify-between gap-4 py-1.5"><span className="text-yara-taupe">{t("common.shipping")}</span><span className="text-right">{country && deliveryFee !== null ? formatPrice(deliveryFee, country) : "Unavailable"}</span></div><div className="flex justify-between gap-4 py-1.5"><span className="text-yara-taupe">Payment method</span><span className="text-right">{selectedPayment?.label ?? "Select a method"}</span></div><div className="flex justify-between py-1.5"><span className="text-yara-taupe">{selectedPayment && selectedPayment.processingFeePercent > 0 ? `${selectedPayment.label} processing fee ${selectedPayment.processingFeePercent}%` : "Processing fee"}</span><span>{country && formatPrice(paymentFee, country)}</span></div><p className="pt-2 text-xs leading-5 text-yara-taupe">Fixed delivery fee for the entire country. The processing fee is calculated once from subtotal minus discount plus delivery.</p></div>
           {unavailableProductIds.length > 0 && <p role="alert" className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">One or more products are not available for delivery in this region.</p>}
           <div className="mt-5 flex items-end justify-between gap-4"><span className="font-serif text-2xl">Grand total</span><span className="text-right font-serif text-3xl text-yara-wine">{country && total !== null ? formatPrice(total, country) : "Unavailable"}</span></div>
           <label className="mt-6 flex items-start gap-3 text-sm leading-6 text-yara-taupe">
-            <input type="checkbox" name="termsAccepted" required className="mt-1 h-5 w-5 shrink-0 accent-yara-wine" />
+            <input type="checkbox" name="termsAccepted" required disabled={checkoutDetailsLocked} className="mt-1 h-5 w-5 shrink-0 accent-yara-wine" />
             <span>I agree to the <Link to="/terms-and-conditions" className="font-semibold text-yara-wine underline underline-offset-2">Terms and Conditions</Link>, <Link to="/privacy-policy" className="font-semibold text-yara-wine underline underline-offset-2">Privacy Policy</Link>, <Link to="/refund-policy" className="font-semibold text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>, and <Link to="/shipping-policy" className="font-semibold text-yara-wine underline underline-offset-2">Shipping Policy</Link>.</span>
           </label>
           {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -582,7 +650,7 @@ export function CheckoutPage() {
                 <div className="flex justify-between gap-4"><dt>Shipping</dt><dd>AED {payHereSubmission.chargeSummary.shipping?.toFixed(2)}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Card-processing fee</dt><dd>AED {payHereSubmission.chargeSummary.processingFee?.toFixed(2)}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Order total</dt><dd>AED {payHereSubmission.chargeSummary.sourceAmount.toFixed(2)}</dd></div>
-                <div className="flex justify-between gap-4"><dt>PayHere card charge</dt><dd>LKR {payHereSubmission.chargeSummary.chargeAmount.toFixed(2)}</dd></div>
+                <div className="flex justify-between gap-4"><dt>PayHere card charge</dt><dd>LKR {formatPayHereAmount(payHereSubmission.chargeSummary.chargeAmount)}</dd></div>
                 <div className="flex justify-between gap-4"><dt>Exchange rate</dt><dd>1 AED = LKR {payHereSubmission.chargeSummary.exchangeRate.toFixed(8)}</dd></div>
               </dl>
               <p className="mt-3 text-xs leading-5 text-yara-taupe">
@@ -593,13 +661,13 @@ export function CheckoutPage() {
           <p className="mt-5 text-center text-xs leading-5 text-yara-taupe">By placing your order, you agree to YARA’s <Link to="/terms-and-conditions" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Terms and Conditions</Link> and acknowledge the <Link to="/privacy-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Privacy Policy</Link> and <Link to="/refund-policy" onClick={preserveCheckoutDraft} className="font-medium text-yara-wine underline underline-offset-2">Returns &amp; Refund Policy</Link>.</p>
           {payHereSubmission ? (
             <div>
-              <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-yara-taupe"><input type="checkbox" required className="mt-0.5 h-4 w-4 accent-yara-wine" /> I have reviewed the AED order total and the exact LKR PayHere charge above.</label>
-              <button type="button" onClick={redirectToPayHere} disabled={submitting} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? "Redirecting to PayHere…" : "PROCEED TO SECURE CARD PAYMENT"}</button>
+              <label className="mt-5 flex items-start gap-3 text-xs leading-5 text-yara-taupe"><input type="checkbox" name={PAYHERE_ACKNOWLEDGEMENT_FIELD} required checked={payHereAcknowledged} onChange={(event) => setPayHereFlow((current) => setPayHereAcknowledged(current, event.currentTarget.checked))} disabled={submitting} className="mt-0.5 h-4 w-4 accent-yara-wine" /> I have reviewed the AED order total and the exact LKR PayHere charge above.</label>
+              <button type="button" onClick={redirectToPayHere} disabled={submitting || !payHereAcknowledged} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? "Redirecting to PayHere…" : "PROCEED TO SECURE CARD PAYMENT"}</button>
             </div>
           ) : (
             <button type="submit" disabled={submitting || !hasLiveCatalogItems || !delivery.configured || !delivery.enabled || total === null || !selectedPayment?.enabled || !selectedPayment.providerAvailable || unavailableProductIds.length > 0} className="btn-primary mt-7 w-full" aria-busy={submitting}>{submitting ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}{submitting ? (selectedPayment && selectedPayment.method !== "bank_transfer" && selectedPayment.method !== "cash_on_delivery" ? "Creating payment…" : "Confirming order…") : PAYMENT_COPY[payment].action}</button>
           )}
-          <button type="button" onClick={handleWhatsAppOrder} disabled={submitting || deliveryFee === null || unavailableProductIds.length > 0} className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a] disabled:cursor-not-allowed disabled:opacity-50"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
+          <button type="button" onClick={handleWhatsAppOrder} disabled={checkoutDetailsLocked || deliveryFee === null || unavailableProductIds.length > 0} className="glass-control mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 border-[#20a852]/55 px-5 py-3 text-xs font-semibold uppercase tracking-[0.1em] text-[#117a3a] disabled:cursor-not-allowed disabled:opacity-50"><MessageCircle className="h-4 w-4" /> {t("common.orderOnWhatsApp")}</button>
           <div className="mt-6 flex justify-center gap-6 text-yara-taupe"><ShieldCheck className="h-5 w-5" /><LockKeyhole className="h-5 w-5" /><MessageCircle className="h-5 w-5" /></div>
           <p className="mt-3 text-center text-[0.58rem] uppercase tracking-[0.1em] text-yara-taupe">{t("checkout.encrypted")}</p>
         </aside>

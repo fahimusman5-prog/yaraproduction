@@ -188,7 +188,7 @@ test("PayHere amount is the exact locked server charge and webhook verifies it",
     read("../src/app/api/checkout/route.ts"),
     read("../src/app/api/payhere/notify/route.ts"),
   ]);
-  assert.match(checkout, /const amount = chargeAmount\.toFixed\(2\)/);
+  assert.match(checkout, /const amount = formatPayHereAmount\(chargeAmount\)/);
   assert.match(
     checkout,
     /fields:[\s\S]*?currency: attempt\.charge_currency,\s+amount,/,

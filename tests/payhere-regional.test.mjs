@@ -84,7 +84,7 @@ test("payment attempt permanently snapshots source, charge, and rate data", asyn
 
 test("PayHere hash uses the stored charge amount and currency", async () => {
   const checkout = await read("../src/app/api/checkout/route.ts");
-  assert.match(checkout, /const amount = chargeAmount\.toFixed\(2\)/);
+  assert.match(checkout, /const amount = formatPayHereAmount\(chargeAmount\)/);
   assert.match(
     checkout,
     /createPayHereHash\(\s*attempt\.provider_order_id,\s*amount,\s*attempt\.charge_currency/,
@@ -109,6 +109,23 @@ test("PayHere initiation emits safe structured failure diagnostics", async () =>
   assert.match(checkout, /merchantSecretConfigured:/);
   assert.doesNotMatch(checkout, /merchantSecret:\s*process\.env/);
   assert.doesNotMatch(checkout, /PAYHERE_MERCHANT_SECRET:\s*process\.env/);
+});
+
+test("PayHere initiation emits safe structured success milestones", async () => {
+  const checkout = await read("../src/app/api/checkout/route.ts");
+  for (const event of [
+    "submit_started",
+    "validation_passed",
+    "order_created",
+    "payload_created",
+  ]) {
+    assert.match(checkout, new RegExp(`logPayHereEvent\\("${event}"`));
+  }
+  assert.match(checkout, /\[checkout:payhere\] preparation_failed/);
+  assert.match(checkout, /orderId:/);
+  assert.match(checkout, /storeCurrency:/);
+  assert.match(checkout, /payHereCurrency:/);
+  assert.match(checkout, /convertedAmount:/);
 });
 
 test("callback verifies the stored attempt amount and currency", async () => {

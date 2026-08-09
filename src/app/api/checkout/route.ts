@@ -10,6 +10,10 @@ import {
   getPayHereConfig,
   getPayHereEnvironment,
 } from "@/lib/payhere";
+import {
+  calculateUaePayHereCharge,
+  formatPayHereAmount,
+} from "@/lib/payhere-amount";
 import { createOrderTrackingToken } from "@/lib/order-tracking";
 import {
   getAdminNotificationEmail,
@@ -62,7 +66,27 @@ type CheckoutFailureContext = {
   merchantIdConfigured?: boolean;
   merchantSecretConfigured?: boolean;
   appUrlIssues?: string[];
+  orderId?: string;
+  region?: "LK" | "AE";
+  storeCurrency?: "LKR" | "AED";
+  payHereCurrency?: "LKR";
+  convertedAmount?: string;
 };
+
+type PayHereEventContext = {
+  requestId?: string;
+  orderId?: string;
+  region: "LK" | "AE";
+  storeCurrency: "LKR" | "AED";
+  payHereCurrency?: "LKR";
+  convertedAmount?: string;
+  created?: boolean;
+  payHereMode: "sandbox" | "live";
+};
+
+function logPayHereEvent(event: string, context: PayHereEventContext) {
+  console.info(`[checkout:payhere] ${event}`, context);
+}
 
 function logCheckoutFailure(
   errorCode: CheckoutFailureCode,
@@ -70,18 +94,25 @@ function logCheckoutFailure(
   context: CheckoutFailureContext,
 ) {
   const databaseError = (error ?? {}) as CheckoutDatabaseError;
-  console.error({
+  const entry = {
     area: "storefront-checkout",
     errorCode,
     ...context,
     supabaseCode: databaseError.code,
+    technicalMessage:
+      error instanceof Error ? error.message : databaseError.message,
     errorType:
       error instanceof Error
         ? error.name
         : databaseError.code
           ? "SupabaseError"
           : "UnknownError",
-  });
+  };
+  if (context.route === "/api/payments/payhere/initiate") {
+    console.error("[checkout:payhere] preparation_failed", entry);
+    return;
+  }
+  console.error(entry);
 }
 
 function checkoutFailureResponse(
@@ -154,6 +185,14 @@ export async function POST(request: Request) {
     const requestId = /^[A-Za-z0-9._:-]{1,128}$/.test(requestIdHeader)
       ? requestIdHeader
       : undefined;
+    if (parsed.data.paymentMethod === "card") {
+      logPayHereEvent("submit_started", {
+        requestId,
+        region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+        storeCurrency: parsed.data.country === "sri-lanka" ? "LKR" : "AED",
+        payHereMode: getPayHereEnvironment(),
+      });
+    }
     const payHereConfig = getPayHereConfig();
     if (parsed.data.paymentMethod === "card" && !payHereConfig.enabled) {
       logCheckoutFailure("PAYHERE_CONFIG_MISSING", null, {
@@ -225,6 +264,14 @@ export async function POST(request: Request) {
         "Checkout is temporarily unavailable.",
         503,
       );
+    }
+    if (parsed.data.paymentMethod === "card") {
+      logPayHereEvent("validation_passed", {
+        requestId,
+        region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+        storeCurrency: parsed.data.country === "sri-lanka" ? "LKR" : "AED",
+        payHereMode: getPayHereEnvironment(),
+      });
     }
 
     const supabase = getSupabaseAdminClient();
@@ -341,6 +388,16 @@ export async function POST(request: Request) {
         "Unable to start checkout.",
         500,
       );
+    }
+    if (parsed.data.paymentMethod === "card") {
+      logPayHereEvent("order_created", {
+        requestId,
+        orderId: order.order_id,
+        region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+        storeCurrency: order.currency,
+        created: order.created,
+        payHereMode: getPayHereEnvironment(),
+      });
     }
     if (order.created) {
       if (
@@ -500,6 +557,9 @@ export async function POST(request: Request) {
           requestId,
           paymentMethod: parsed.data.paymentMethod,
           payHereMode: getPayHereEnvironment(),
+          orderId: order.order_id,
+          region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+          storeCurrency: order.currency,
         },
       );
       return checkoutFailureResponse(
@@ -530,6 +590,9 @@ export async function POST(request: Request) {
         requestId,
         paymentMethod: parsed.data.paymentMethod,
         payHereMode: getPayHereEnvironment(),
+        orderId: order.order_id,
+        region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+        storeCurrency: order.currency,
       });
       return checkoutFailureResponse(
         "PAYHERE_INIT_FAILED",
@@ -579,9 +642,15 @@ export async function POST(request: Request) {
     const chargeAmount = Number(attempt.charge_amount);
     const orderTotal = Number(orderTotals.total_amount);
     const exchangeRate = Number(attempt.locked_exchange_rate);
-    const expectedCharge = attempt.source_currency === "LKR"
-      ? orderTotal
-      : Math.round(orderTotal * exchangeRate);
+    const expectedCharge =
+      Number.isFinite(orderTotal) &&
+      Number.isFinite(exchangeRate) &&
+      orderTotal > 0 &&
+      exchangeRate > 0
+        ? attempt.source_currency === "LKR"
+          ? orderTotal
+          : calculateUaePayHereCharge(orderTotal, exchangeRate)
+        : Number.NaN;
     if (
       !Number.isFinite(sourceAmount) ||
       !Number.isFinite(chargeAmount) ||
@@ -605,7 +674,7 @@ export async function POST(request: Request) {
         503,
       );
     }
-    const amount = chargeAmount.toFixed(2);
+    const amount = formatPayHereAmount(chargeAmount);
     let payHereSignature: { merchantId: string; hash: string };
     try {
       payHereSignature = createPayHereHash(
@@ -620,6 +689,11 @@ export async function POST(request: Request) {
         requestId,
         paymentMethod: parsed.data.paymentMethod,
         payHereMode: getPayHereEnvironment(),
+        orderId: order.order_id,
+        region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+        storeCurrency: order.currency,
+        payHereCurrency: attempt.charge_currency,
+        convertedAmount: amount,
       });
       return checkoutFailureResponse(
         "PAYHERE_HASH_FAILED",
@@ -628,6 +702,16 @@ export async function POST(request: Request) {
       );
     }
     const [firstName, ...rest] = parsed.data.customer.name.split(/\s+/);
+    logPayHereEvent("payload_created", {
+      requestId,
+      orderId: order.order_id,
+      region: parsed.data.country === "sri-lanka" ? "LK" : "AE",
+      storeCurrency: order.currency,
+      payHereCurrency: attempt.charge_currency,
+      convertedAmount: amount,
+      created: order.created,
+      payHereMode: getPayHereEnvironment(),
+    });
     return NextResponse.json({
       orderId: order.order_id,
       totalAmount: Number(order.total_amount),
