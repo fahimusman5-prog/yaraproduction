@@ -287,6 +287,18 @@ function Footer() {
       <div className="border-t border-white/60 py-6 text-center text-[0.65rem] uppercase tracking-[0.12em] text-yara-taupe">
         © {new Date().getFullYear()} YARA Productions. {t("layout.rights")}
       </div>
+      <div className="border-t border-white/50 py-4 text-center text-[0.62rem] tracking-[0.08em] text-yara-taupe">
+        Powered by{" "}
+        <a
+          href="https://wa.me/94720626224"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-yara-wine underline decoration-yara-gold/60 underline-offset-4 transition hover:text-yara-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yara-wine/40"
+          aria-label="Contact Zentrox.lk on WhatsApp"
+        >
+          Zentrox.lk
+        </a>
+      </div>
     </footer>
   );
 }
