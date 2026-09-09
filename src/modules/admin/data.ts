@@ -379,7 +379,6 @@ export async function getReportsData() {
       .select(
         "*,products(name,sku,image_url,categories(name),product_skin_concerns(skin_concerns(name)))",
       )
-      .order("created_at", { ascending: false })
       .limit(10_000),
   ]);
   if (orders.error) {
