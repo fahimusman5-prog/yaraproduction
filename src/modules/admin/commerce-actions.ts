@@ -19,6 +19,55 @@ const optionalNumber = z.preprocess(
   z.coerce.number().min(0).max(999_999_999).nullable(),
 );
 
+const couponInputSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(40)
+    .regex(/^[A-Za-z0-9_-]+$/),
+  discount_type: z.enum(["fixed", "percentage"]),
+  discount_value: z.coerce.number().positive().max(999999999),
+  country_scope: z.enum(["sri-lanka", "uae", "both"]),
+  minimum_order_amount: z.coerce.number().min(0),
+  maximum_discount: optionalNumber,
+  usage_limit: z.preprocess(
+    (value) => (value === "" ? null : value),
+    z.coerce.number().int().positive().nullable(),
+  ),
+  per_customer_limit: z.coerce.number().int().positive().max(100),
+  starts_at: z.string().optional(),
+  ends_at: z.string().optional(),
+  active: z.enum(["true"]).optional(),
+});
+
+function parseCouponInput(formData: FormData) {
+  const parsed = couponInputSchema.safeParse(formObject(formData));
+  if (!parsed.success)
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Check the coupon.",
+    } as const;
+  const startsAt = parsed.data.starts_at
+    ? colomboDateTimeToUtc(parsed.data.starts_at)
+    : null;
+  const endsAt = parsed.data.ends_at
+    ? colomboDateTimeToUtc(parsed.data.ends_at)
+    : null;
+  if (parsed.data.starts_at && !startsAt)
+    return { ok: false, error: "Start time must be a valid Sri Lanka date and time." } as const;
+  if (parsed.data.ends_at && !endsAt)
+    return { ok: false, error: "Expiry must be a valid Sri Lanka date and time." } as const;
+  if (startsAt && endsAt && endsAt <= startsAt)
+    return { ok: false, error: "Coupon expiry must be after its start." } as const;
+  if (
+    parsed.data.discount_type === "percentage" &&
+    parsed.data.discount_value > 100
+  )
+    return { ok: false, error: "Percentage discounts cannot exceed 100%." } as const;
+  return { ok: true, data: parsed.data, startsAt, endsAt } as const;
+}
+
 const zoneSchema = z.object({
   name: z.string().trim().min(2).max(120),
   country_code: z.enum(["LK", "AE"]),
@@ -745,70 +794,9 @@ export async function createCouponAction(
   formData: FormData,
 ): Promise<ActionState> {
   const staff = await requireAdmin("/admin/commerce");
-  const parsed = z
-    .object({
-      code: z
-        .string()
-        .trim()
-        .min(2)
-        .max(40)
-        .regex(/^[A-Za-z0-9_-]+$/),
-      discount_type: z.enum(["fixed", "percentage"]),
-      discount_value: z.coerce.number().positive().max(999999999),
-      country_scope: z.enum(["sri-lanka", "uae", "both"]),
-      minimum_order_amount: z.coerce.number().min(0),
-      maximum_discount: optionalNumber,
-      usage_limit: z.preprocess(
-        (value) => (value === "" ? null : value),
-        z.coerce.number().int().positive().nullable(),
-      ),
-      per_customer_limit: z.coerce.number().int().positive().max(100),
-      starts_at: z.string().optional(),
-      ends_at: z.string().optional(),
-      active: z.enum(["true"]).optional(),
-    })
-    .superRefine((value, context) => {
-      if (value.discount_type === "percentage" && value.discount_value > 100)
-        context.addIssue({
-          code: "custom",
-          path: ["discount_value"],
-          message: "Percentage discounts cannot exceed 100%.",
-        });
-      if (
-        value.starts_at &&
-        value.ends_at &&
-        new Date(value.ends_at) <= new Date(value.starts_at)
-      )
-        context.addIssue({
-          code: "custom",
-          path: ["ends_at"],
-          message: "Coupon expiry must be after its start.",
-        });
-    })
-    .safeParse(formObject(formData));
-  if (!parsed.success)
-    return {
-      status: "error",
-      message: parsed.error.issues[0]?.message ?? "Check the coupon.",
-    };
+  const parsed = parseCouponInput(formData);
+  if (!parsed.ok) return { status: "error", message: parsed.error };
   const { starts_at, ends_at, ...fields } = parsed.data;
-  const startsAt = starts_at ? colomboDateTimeToUtc(starts_at) : null;
-  const endsAt = ends_at ? colomboDateTimeToUtc(ends_at) : null;
-  if (starts_at && !startsAt)
-    return {
-      status: "error",
-      message: "Start time must be a valid Sri Lanka date and time.",
-    };
-  if (ends_at && !endsAt)
-    return {
-      status: "error",
-      message: "Expiry must be a valid Sri Lanka date and time.",
-    };
-  if (startsAt && endsAt && endsAt <= startsAt)
-    return {
-      status: "error",
-      message: "Coupon expiry must be after its start.",
-    };
   const { error } = await getSupabaseAdminClient()
     .from("coupons")
     .insert({
@@ -816,8 +804,8 @@ export async function createCouponAction(
       code: fields.code.toUpperCase(),
       created_by: staff.userId,
       active: fields.active === "true",
-      starts_at: startsAt?.toISOString() ?? null,
-      ends_at: endsAt?.toISOString() ?? null,
+      starts_at: parsed.startsAt?.toISOString() ?? null,
+      ends_at: parsed.endsAt?.toISOString() ?? null,
     });
   if (error) {
     logSupabaseError("admin-commerce", "create-coupon", error, {
@@ -834,6 +822,48 @@ export async function createCouponAction(
   }
   revalidatePath("/admin/commerce");
   return { status: "success", message: "Coupon created." };
+}
+
+export async function updateCouponAction(
+  couponId: string,
+  _state: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const staff = await requireAdmin("/admin/commerce");
+  if (!z.string().uuid().safeParse(couponId).success)
+    return { status: "error", message: "Coupon not found." };
+  const parsed = parseCouponInput(formData);
+  if (!parsed.ok) return { status: "error", message: parsed.error };
+  const { starts_at, ends_at, ...fields } = parsed.data;
+  const saved = await getSupabaseAdminClient()
+    .from("coupons")
+    .update({
+      ...fields,
+      code: fields.code.toUpperCase(),
+      active: fields.active === "true",
+      starts_at: parsed.startsAt?.toISOString() ?? null,
+      ends_at: parsed.endsAt?.toISOString() ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", couponId)
+    .select("id")
+    .maybeSingle();
+  if (saved.error || !saved.data) {
+    logSupabaseError("admin-commerce", "update-coupon", saved.error, {
+      route: "/admin/commerce",
+      table: "coupons",
+      userId: staff.userId,
+    });
+    return {
+      status: "error",
+      message: messageFromSupabaseError(saved.error, "Unable to update coupon.", {
+        duplicate: "That coupon code already exists.",
+      }),
+    };
+  }
+  revalidatePath("/admin/commerce");
+  revalidatePath("/checkout");
+  return { status: "success", message: "Coupon updated." };
 }
 
 export async function setCouponActiveAction(couponId: string, active: boolean) {

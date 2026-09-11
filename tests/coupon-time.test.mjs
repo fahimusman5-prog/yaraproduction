@@ -15,17 +15,24 @@ test("coupon admin rejects malformed datetimes", () => {
 });
 
 test("coupon creation persists explicit Colombo-to-UTC dates", async () => {
-  const [action, repair] = await Promise.all([
+  const [action, repair, component] = await Promise.all([
     readFile("src/modules/admin/commerce-actions.ts", "utf8"),
     readFile(
       "supabase/migrations/20260911122426_repair_admin_coupon_colombo_times.sql",
       "utf8",
     ),
+    readFile("src/modules/admin/components/CommerceManager.tsx", "utf8"),
   ]);
-  assert.match(action, /const startsAt = starts_at \? colomboDateTimeToUtc\(starts_at\) : null/);
-  assert.match(action, /const endsAt = ends_at \? colomboDateTimeToUtc\(ends_at\) : null/);
-  assert.match(action, /starts_at: startsAt\?\.toISOString\(\) \?\? null/);
-  assert.match(action, /ends_at: endsAt\?\.toISOString\(\) \?\? null/);
+  assert.match(action, /const startsAt = parsed\.data\.starts_at/);
+  assert.match(action, /const endsAt = parsed\.data\.ends_at/);
+  assert.match(action, /starts_at: parsed\.startsAt\?\.toISOString\(\) \?\? null/);
+  assert.match(action, /ends_at: parsed\.endsAt\?\.toISOString\(\) \?\? null/);
+  assert.match(action, /export async function updateCouponAction\(/);
+  assert.match(action, /\.from\("coupons"\)\n    \.update\(/);
+  assert.match(action, /revalidatePath\("\/checkout"\)/);
+  assert.match(component, /function CouponEditor/);
+  assert.match(component, /aria-label={`Edit \$\{coupon\.code\}`}/);
+  assert.match(component, /Save changes/);
   assert.match(repair, /code = 'YARAUAE'/);
   assert.match(repair, /starts_at = starts_at - interval '5 hours 30 minutes'/);
 });

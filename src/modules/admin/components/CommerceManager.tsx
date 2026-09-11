@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { Pencil, X } from "lucide-react";
+import { useActionState, useRef } from "react";
 import {
   completeAccountDeletionAction,
   createCouponAction,
@@ -8,12 +9,14 @@ import {
   createShippingMethodAction,
   createShippingZoneAction,
   setCouponActiveAction,
+  updateCouponAction,
   updateDeliverySettingAction,
   updatePaymentMethodSettingAction,
   updateAedLkrExchangeRateAction,
   reviewReturnItemsAction,
   updateReturnAction,
 } from "../commerce-actions";
+import { utcToColomboDateTime } from "@/lib/exchange-rate-time";
 import { initialActionState } from "../action-state";
 import { ActionMessage } from "./ActionMessage";
 import { ConfirmActionButton } from "./ConfirmActionButton";
@@ -493,36 +496,7 @@ export function CommerceManager({
                     <th>Action</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {coupons.map((coupon) => (
-                    <tr key={coupon.id}>
-                      <td className="font-mono font-bold">{coupon.code}</td>
-                      <td>
-                        {coupon.discount_type === "percentage"
-                          ? `${coupon.discount_value}%`
-                          : Number(coupon.discount_value).toFixed(2)}
-                      </td>
-                      <td>{coupon.country_scope}</td>
-                      <td>
-                        {coupon.coupon_redemptions?.[0]?.count ?? 0}
-                        {coupon.usage_limit ? ` / ${coupon.usage_limit}` : ""}
-                      </td>
-                      <td>{coupon.active ? "Active" : "Inactive"}</td>
-                      <td>
-                        <ConfirmActionButton
-                          action={setCouponActiveAction.bind(
-                            null,
-                            coupon.id,
-                            !coupon.active,
-                          )}
-                          label={coupon.active ? "Disable" : "Enable"}
-                          title={`${coupon.active ? "Disable" : "Enable"} ${coupon.code}?`}
-                          detail="The change applies to new checkout validations immediately."
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                <tbody>{coupons.map((coupon) => <CouponRow key={coupon.id} coupon={coupon} />)}</tbody>
               </table>
             </div>
           ) : (
@@ -596,6 +570,132 @@ export function CommerceManager({
         ) : <p className="mt-4 text-sm text-slate-500">No account deletion requests need attention.</p>}
       </section>
     </div>
+  );
+}
+
+function CouponEditor({ coupon, close }: { coupon: any; close: () => void }) {
+  const [state, action] = useActionState(
+    updateCouponAction.bind(null, coupon.id),
+    initialActionState,
+  );
+  return (
+    <form action={action} className="space-y-4">
+      <ActionMessage state={state} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label>
+          <span className="staff-label">Code</span>
+          <input name="code" required className="staff-input uppercase" defaultValue={coupon.code} />
+        </label>
+        <label>
+          <span className="staff-label">Market</span>
+          <select name="country_scope" className="staff-input" defaultValue={coupon.country_scope}>
+            <option value="both">Both</option>
+            <option value="sri-lanka">Sri Lanka</option>
+            <option value="uae">UAE</option>
+          </select>
+        </label>
+        <label>
+          <span className="staff-label">Type</span>
+          <select name="discount_type" className="staff-input" defaultValue={coupon.discount_type}>
+            <option value="fixed">Fixed</option>
+            <option value="percentage">Percentage</option>
+          </select>
+        </label>
+        <label>
+          <span className="staff-label">Value</span>
+          <input name="discount_value" type="number" min="0.01" step="0.01" required className="staff-input" defaultValue={coupon.discount_value} />
+        </label>
+        <label>
+          <span className="staff-label">Minimum order</span>
+          <input name="minimum_order_amount" type="number" min="0" step="0.01" className="staff-input" defaultValue={coupon.minimum_order_amount} />
+        </label>
+        <label>
+          <span className="staff-label">Maximum discount</span>
+          <input name="maximum_discount" type="number" min="0" step="0.01" className="staff-input" defaultValue={coupon.maximum_discount ?? ""} />
+        </label>
+        <label>
+          <span className="staff-label">Usage limit</span>
+          <input name="usage_limit" type="number" min="1" className="staff-input" defaultValue={coupon.usage_limit ?? ""} />
+        </label>
+        <label>
+          <span className="staff-label">Per customer</span>
+          <input name="per_customer_limit" type="number" min="1" className="staff-input" defaultValue={coupon.per_customer_limit} />
+        </label>
+        <label>
+          <span className="staff-label">Starts (Sri Lanka time)</span>
+          <input name="starts_at" type="datetime-local" step="60" className="staff-input" defaultValue={utcToColomboDateTime(coupon.starts_at)} />
+        </label>
+        <label>
+          <span className="staff-label">Expires (Sri Lanka time)</span>
+          <input name="ends_at" type="datetime-local" step="60" className="staff-input" defaultValue={utcToColomboDateTime(coupon.ends_at)} />
+        </label>
+      </div>
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input type="checkbox" name="active" value="true" defaultChecked={coupon.active} />
+        Active
+      </label>
+      <div className="flex justify-end gap-3">
+        <button type="button" className="staff-button staff-button-secondary" onClick={close}>Cancel</button>
+        <SubmitButton>Save changes</SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+function CouponRow({ coupon }: { coupon: any }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  return (
+    <tr>
+      <td className="font-mono font-bold">{coupon.code}</td>
+      <td>
+        {coupon.discount_type === "percentage"
+          ? `${coupon.discount_value}%`
+          : Number(coupon.discount_value).toFixed(2)}
+      </td>
+      <td>{coupon.country_scope}</td>
+      <td>
+        {coupon.coupon_redemptions?.[0]?.count ?? 0}
+        {coupon.usage_limit ? ` / ${coupon.usage_limit}` : ""}
+      </td>
+      <td>{coupon.active ? "Active" : "Inactive"}</td>
+      <td>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="staff-button staff-button-secondary"
+            onClick={() => dialogRef.current?.showModal()}
+            aria-label={`Edit ${coupon.code}`}
+          >
+            <Pencil className="h-4 w-4" />
+            Edit
+          </button>
+          <ConfirmActionButton
+            action={setCouponActiveAction.bind(null, coupon.id, !coupon.active)}
+            label={coupon.active ? "Disable" : "Enable"}
+            title={`${coupon.active ? "Disable" : "Enable"} ${coupon.code}?`}
+            detail="The change applies to new checkout validations immediately."
+          />
+        </div>
+        <dialog ref={dialogRef} className="staff-dialog">
+          <div className="p-6 sm:p-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Edit coupon {coupon.code}</h2>
+              <button
+                type="button"
+                onClick={() => dialogRef.current?.close()}
+                className="grid min-h-11 min-w-11 place-items-center"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-5">
+              <CouponEditor coupon={coupon} close={() => dialogRef.current?.close()} />
+            </div>
+          </div>
+        </dialog>
+      </td>
+    </tr>
   );
 }
 
