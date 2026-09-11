@@ -792,6 +792,23 @@ export async function createCouponAction(
       message: parsed.error.issues[0]?.message ?? "Check the coupon.",
     };
   const { starts_at, ends_at, ...fields } = parsed.data;
+  const startsAt = starts_at ? colomboDateTimeToUtc(starts_at) : null;
+  const endsAt = ends_at ? colomboDateTimeToUtc(ends_at) : null;
+  if (starts_at && !startsAt)
+    return {
+      status: "error",
+      message: "Start time must be a valid Sri Lanka date and time.",
+    };
+  if (ends_at && !endsAt)
+    return {
+      status: "error",
+      message: "Expiry must be a valid Sri Lanka date and time.",
+    };
+  if (startsAt && endsAt && endsAt <= startsAt)
+    return {
+      status: "error",
+      message: "Coupon expiry must be after its start.",
+    };
   const { error } = await getSupabaseAdminClient()
     .from("coupons")
     .insert({
@@ -799,8 +816,8 @@ export async function createCouponAction(
       code: fields.code.toUpperCase(),
       created_by: staff.userId,
       active: fields.active === "true",
-      starts_at: starts_at ? new Date(starts_at).toISOString() : null,
-      ends_at: ends_at ? new Date(ends_at).toISOString() : null,
+      starts_at: startsAt?.toISOString() ?? null,
+      ends_at: endsAt?.toISOString() ?? null,
     });
   if (error) {
     logSupabaseError("admin-commerce", "create-coupon", error, {

@@ -454,18 +454,20 @@ export function CommerceManager({
               />
             </label>
             <label>
-              <span className="staff-label">Starts</span>
+              <span className="staff-label">Starts (Sri Lanka time)</span>
               <input
                 name="starts_at"
                 type="datetime-local"
+                step="60"
                 className="staff-input"
               />
             </label>
             <label>
-              <span className="staff-label">Expires</span>
+              <span className="staff-label">Expires (Sri Lanka time)</span>
               <input
                 name="ends_at"
                 type="datetime-local"
+                step="60"
                 className="staff-input"
               />
             </label>
