@@ -50,14 +50,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   try {
     const supabase = await getSupabaseServerClient();
     if (!supabase) return NextResponse.json({ error: "Reviews are temporarily unavailable." }, { status: 503 });
-    const { data: claims } = await supabase.auth.getClaims();
-    const userId = claims?.claims?.sub;
-    if (!userId) return NextResponse.json({ error: "Sign in to submit a review." }, { status: 401 });
-    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle();
-    const customerName = String(profile?.full_name ?? claims.claims.email ?? "YARA customer").trim().slice(0, 100);
+    // Use the verified user endpoint here. Review submission is a write operation,
+    // so it must not depend on locally decoded claims or an optional profile row.
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const user = userData.user;
+    if (userError || !user) return NextResponse.json({ error: "Sign in to submit a review." }, { status: 401 });
+    const { data: profile, error: profileError } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    if (profileError) throw profileError;
+    const customerName = String(profile?.full_name ?? user.email ?? "YARA customer").trim().slice(0, 100);
     const { error } = await supabase.from("product_reviews").insert({
       product_id: productId,
-      customer_user_id: userId,
+      customer_user_id: user.id,
       customer_name: customerName,
       rating: parsed.data.rating,
       description: parsed.data.description,
