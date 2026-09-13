@@ -226,8 +226,6 @@ export const founderStory = {
     title: "Building for the Future",
     description:
       "YARA is preparing for its next stage of growth with plans for a larger, purpose-built manufacturing facility. The development is currently in progress and forms part of the brand’s long-term vision to expand production capacity, strengthen its operations, and serve more customers internationally.",
-    note:
-      "Further information about the facility, production standards, and certifications will be shared after the development and approval processes are completed.",
     status: "Development in progress",
   },
   brands: {
