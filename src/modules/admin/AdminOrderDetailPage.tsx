@@ -8,6 +8,7 @@ import { AdminLoadFailure } from "./components/AdminLoadFailure";
 import { PageHeader } from "./components/PageHeader";
 import { StatusBadge } from "./components/StatusBadge";
 import { RefundForm } from "./components/RefundForm";
+import { PrintLabelButton } from "./components/PrintLabelButton";
 
 export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
   await requireStaff(`/admin/orders/${orderId}`);
@@ -33,12 +34,7 @@ export async function AdminOrderDetailPage({ orderId }: { orderId: string }) {
         title={order.order_number}
         description={`Placed ${formatDate(order.created_at, true)}`}
         action={
-          <Link
-            href="/admin/orders"
-            className="staff-button staff-button-secondary"
-          >
-            Back to orders
-          </Link>
+          <div className="flex flex-wrap items-end justify-end gap-2"><PrintLabelButton orderId={orderId} /><Link href="/admin/orders" className="staff-button staff-button-secondary">Back to orders</Link></div>
         }
       />
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_350px]">
