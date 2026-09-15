@@ -9,6 +9,7 @@ import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 import { getUnavailableProductIds } from "../lib/shipping";
 import { trackEvent } from "../lib/analytics";
+import { ProductImage } from "../components/ProductImage";
 
 export function CartPage() {
   const { items, subtotal, updateQuantity, removeItem } = useCart();
@@ -46,7 +47,7 @@ export function CartPage() {
             const displayProduct = localizeProduct(product, locale);
             return (
             <article key={product.id} className="surface-card grid grid-cols-[100px_1fr] gap-4 p-4 sm:grid-cols-[150px_1fr] sm:gap-6 sm:p-5">
-              <Link to={`/product/${product.slug || product.id}`} className="overflow-hidden rounded-[1.3rem] bg-yara-rose"><img src={product.image} alt={t("product.imageAlt", { name: displayProduct.name })} className="aspect-square h-full w-full object-cover" /></Link>
+              <Link to={`/product/${product.slug || product.id}`} className="relative overflow-hidden rounded-[1.3rem] bg-yara-rose"><ProductImage src={product.imageThumbnail || product.imageCard || product.image} alt={t("product.imageAlt", { name: displayProduct.name })} fill sizes="(max-width: 639px) 100px, 150px" className="aspect-square h-full w-full object-cover" /></Link>
               <div className="flex min-w-0 flex-col justify-between py-1">
                 <div className="flex items-start justify-between gap-3">
                   <div><p className="text-[0.58rem] uppercase tracking-[0.13em] text-yara-wine">{displayProduct.category}</p><Link to={`/product/${product.slug || product.id}`}><h2 className="mt-1 text-xl sm:text-2xl">{displayProduct.name}</h2></Link><p className="mt-1 text-xs text-yara-taupe">{product.size}</p></div>

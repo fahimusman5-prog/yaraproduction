@@ -78,13 +78,16 @@ export function selectedSkinConcerns(formData: FormData) {
   return [...new Set(submitted)];
 }
 
-export function buildProductPayload(input: ProductInput, imageUrl: string | null) {
+export function buildProductPayload(input: ProductInput, images: { url: string | null; cardUrl: string | null; thumbnailUrl: string | null; originalUrl: string | null }) {
   return {
     name: input.name,
     slug: toSlug(input.slug || input.name),
     description: input.description,
     category_id: input.category_id || null,
-    image_url: imageUrl,
+    image_url: images.url,
+    image_card_url: images.cardUrl,
+    image_thumbnail_url: images.thumbnailUrl,
+    original_image_url: images.originalUrl,
     price_lkr: input.price_lkr,
     price_aed: input.price_aed,
     original_price_lkr: input.original_price_lkr,

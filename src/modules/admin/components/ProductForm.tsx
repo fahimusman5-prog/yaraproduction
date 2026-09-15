@@ -84,7 +84,7 @@ export function ProductForm({
           <label className="sm:col-span-2">
             <span className="staff-label">Product image</span>
             <input className="staff-input file:mr-4 file:rounded-lg file:border-0 file:bg-yara-rose file:px-3 file:py-1.5 file:font-semibold file:text-yara-wine" type="file" name="image" accept="image/jpeg,image/png,image/webp" />
-            <span className="mt-1 block text-xs text-slate-500">JPG, PNG, or WebP up to 5 MB. Missing images use the storefront placeholder.</span>
+            <span className="mt-1 block text-xs text-slate-500">JPG, PNG, or WebP up to 5 MB. The master is preserved and optimized storefront variants are generated automatically.</span>
           </label>
         </div>
       </fieldset>
@@ -215,7 +215,7 @@ export function ProductForm({
       </fieldset>
 
       <div className="flex justify-end">
-        <SubmitButton pendingLabel={product ? "Updating..." : "Creating..."}>{product ? "Update product" : "Create product"}</SubmitButton>
+        <SubmitButton pendingLabel={product ? "Optimizing and updating..." : "Optimizing and creating..."}>{product ? "Update product" : "Create product"}</SubmitButton>
       </div>
     </form>
     <dialog ref={addConcernDialogRef} className="staff-dialog">

@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, Droplets, Leaf, Sparkles } from "lucide-react
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
+import { ProductImage } from "../components/ProductImage";
 import { useCatalog } from "../context/CatalogContext";
 import { prioritizeBestSellers } from "../lib/best-sellers";
 
@@ -56,7 +57,7 @@ export function HomePage() {
           {collections.map(([name, product]) => (
             <Link key={name} to={`/shop?category=${encodeURIComponent(product.category)}`} className="group min-w-[145px] text-center">
               <div className="aspect-square overflow-hidden rounded-full border border-yara-rose bg-yara-blush p-1.5 transition group-hover:border-yara-wine/40">
-                <img src={product.image} alt="" className="h-full w-full rounded-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
+                <ProductImage src={product.imageCard || product.image} alt="" width={400} height={400} sizes="(max-width: 639px) 25vw, 160px" className="h-full w-full rounded-full object-cover transition duration-500 group-hover:scale-105" />
               </div>
               <p className="mt-4 text-[0.65rem] font-medium uppercase tracking-[0.14em]">{name}</p>
             </Link>

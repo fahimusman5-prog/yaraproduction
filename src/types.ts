@@ -14,6 +14,8 @@ export interface Product {
   concerns?: string[];
   concernSlugs?: string[];
   image: string;
+  imageCard?: string;
+  imageThumbnail?: string;
   gallery?: string[];
   badge?: string;
   size: string;

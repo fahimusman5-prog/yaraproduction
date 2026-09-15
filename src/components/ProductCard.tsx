@@ -8,6 +8,7 @@ import { useCountry } from "../context/CountryContext";
 import { useI18n } from "../i18n";
 import { localizeProduct } from "../lib/storefront-localization";
 import { isProductAvailableInRegion } from "../lib/shipping";
+import { ProductImage } from "./ProductImage";
 
 export function ProductCard({ product, mobileCompact = false }: { product: Product; mobileCompact?: boolean }) {
   const { addItem } = useCart();
@@ -61,12 +62,11 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
       <div className="product-card-media shop-product-media relative aspect-square overflow-hidden bg-yara-blush" aria-busy={!imageLoaded}>
         {!imageLoaded && <span className="product-card-skeleton absolute inset-0 animate-pulse bg-yara-rose/60" aria-hidden="true" />}
         <Link to={productPath} aria-label={t("common.viewProduct", { name: displayProduct.name })} className="block h-full w-full">
-          <img
-            src={imageFailed ? "/images/yara-product-placeholder.svg" : product.image}
+          <ProductImage
+            src={imageFailed ? "/images/yara-product-placeholder.svg" : (product.imageCard || product.image)}
             alt={t("product.imageAlt", { name: displayProduct.name })}
             className={`product-card-image relative h-full w-full object-contain object-center p-3 transition duration-700 md:group-hover:scale-[1.035] ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-            loading="lazy"
-            sizes="(max-width: 767px) 50vw, (max-width: 1279px) 33vw, 25vw"
+            sizes="(max-width: 639px) calc(50vw - 1.5rem), (max-width: 1023px) calc(50vw - 2rem), (max-width: 1279px) calc(33.333vw - 2rem), 280px"
             onLoad={() => setImageLoaded(true)}
             onError={() => { setImageFailed(true); setImageLoaded(true); }}
           />

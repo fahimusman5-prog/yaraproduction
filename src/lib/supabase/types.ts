@@ -82,6 +82,9 @@ export interface Product {
   description: string;
   category_id: string | null;
   image_url: string | null;
+  image_card_url: string | null;
+  image_thumbnail_url: string | null;
+  original_image_url: string | null;
   price_lkr: number;
   price_aed: number;
   original_price_lkr: number | null;

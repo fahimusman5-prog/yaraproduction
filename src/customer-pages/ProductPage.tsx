@@ -2,6 +2,7 @@ import { Check, ChevronRight, MessageCircle, Minus, Plus, ShieldCheck, ShoppingB
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ProductCard } from "../components/ProductCard";
+import { ProductImage } from "../components/ProductImage";
 import { RegionalProductPrice } from "../components/RegionalProductPrice";
 import { useCart } from "../context/CartContext";
 import { createWhatsAppLink, productOrderMessage } from "../lib/format";
@@ -78,7 +79,7 @@ export function ProductPage() {
       <section className="mt-6 grid items-start gap-10 lg:grid-cols-[1.12fr_0.88fr] xl:gap-16">
         <div>
           <div className="relative aspect-[4/5] overflow-hidden rounded-[2.2rem] bg-yara-rose shadow-card sm:aspect-[5/4] lg:aspect-[4/5]">
-            <img src={gallery[activeImage]} alt={product.name} className="h-full w-full object-cover" />
+            <ProductImage src={gallery[activeImage]} alt={product.name} fill priority sizes="(max-width: 1023px) 100vw, 56vw" className="h-full w-full object-cover" />
             <div className="absolute left-5 top-5 flex flex-wrap gap-2">
               {product.badge && <span className="rounded-full bg-[#fff1be] px-3 py-1.5 text-[0.58rem] font-semibold uppercase tracking-[0.11em]">{product.badge}</span>}
               <span className="rounded-full bg-white/85 px-3 py-1.5 text-[0.58rem] font-semibold uppercase tracking-[0.11em]">Vegan</span>
@@ -87,8 +88,8 @@ export function ProductPage() {
           {gallery.length > 1 && (
             <div className="hide-scrollbar mt-4 flex gap-3 overflow-x-auto">
               {gallery.map((image, index) => (
-                <button key={`${image}-${index}`} onClick={() => setActiveImage(index)} className={`h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-yara-rose sm:h-24 sm:w-28 ${activeImage === index ? "ring-2 ring-yara-wine ring-offset-2" : ""}`} aria-label={`View product image ${index + 1}`}>
-                  <img src={image} alt="" className="h-full w-full object-cover" />
+                <button key={`${image}-${index}`} onClick={() => setActiveImage(index)} className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-yara-rose sm:h-24 sm:w-28 ${activeImage === index ? "ring-2 ring-yara-wine ring-offset-2" : ""}`} aria-label={`View product image ${index + 1}`}>
+                  <ProductImage src={image} alt="" fill sizes="112px" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>

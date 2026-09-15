@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
+import { optimizeProductImage, PRODUCT_IMAGE_BUCKET, type ProductImageAssets } from "@/lib/product-images";
 import type { ActionState } from "./action-state";
 import type { SkinConcern } from "@/lib/supabase/types";
 import {
@@ -26,44 +27,50 @@ async function actionClient() {
   return getSupabaseAdminClient();
 }
 
-type ProductImageUpload = { url: string | null; newPath: string | null };
+type ProductImageUpload = ProductImageAssets | { url: string | null; cardUrl: string | null; thumbnailUrl: string | null; originalUrl: string | null; paths: string[]; originalBytes: number; optimizedBytes: number; width: number; height: number; outputWidth: number; outputHeight: number; durationMs: number };
 
 async function uploadProductImage(
   supabase: Awaited<ReturnType<typeof actionClient>>,
   formData: FormData,
-  existingUrl?: string | null,
+  existing?: { url: string | null; cardUrl: string | null; thumbnailUrl: string | null; originalUrl: string | null },
+  productKey = "pending",
 ) {
   const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) {
     return {
-      url: existingUrl ?? null,
-      newPath: null,
+      ...(existing ?? { url: null, cardUrl: null, thumbnailUrl: null, originalUrl: null }),
+      paths: [], originalBytes: 0, optimizedBytes: 0, width: 0, height: 0, outputWidth: 0, outputHeight: 0, durationMs: 0,
     } satisfies ProductImageUpload;
   }
-  if (file.size > 5 * 1024 * 1024)
-    throw new Error("Product images must be 5 MB or smaller.");
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
-    throw new Error("Use a JPG, PNG, or WebP image.");
-  const extension = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  }[file.type];
-  const path = `products/${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabase.storage
-    .from("product-images")
-    .upload(path, file, { contentType: file.type, upsert: false });
-  if (error) {
-    logSupabaseError("admin-product-image", "upload-product-image", error, {
+  if (file.size > 5 * 1024 * 1024) throw new Error("Product images must be 5 MB or smaller.");
+  const optimized = await optimizeProductImage(file, `products/${productKey}`);
+  const uploads = [
+    [optimized.originalPath, optimized.input, file.type],
+    [optimized.detailPath, optimized.detail, "image/webp"],
+    [optimized.cardPath, optimized.card, "image/webp"],
+    [optimized.thumbnailPath, optimized.thumbnail, "image/webp"],
+  ] as const;
+  const uploadedPaths: string[] = [];
+  for (const [path, body, contentType] of uploads) {
+    const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, body, {
+      contentType, upsert: false, cacheControl: "31536000",
+    });
+    if (error) {
+      await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([...uploadedPaths, path]);
+      logSupabaseError("admin-product-image", "upload-product-image", error, {
       route: "/admin/products",
       table: "storage.objects",
-    });
-    throw error;
+      });
+      throw new Error("The image was not uploaded. The original product image is still safe.");
+    }
+    uploadedPaths.push(path);
   }
+  const bucket = supabase.storage.from(PRODUCT_IMAGE_BUCKET);
+  const publicUrl = (path: string) => bucket.getPublicUrl(path).data.publicUrl;
+  console.info("[product-image] optimized", { originalBytes: optimized.originalBytes, optimizedBytes: optimized.optimizedBytes, width: optimized.width, height: optimized.height, outputWidth: optimized.outputWidth, outputHeight: optimized.outputHeight, durationMs: optimized.durationMs });
   return {
-    url: supabase.storage.from("product-images").getPublicUrl(path).data
-      .publicUrl,
-    newPath: path,
+    url: publicUrl(optimized.detailPath), cardUrl: publicUrl(optimized.cardPath), thumbnailUrl: publicUrl(optimized.thumbnailPath), originalUrl: publicUrl(optimized.originalPath), paths: uploadedPaths,
+    originalBytes: optimized.originalBytes, optimizedBytes: optimized.optimizedBytes, width: optimized.width, height: optimized.height, outputWidth: optimized.outputWidth, outputHeight: optimized.outputHeight, durationMs: optimized.durationMs,
   } satisfies ProductImageUpload;
 }
 
@@ -87,9 +94,7 @@ async function removeProductImage(
   context: { userId: string; productId?: string },
 ) {
   if (!path) return;
-  const { error } = await supabase.storage
-    .from("product-images")
-    .remove([path]);
+  const { error } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([path]);
   if (error) {
     logSupabaseError("admin-product-image", "remove-product-image", error, {
       ...context,
@@ -101,6 +106,14 @@ async function removeProductImage(
   }
 }
 
+async function removeProductImages(
+  supabase: Awaited<ReturnType<typeof actionClient>>,
+  paths: string[],
+  context: { userId: string; productId?: string },
+) {
+  for (const path of paths) await removeProductImage(supabase, path, context);
+}
+
 async function saveAdminProduct(
   supabase: Awaited<ReturnType<typeof actionClient>>,
   args: {
@@ -109,6 +122,7 @@ async function saveAdminProduct(
     product: ReturnType<typeof buildProductPayload>;
     skinConcernIds: string[];
     targetStock: number;
+    imageVariants: { cardUrl: string | null; thumbnailUrl: string | null; originalUrl: string | null };
   },
 ) {
   const rpc = supabase.rpc.bind(supabase) as unknown as (
@@ -134,6 +148,16 @@ async function saveAdminProduct(
     throw error;
   }
   if (!data) throw new Error("The product save did not return a product ID.");
+  const variantUpdate = await supabase.from("products").update({
+    image_card_url: args.imageVariants.cardUrl,
+    image_thumbnail_url: args.imageVariants.thumbnailUrl,
+    original_image_url: args.imageVariants.originalUrl,
+  }).eq("id", data);
+  if (variantUpdate.error) {
+    // The RPC has already persisted image_url, so leaving the new immutable
+    // objects in place keeps the storefront valid and makes this retryable.
+    logSupabaseError("admin-product-image", "persist-image-variants", variantUpdate.error, { table: "products", productId: data });
+  }
   return data;
 }
 
@@ -517,18 +541,19 @@ export async function createProductAction(
       message: parsed.error.issues[0]?.message ?? "Check the product details.",
     };
   const supabase = await actionClient();
-  let upload: ProductImageUpload = { url: null, newPath: null };
+  let upload: ProductImageUpload = { url: null, cardUrl: null, thumbnailUrl: null, originalUrl: null, paths: [], originalBytes: 0, optimizedBytes: 0, width: 0, height: 0, outputWidth: 0, outputHeight: 0, durationMs: 0 };
   try {
-    upload = await uploadProductImage(supabase, formData);
+    upload = await uploadProductImage(supabase, formData, undefined, crypto.randomUUID());
     await saveAdminProduct(supabase, {
       productId: null,
       actorId: staff.userId,
-      product: buildProductPayload(parsed.data, upload.url),
+      product: buildProductPayload(parsed.data, upload),
       skinConcernIds: selectedSkinConcerns(formData),
       targetStock: parsed.data.stock_quantity,
+      imageVariants: upload,
     });
   } catch (error) {
-    await removeProductImage(supabase, upload.newPath, {
+    await removeProductImages(supabase, upload.paths, {
       userId: staff.userId,
     });
     logSupabaseError("admin-products-create", "create-product-action", error, {
@@ -562,7 +587,7 @@ export async function updateProductAction(
   const supabase = await actionClient();
   const currentResult = await supabase
     .from("products")
-    .select("image_url")
+    .select("image_url,image_card_url,image_thumbnail_url,original_image_url")
     .eq("id", productId)
     .maybeSingle();
   if (currentResult.error) {
@@ -588,22 +613,25 @@ export async function updateProductAction(
   if (!currentResult.data)
     return { status: "error", message: "Product not found." };
 
-  const previousImageUrl =
-    typeof currentResult.data.image_url === "string"
-      ? currentResult.data.image_url
-      : null;
-  let upload: ProductImageUpload = { url: previousImageUrl, newPath: null };
+  const previousImages = {
+    url: typeof currentResult.data.image_url === "string" ? currentResult.data.image_url : null,
+    cardUrl: typeof currentResult.data.image_card_url === "string" ? currentResult.data.image_card_url : null,
+    thumbnailUrl: typeof currentResult.data.image_thumbnail_url === "string" ? currentResult.data.image_thumbnail_url : null,
+    originalUrl: typeof currentResult.data.original_image_url === "string" ? currentResult.data.original_image_url : null,
+  };
+  let upload: ProductImageUpload = { ...previousImages, paths: [], originalBytes: 0, optimizedBytes: 0, width: 0, height: 0, outputWidth: 0, outputHeight: 0, durationMs: 0 };
   try {
-    upload = await uploadProductImage(supabase, formData, previousImageUrl);
+    upload = await uploadProductImage(supabase, formData, previousImages, productId);
     await saveAdminProduct(supabase, {
       productId,
       actorId: staff.userId,
-      product: buildProductPayload(parsed.data, upload.url),
+      product: buildProductPayload(parsed.data, upload),
       skinConcernIds: selectedSkinConcerns(formData),
       targetStock: parsed.data.stock_quantity,
+      imageVariants: upload,
     });
   } catch (error) {
-    await removeProductImage(supabase, upload.newPath, {
+    await removeProductImages(supabase, upload.paths, {
       userId: staff.userId,
       productId,
     });
@@ -618,12 +646,7 @@ export async function updateProductAction(
       message: messageFromSupabaseError(error, "Unable to update product."),
     };
   }
-  if (upload.newPath) {
-    await removeProductImage(supabase, productImagePath(previousImageUrl), {
-      userId: staff.userId,
-      productId,
-    });
-  }
+  // Previous objects are intentionally retained for rollback, old links, and CDN safety.
   revalidateCatalog(productId);
   redirect("/admin/products?saved=updated");
 }

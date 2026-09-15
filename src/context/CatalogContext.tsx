@@ -8,7 +8,7 @@ const CatalogContext = createContext<CatalogValue | null>(null);
 const placeholderImage = "/images/yara-product-placeholder.svg";
 
 type CatalogRow = {
-  id: string; name: string; slug: string; description: string; image_url: string | null;
+  id: string; name: string; slug: string; description: string; image_url: string | null; image_card_url?: string | null; image_thumbnail_url?: string | null;
   price_lkr: number | string; price_aed: number | string; stock_quantity: number;
   original_price_lkr: number | string | null; original_price_aed: number | string | null;
   benefits?: string[] | null; how_to_use?: string | null; ingredients?: string | null; caution?: string | null;
@@ -37,6 +37,8 @@ function mapProduct(row: CatalogRow): Product {
     concerns,
     concernSlugs,
     image: row.image_url || fallback?.image || placeholderImage,
+    imageCard: row.image_card_url || row.image_url || fallback?.image || placeholderImage,
+    imageThumbnail: row.image_thumbnail_url || row.image_card_url || row.image_url || fallback?.image || placeholderImage,
     gallery: fallback?.gallery,
     badge: row.featured ? "Featured" : fallback?.badge,
     size: fallback?.size ?? "",
