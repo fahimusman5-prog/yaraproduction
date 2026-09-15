@@ -19,6 +19,9 @@ import {
 } from "@/lib/email-core";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError } from "@/lib/supabase/log";
+import { loadOrderDocument } from "@/lib/order-document";
+import { createOrderPdfToken } from "@/lib/order-pdf-token";
+import { CANONICAL_SITE_ORIGIN, getSiteUrl } from "@/lib/site-url";
 
 export { inspectEmailConfiguration };
 
@@ -221,10 +224,39 @@ export async function sendOrderTransactionalEmail(input: {
   try {
     const order = await loadOrderEmailData(input.orderId);
     if (!order) return { status: "failed" as const };
+    const siteUrl = getSiteUrl() ?? CANONICAL_SITE_ORIGIN;
+    const document = order;
     return sendTransactionalEmail({
       ...input,
       customerName: input.customerName ?? order.customerName,
-      order,
+      order: {
+        id: document.id,
+        customerName: document.customerName,
+        phone: document.phone,
+        email: document.email,
+        country: document.country,
+        createdAt: document.createdAt,
+        orderNumber: document.orderNumber,
+        items: document.items,
+        subtotal: document.subtotal,
+        discount: document.discount,
+        shipping: document.shipping,
+        paymentFee: document.paymentFee,
+        total: document.total,
+        currency: document.currency,
+        deliveryAddress: document.addressLines.join(", "),
+        paymentMethod: document.paymentMethod,
+        paymentStatus: document.paymentStatus,
+        paymentHeading: document.payment.heading,
+        paymentInstruction: document.payment.type === "cod"
+          ? `COLLECT ${document.currency} ${Number(document.total).toFixed(2)}`
+          : document.payment.type === "prepaid"
+            ? "NO PAYMENT TO COLLECT"
+            : document.payment.instruction,
+        orderStatus: document.orderStatus,
+      },
+      pdfUrl: `${siteUrl}/api/orders/pdf?token=${encodeURIComponent(createOrderPdfToken(document.orderNumber))}`,
+      adminUrl: `${siteUrl}/admin/orders/${encodeURIComponent(document.id)}`,
     });
   } catch (error) {
     logSupabaseError("transactional-email", "load-order-email", error, {
@@ -239,61 +271,8 @@ export function getAdminNotificationEmail() {
   return inspectEmailConfiguration(process.env).diagnostic.adminRecipient ?? null;
 }
 
-async function loadOrderEmailData(
-  orderId: string,
-): Promise<OrderEmailData | null> {
-  const supabase = getSupabaseAdminClient();
-  const [orderResult, itemsResult] = await Promise.all([
-    supabase
-      .from("orders")
-      .select(
-        "order_number,customer_name,subtotal_amount,discount_amount,shipping_fee,payment_fee,total_amount,currency,shipping_address,shipping_city,shipping_postal_code,payment_method,order_status",
-      )
-      .eq("id", orderId)
-      .maybeSingle(),
-    supabase
-      .from("order_items")
-      .select("quantity,unit_price,subtotal,products(name)")
-      .eq("order_id", orderId)
-      .order("id"),
-  ]);
-  if (orderResult.error || itemsResult.error || !orderResult.data) return null;
-  const order = orderResult.data as Record<string, unknown>;
-  const items = (itemsResult.data ?? []) as Array<{
-    quantity: number;
-    unit_price: number;
-    subtotal: number;
-    products: { name?: string } | Array<{ name?: string }> | null;
-  }>;
-  const productName = (products: (typeof items)[number]["products"]) =>
-    Array.isArray(products)
-      ? (products[0]?.name ?? "YARA product")
-      : (products?.name ?? "YARA product");
-  return {
-    customerName: String(order.customer_name ?? "Customer"),
-    orderNumber: String(order.order_number),
-    items: items.map((item) => ({
-      name: productName(item.products),
-      quantity: Number(item.quantity),
-      unitPrice: Number(item.unit_price),
-      subtotal: Number(item.subtotal),
-    })),
-    subtotal: Number(order.subtotal_amount),
-    discount: Number(order.discount_amount),
-    shipping: Number(order.shipping_fee),
-    paymentFee: Number(order.payment_fee ?? 0),
-    total: Number(order.total_amount),
-    currency: String(order.currency),
-    deliveryAddress: [
-      order.shipping_address,
-      order.shipping_city,
-      order.shipping_postal_code,
-    ]
-      .filter(Boolean)
-      .join(", "),
-    paymentMethod: String(order.payment_method ?? ""),
-    orderStatus: String(order.order_status),
-  };
+async function loadOrderEmailData(orderId: string) {
+  return loadOrderDocument(orderId);
 }
 
 async function updateEvent(

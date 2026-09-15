@@ -188,6 +188,7 @@ test("all required templates exist and order HTML is responsive and complete", (
     intro: "Thank you",
     nextSteps: "Wait for fulfilment.",
     order: {
+      id: "4a0892e8-c315-43d2-a070-0ea0357910b4",
       customerName: "Asha",
       orderNumber: "YARA-100",
       items: [
@@ -199,13 +200,16 @@ test("all required templates exist and order HTML is responsive and complete", (
       total: 190,
       currency: "LKR",
       deliveryAddress: "Colombo, Sri Lanka",
+      paymentHeading: "CASH ON DELIVERY",
+      paymentInstruction: "COLLECT LKR 190.00",
       orderStatus: "processing",
     },
   });
   assert.match(html, /name="viewport"/);
   assert.match(html, /Saffron Serum/);
-  assert.match(html, /Coupon discount/);
-  assert.match(html, /Delivery address/);
+  assert.match(html, /Discount/);
+  assert.match(html, /Colombo, Sri Lanka/);
+  assert.match(html, /DOWNLOAD ORDER PDF/);
   assert.doesNotMatch(html, /Shipping method/);
-  assert.match(html, /Next steps/);
+  assert.doesNotMatch(html, /Coupon discount/);
 });

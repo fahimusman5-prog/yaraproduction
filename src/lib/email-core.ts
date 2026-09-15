@@ -29,7 +29,12 @@ export type OrderEmailItem = {
 };
 
 export type OrderEmailData = {
+  id: string;
   customerName: string;
+  phone?: string;
+  email?: string;
+  country?: string;
+  createdAt?: string;
   orderNumber: string;
   items: OrderEmailItem[];
   subtotal: number;
@@ -40,6 +45,9 @@ export type OrderEmailData = {
   currency: string;
   deliveryAddress: string;
   paymentMethod?: string;
+  paymentStatus?: string;
+  paymentHeading: string;
+  paymentInstruction: string;
   orderStatus: string;
 };
 
@@ -54,6 +62,8 @@ export type EmailInput = {
   details?: Array<[string, string]>;
   order?: OrderEmailData;
   nextSteps?: string;
+  pdfUrl?: string;
+  adminUrl?: string;
 };
 
 export type EmailConfiguration = {
@@ -374,7 +384,7 @@ export function emailDedupeKey(input: EmailInput) {
   return null;
 }
 
-export function renderEmail(input: EmailInput) {
+function legacyRenderEmail(input: EmailInput) {
   const order = input.order;
   const products =
     order?.items
@@ -391,6 +401,22 @@ export function renderEmail(input: EmailInput) {
     .map(([label, value]) => summaryRow(label, value))
     .join("");
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#fff7f8;color:#2f2429;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${escapeHtml(input.intro)}</div><div style="max-width:640px;margin:0 auto;padding:24px 12px"><div style="padding:14px 8px;text-align:center;letter-spacing:.28em;font-size:22px;font-weight:700;color:#7f2346">YARA</div><div style="background:#fff;border:1px solid #f0dde4;border-radius:22px;padding:clamp(20px,5vw,34px);box-shadow:0 12px 36px rgba(127,35,70,.08)"><p style="margin:0 0 8px;color:#a05b73;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">YARA Productions</p><h1 style="margin:0 0 22px;font-family:Georgia,serif;font-size:clamp(25px,6vw,34px);line-height:1.15;color:#7f2346">${escapeHtml(input.subject)}</h1><p style="line-height:1.7">Hello ${escapeHtml(input.customerName || order?.customerName || "there")},</p><p style="line-height:1.7">${escapeHtml(input.intro)}</p>${orderSummary}${rows ? `<table role="presentation" style="width:100%;border-collapse:collapse;margin-top:20px;font-size:14px">${rows}</table>` : ""}${input.nextSteps ? `<div style="margin-top:24px;padding:16px;border-radius:14px;background:#fff4f7"><strong style="color:#7f2346">Next steps</strong><p style="margin:8px 0 0;line-height:1.7">${escapeHtml(input.nextSteps)}</p></div>` : ""}<p style="margin-top:28px;line-height:1.7;color:#76656d">Need help? Reply to this email or contact YARA Productions through <a style="color:#7f2346" href="https://www.yaraproduct.com">yaraproduct.com</a>.</p></div><p style="padding:18px 8px;text-align:center;font-size:12px;line-height:1.6;color:#8c7780">YARA Productions · Luxury skincare with care</p></div></body></html>`;
+}
+
+export function renderEmail(input: EmailInput) {
+  const order = input.order;
+  if (!order) return legacyRenderEmail(input);
+  const esc = escapeHtml;
+  const date = order.createdAt ? new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Colombo" }).format(new Date(order.createdAt)) : "";
+  const products = order.items.map((item) => `<tr><td style="padding:12px 8px;border-bottom:1px solid #f0dde4">${esc(item.name)}</td><td style="padding:12px 8px;border-bottom:1px solid #f0dde4;text-align:center">${item.quantity}</td><td style="padding:12px 8px;border-bottom:1px solid #f0dde4;text-align:right;white-space:nowrap">${money(item.subtotal, order.currency)}</td></tr>`).join("");
+  const row = (label: string, value: string, strong = false) => summaryRow(label, value, strong);
+  const totals = `${row("Subtotal", money(order.subtotal, order.currency))}${order.discount > 0 ? row("Discount", `-${money(order.discount, order.currency)}`) : ""}${row("Delivery", order.shipping === 0 ? "Free" : money(order.shipping, order.currency))}${order.paymentFee > 0 ? row("Processing fee", money(order.paymentFee, order.currency)) : ""}${row("TOTAL", money(order.total, order.currency), true)}`;
+  const paymentHeading = order.paymentHeading || titleCase(order.paymentMethod || "Payment");
+  const paymentInstruction = order.paymentInstruction || (order.paymentStatus === "paid" ? "NO PAYMENT TO COLLECT" : "VERIFY PAYMENT BEFORE DISPATCH");
+  const payment = `<div style="margin-top:24px;padding:18px 20px;border:1px solid #7f2346;border-radius:14px;background:#fff4f7"><div style="color:#7f2346;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">Payment</div><div style="margin-top:8px;color:#7f2346;font-size:18px;font-weight:700">${esc(paymentHeading)}</div><div style="margin-top:5px;font-size:14px;font-weight:700">${esc(paymentInstruction)}</div></div>`;
+  const customer = `<section style="margin-top:26px;padding-bottom:22px;border-bottom:1px solid #f0dde4"><div style="color:#a05b73;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Customer</div><div style="margin-top:8px;font-family:Georgia,serif;color:#2f2429;font-size:23px;line-height:1.2;font-weight:700">${esc(order.customerName)}</div>${order.phone ? `<div style="margin-top:8px;color:#76656d">${esc(order.phone)}</div>` : ""}${order.email ? `<div style="margin-top:3px;color:#76656d;overflow-wrap:anywhere">${esc(order.email)}</div>` : ""}<div style="margin-top:20px;color:#a05b73;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Deliver to</div><div style="margin-top:8px;line-height:1.65">${esc(order.deliveryAddress)}</div></section>`;
+  const links = `<div style="margin-top:26px;text-align:center"><a href="${esc(input.pdfUrl ?? "")}" style="display:inline-block;background:#7f2346;color:#fff;text-decoration:none;border-radius:9px;padding:14px 20px;font-size:12px;font-weight:700;letter-spacing:.08em">DOWNLOAD ORDER PDF</a><br><a href="${esc(input.adminUrl ?? "")}" style="display:inline-block;margin-top:14px;color:#7f2346;text-decoration:underline;font-size:13px">Open in admin</a></div>`;
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#fff7f8;color:#2f2429;font-family:Arial,sans-serif"><div style="display:none;max-height:0;overflow:hidden">${esc(input.intro)}</div><div style="max-width:640px;margin:0 auto;padding:20px 12px"><div style="padding:14px 8px;text-align:center;letter-spacing:.38em;font-size:23px;font-weight:700;color:#7f2346">YARA</div><div style="background:#fff;border:1px solid #f0dde4;border-radius:18px;padding:clamp(20px,5vw,34px);box-shadow:0 12px 36px rgba(127,35,70,.08)"><div style="color:#a05b73;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase">New order</div><h1 style="margin:9px 0 3px;font-family:Georgia,serif;font-size:29px;line-height:1.15;color:#7f2346">${esc(order.orderNumber)}</h1><div style="color:#76656d;font-size:13px">${esc(date)}</div><p style="margin:22px 0 0;line-height:1.65">${esc(input.intro)}</p>${customer}<section style="padding-top:22px"><div style="color:#a05b73;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Order items</div><div style="overflow-x:auto"><table role="presentation" style="width:100%;border-collapse:collapse;margin-top:8px;font-size:14px"><thead><tr><th style="padding:9px 8px;text-align:left;color:#7f2346;font-size:11px">Product</th><th style="padding:9px 8px;text-align:center;color:#7f2346;font-size:11px">Qty</th><th style="padding:9px 8px;text-align:right;color:#7f2346;font-size:11px">Amount</th></tr></thead><tbody>${products}</tbody></table></div><table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">${totals}</table>${payment}</section>${links}<p style="margin:28px 0 0;line-height:1.65;color:#76656d">Need help? Reply to this email or visit <a style="color:#7f2346" href="https://www.yaraproduct.com">yaraproduct.com</a>.</p></div><p style="padding:18px 8px;text-align:center;font-size:12px;line-height:1.6;color:#8c7780">YARA Productions</p></div></body></html>`;
 }
 
 export function renderEmailText(input: EmailInput) {
