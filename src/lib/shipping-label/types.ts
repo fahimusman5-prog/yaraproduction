@@ -14,6 +14,9 @@ export interface ShippingLabelItem {
 
 export interface ShippingLabelData {
   orderNumber: string;
+  orderDate?: string;
+  region: string;
+  currency: string;
   customerName: string;
   phone: string;
   email?: string;
@@ -21,6 +24,11 @@ export interface ShippingLabelData {
   country: string;
   payment: ShippingLabelPaymentState;
   items: ShippingLabelItem[];
+  subtotal: number;
+  discount: number;
+  delivery: number;
+  processingFee: number;
+  grandTotal: number;
   courier?: string;
   trackingNumber?: string;
   estimatedDelivery?: string;

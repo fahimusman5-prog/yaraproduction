@@ -37,5 +37,5 @@ test("long orders get a readable contents continuation page", () => {
   const data = normalizeOrderForLabel({ ...base, shipping_address_snapshot: { ...base.shipping_address_snapshot, address: "Building 12, Apartment 4, Very Long Street Name, Al Barsha South, Dubai, United Arab Emirates" } }, Array.from({ length: 6 }, (_, index) => ({ quantity: 1, products: { name: `Long Product Name ${index}`, sku: `SKU-${index}` } })));
   const pdf = new TextDecoder().decode(generateShippingLabel(data));
   assert.match(pdf, /\/Count 2/);
-  assert.match(pdf, /ORDER CONTENTS - CONTINUED/);
+  assert.match(pdf, /ORDER CONTENTS \/ CONTINUED/);
 });

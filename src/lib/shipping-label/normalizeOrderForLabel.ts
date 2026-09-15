@@ -40,15 +40,21 @@ function countryName(order: UnknownRecord, snapshot: UnknownRecord) {
   return country.toLowerCase() === "uae" || country.toLowerCase() === "united arab emirates" ? "United Arab Emirates" : country.toLowerCase() === "sri-lanka" || country.toLowerCase() === "sri lanka" ? "Sri Lanka" : country;
 }
 
+function uniqueLines(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
 export function normalizeOrderForLabel(order: UnknownRecord, rawItems: UnknownRecord[] = []): ShippingLabelData {
   const snapshot = record(order.shipping_address_snapshot);
   const name = text(snapshot.name) || text(order.customer_name) || "Customer";
   const phone = text(snapshot.phone) || text(order.customer_phone);
   const address = text(snapshot.address) || text(order.shipping_address);
+  const address2 = text(snapshot.address2) || text(snapshot.addressLine2) || text(snapshot.address_line_2);
   const city = text(snapshot.city) || text(order.shipping_city);
+  const region = text(snapshot.province) || text(snapshot.state) || text(snapshot.emirate) || text(snapshot.district);
   const postal = text(snapshot.postalCode) || text(snapshot.postal_code) || text(order.shipping_postal_code);
   const country = countryName(order, snapshot);
-  const addressLines = [address, [city, postal].filter(Boolean).join(" "), country].filter(Boolean);
+  const addressLines = uniqueLines([address, address2, [city, region, postal].filter(Boolean).join(" "), country]);
   const items: ShippingLabelItem[] = rawItems.map((item) => {
     const product = record(item.products);
     return { name: text(product.name) || "Product", sku: text(product.sku), quantity: Math.max(1, Number(item.quantity) || 1) };
@@ -56,6 +62,9 @@ export function normalizeOrderForLabel(order: UnknownRecord, rawItems: UnknownRe
   const estimatedDelivery = text(order.estimated_delivery) || text(order.estimated_delivery_date);
   return {
     orderNumber: text(order.order_number) || text(order.id),
+    orderDate: text(order.created_at) || undefined,
+    region: country || text(order.region_code),
+    currency: text(order.currency),
     customerName: name,
     phone,
     email: text(snapshot.email) || text(order.customer_email) || undefined,
@@ -63,6 +72,11 @@ export function normalizeOrderForLabel(order: UnknownRecord, rawItems: UnknownRe
     country,
     payment: getShippingLabelPaymentState(order),
     items,
+    subtotal: Number(order.subtotal_amount) || 0,
+    discount: Number(order.discount_amount) || 0,
+    delivery: Number(order.shipping_fee) || 0,
+    processingFee: Number(order.payment_fee) || 0,
+    grandTotal: Number(order.total_amount) || 0,
     courier: text(order.courier_name) || undefined,
     trackingNumber: text(order.tracking_number) || undefined,
     estimatedDelivery: estimatedDelivery || undefined,
