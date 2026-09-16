@@ -146,11 +146,7 @@ test("root brand metadata and fallback states consistently use YARA", async () =
 });
 
 test("only an administrator can mark offline payment as paid", async () => {
-  const actions = await read("../src/modules/admin/actions.ts");
-  const statusAction = actions.slice(
-    actions.indexOf("export async function updateOrderStatusAction"),
-    actions.indexOf("export async function", actions.indexOf("export async function updateOrderStatusAction") + 20),
-  );
+  const statusAction = await read("../src/modules/admin/order-actions.ts");
   assert.match(statusAction, /payment_status === "paid"/);
   assert.match(statusAction, /"cash_on_delivery", "bank_transfer"/);
   assert.match(statusAction, /await requireAdmin\(`\/admin\/orders\/\$\{orderId\}`\)/);
