@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import type { Order } from "@/lib/supabase/types";
 import { initialActionState } from "../action-state";
-import { updateOrderStatusAction } from "../actions";
+import { updateOrderStatusAction } from "../order-actions";
 import { ActionMessage } from "./ActionMessage";
 import { SubmitButton } from "./SubmitButton";
 
