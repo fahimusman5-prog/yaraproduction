@@ -36,3 +36,11 @@ test("admin fulfilment fields exist before the status action saves them", () => 
   assert.match(action, /tracking_url: parsed\.data\.tracking_url/);
   assert.match(action, /estimated_delivery_date: parsed\.data\.estimated_delivery_date/);
 });
+
+test("order admin routes do not eagerly load the native image processor", () => {
+  const actions = fs.readFileSync("src/modules/admin/actions.ts", "utf8");
+  const nextConfig = fs.readFileSync("next.config.ts", "utf8");
+  assert.doesNotMatch(actions, /import \{ optimizeProductImage/);
+  assert.match(actions, /await import\("@\/lib\/product-images"\)/);
+  assert.match(nextConfig, /serverExternalPackages: \["sharp"\]/);
+});
