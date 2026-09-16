@@ -2,7 +2,8 @@ export type StaffRole = "admin" | "staff";
 export type ProfileRole = StaffRole | "customer";
 export type RecordStatus = "active" | "inactive";
 export type ProductStatus = RecordStatus | "archived";
-export type OrderStatus = "pending" | "paid" | "processing" | "packed" | "shipped" | "delivered" | "cancelled" | "refunded";
+export type OrderStatus = "pending_payment" | "awaiting_bank_transfer" | "confirmed" | "pending" | "paid" | "processing" | "packed" | "shipped" | "delivered" | "cancelled" | "refunded";
+export type OrderPaymentStatus = "unpaid" | "pending" | "processing" | "awaiting_bank_verification" | "payment_due_on_delivery" | "paid" | "failed" | "cancelled" | "refunded";
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "cod" | "online";
 export type ReviewStatus = "published" | "hidden";
 export type NewsletterSubscriberStatus = "subscribed" | "unsubscribed";
@@ -129,7 +130,7 @@ export interface Order {
   currency: "LKR" | "AED";
   total_amount: number;
   payment_method: string;
-  payment_status: "pending" | "paid" | "failed" | "refunded";
+  payment_status: OrderPaymentStatus;
   order_status: OrderStatus;
   created_at: string;
   subtotal_amount: number;
@@ -143,6 +144,8 @@ export interface Order {
   shipping_postal_code: string;
   courier_name: string | null;
   tracking_number: string | null;
+  tracking_url?: string | null;
+  estimated_delivery_date?: string | null;
 }
 
 export interface OrderItem {
