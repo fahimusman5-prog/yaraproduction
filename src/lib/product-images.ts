@@ -1,6 +1,7 @@
 import sharp from "sharp";
+import { PRODUCT_IMAGE_BUCKET } from "./product-image-config";
 
-export const PRODUCT_IMAGE_BUCKET = "product-images";
+export { PRODUCT_IMAGE_BUCKET } from "./product-image-config";
 export const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 

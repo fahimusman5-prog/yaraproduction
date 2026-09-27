@@ -6,7 +6,8 @@ import { z } from "zod";
 import { requireAdmin, requireStaff } from "@/lib/supabase/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { logSupabaseError, messageFromSupabaseError } from "@/lib/supabase/log";
-import { PRODUCT_IMAGE_BUCKET, type ProductImageAssets } from "@/lib/product-images";
+import { PRODUCT_IMAGE_BUCKET } from "@/lib/product-image-config";
+import type { ProductImageAssets } from "@/lib/product-images";
 import type { ActionState } from "./action-state";
 import type { SkinConcern } from "@/lib/supabase/types";
 import {
@@ -38,7 +39,6 @@ async function uploadProductImage(
   // Keep the native image processor out of unrelated admin routes such as
   // order details. Vercel must load its Linux optional binary only when an
   // image upload action actually runs.
-  const { optimizeProductImage } = await import("@/lib/product-images");
   const file = formData.get("image");
   if (!(file instanceof File) || file.size === 0) {
     return {
@@ -47,6 +47,7 @@ async function uploadProductImage(
     } satisfies ProductImageUpload;
   }
   if (file.size > 5 * 1024 * 1024) throw new Error("Product images must be 5 MB or smaller.");
+  const { optimizeProductImage } = await import("@/lib/product-images");
   const optimized = await optimizeProductImage(file, `products/${productKey}`);
   const uploads = [
     [optimized.originalPath, optimized.input, file.type],
