@@ -19,7 +19,6 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
   const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const addingTimerRef = useRef<number | null>(null);
   const successTimerRef = useRef<number | null>(null);
@@ -63,12 +62,12 @@ export function ProductCard({ product, mobileCompact = false }: { product: Produ
         {!imageLoaded && <span className="product-card-skeleton absolute inset-0 animate-pulse bg-yara-rose/60" aria-hidden="true" />}
         <Link to={productPath} aria-label={t("common.viewProduct", { name: displayProduct.name })} className="block h-full w-full">
           <ProductImage
-            src={imageFailed ? "/images/yara-product-placeholder.svg" : (product.imageCard || product.image)}
+            src={product.imageCard || product.image}
             alt={t("product.imageAlt", { name: displayProduct.name })}
             className={`product-card-image relative h-full w-full object-contain object-center p-3 transition duration-700 md:group-hover:scale-[1.035] ${imageLoaded ? "opacity-100" : "opacity-0"}`}
             sizes="(max-width: 639px) calc(50vw - 1.5rem), (max-width: 1023px) calc(50vw - 2rem), (max-width: 1279px) calc(33.333vw - 2rem), 280px"
             onLoad={() => setImageLoaded(true)}
-            onError={() => { setImageFailed(true); setImageLoaded(true); }}
+            onError={() => setImageLoaded(true)}
           />
         </Link>
         <div className="pointer-events-none absolute inset-x-3 top-3 flex items-start justify-between gap-2">
